@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --radius: 16px; }
+body { @apply bg-gray-50 text-gray-900; }
+a { @apply underline-offset-2; }
+.btn { @apply rounded-xl px-4 py-2 font-semibold; }

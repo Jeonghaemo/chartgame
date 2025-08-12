@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  // 게임 경제
+  capital      Int      @default(10000000)
+  hearts       Int      @default(5)
+  maxHearts    Int      @default(5)
+  lastRefillAt DateTime @default(now())
+
+  accounts Account[]
+  sessions Session[]
+  games    Game[]
+
+  // 광고 시청 기록 역관계
+  adWatches AdWatch[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Game {
+  id         String    @id @default(cuid())
+  userId     String
+  code       String
+  startCash  Int
+  startIndex Int
+  endIndex   Int?
+  maxTurns   Int       @default(50)
+  feeBps     Int       @default(5)
+  createdAt  DateTime  @default(now())
+  finishedAt DateTime?
+  returnPct  Float?
+
+  orders    Order[]
+  snapshots BalanceSnapshot[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  gameId    String
+  side      String // BUY/SELL
+  price     Float
+  qty       Float
+  fee       Float    @default(0)
+  createdAt DateTime @default(now())
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, createdAt])
+}
+
+model BalanceSnapshot {
+  id        String   @id @default(cuid())
+  gameId    String
+  ts        Int
+  equity    Float
+  cash      Float
+  position  Float
+  createdAt DateTime @default(now())
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, ts])
+}
+
+model AdWatch {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String   // "COUPANG" | "NAVER"
+  clickedAt DateTime @default(now())
+  dayKey    String   // "YYYY-MM-DD" (Asia/Seoul 기준)
+  index     Int      // 1~4: 오늘의 시청 순번
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dayKey])
+  @@unique([userId, dayKey, index])  // 같은 날 같은 순번 중복 방지
+}
