@@ -8,24 +8,25 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const { symbol, total, returnPct, gameId } = await req.json();
+  const { symbol, total, returnPct, gameId, startCash } = await req.json();
 
-  if (!symbol || typeof total !== "number") {
+  if (!symbol || typeof total !== "number" || typeof returnPct !== "number") {
     return NextResponse.json({ ok: false, error: "BAD_REQUEST" }, { status: 400 });
   }
 
   // 1) Game 종료 처리
-  if (gameId) {
+  let finalGameId = gameId;
+  if (finalGameId) {
     await prisma.game.update({
-      where: { id: gameId },
+      where: { id: finalGameId },
       data: { finishedAt: new Date(), returnPct },
     });
   } else {
-    await prisma.game.create({
+    const game = await prisma.game.create({
       data: {
         userId: session.user.id,
         code: symbol,
-        startCash: 10_000_000, // 필요시 ChartGame에서 받은 startCash로 수정 가능
+        startCash: startCash ?? 10_000_000,
         startIndex: 0,
         endIndex: 0,
         feeBps: 5,
@@ -34,21 +35,24 @@ export async function POST(req: NextRequest) {
         returnPct,
       },
     });
+    finalGameId = game.id;
   }
 
-  // 2) Score 기록 저장 (모델명/필드명은 schema.prisma에 맞게 조정)
-  try {
+  // 2) Score 기록 저장 (동일한 게임 중복 저장 방지)
+  const exists = await prisma.score.findFirst({
+    where: { userId: session.user.id, gameId: finalGameId },
+  });
+
+  if (!exists) {
     await prisma.score.create({
       data: {
         userId: session.user.id,
         symbol,
         total,
         returnPct,
-        gameId: gameId ?? undefined,
+        gameId: finalGameId,
       },
     });
-  } catch (err) {
-    console.error("Score save skipped or failed:", err);
   }
 
   // 3) User 자본금 업데이트
@@ -58,14 +62,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
-}
-
-export async function GET() {
-  const top = await prisma.game.findMany({
-    where: { finishedAt: { not: null } },
-    orderBy: { returnPct: "desc" },
-    take: 50,
-    select: { id: true, code: true, returnPct: true, createdAt: true },
-  });
-  return NextResponse.json({ top });
 }
