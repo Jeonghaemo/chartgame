@@ -6,6 +6,7 @@ import CandleChart from '@/components/CandleChart'
 import { useGame } from '@/app/game/store/gameStore'
 import { valuation, pnlPct } from '@/app/game/store/helpers'
 import AdRecharge from "@/components/AdRecharge";
+import { useUserStore, UserState } from "@/lib/store/user";
 
 type OHLC = { time: number; open: number; high: number; low: number; close: number; volume?: number }
 type Trade = { side: 'BUY' | 'SELL'; price: number; qty: number; time: string }
@@ -18,8 +19,9 @@ export default function ChartGame() {
   const [ohlc, setOhlc] = useState<OHLC[]>([])
   const [chartKey, setChartKey] = useState(0)
   const [chartH, setChartH] = useState(720)
-  const [symbol, setSymbol] = useState<string>('') // 현재 종목 표시용
+  const [symbol, setSymbol] = useState<string>('')
   const [gameId, setGameId] = useState<string | null>(null)
+  const [startCapital, setStartCapital] = useState<number>(0)
 
   const universeRef = useRef<string[]>([])
   const bootedRef = useRef(false)
@@ -61,6 +63,16 @@ export default function ChartGame() {
   }, [])
 
   const loadAndInitBySymbol = useCallback(async (sym: string) => {
+    let capital = 10_000_000
+    try {
+      const meRes = await fetch('/api/me', { cache: 'no-store' })
+      if (meRes.ok) {
+        const me = await meRes.json()
+        capital = me?.user?.capital ?? 10_000_000
+      }
+    } catch {}
+    setStartCapital(capital)
+
     const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&range=2y&interval=1d`, { cache: 'no-store' })
     const { ohlc } = (await r.json()) as { ohlc: OHLC[] }
     setOhlc(ohlc)
@@ -76,13 +88,19 @@ export default function ChartGame() {
       maxTurns: 50,
       feeBps: g.feeBps ?? 5,
       slippageBps: g.slippageBps ?? 0,
+      startCash: capital,
     })
 
-    // ★ 게임 시작(생명력 1 차감 + Game 생성)
     const resp = await fetch('/api/game/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: sym, startIndex, startCash: 10_000_000, feeBps: g.feeBps ?? 5, maxTurns: 50 }),
+      body: JSON.stringify({
+        symbol: sym,
+        startIndex,
+        startCash: capital,
+        feeBps: g.feeBps ?? 5,
+        maxTurns: 50,
+      }),
     })
     if (resp.ok) {
       const { gameId } = await resp.json()
@@ -108,8 +126,7 @@ export default function ChartGame() {
       const chosen = pickRandom(uni)
       await loadAndInitBySymbol(chosen)
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loadUniverse, loadAndInitBySymbol])
 
   const resetGame = useCallback(async () => {
     let uni = universeRef.current
@@ -137,7 +154,7 @@ export default function ChartGame() {
 
   const last = g.prices[g.cursor]
   const { total } = useMemo(() => valuation(g.cash, g.shares, last), [g.cash, g.shares, last])
-  const ret = useMemo(() => pnlPct(10_000_000, total), [total])
+  const ret = useMemo(() => pnlPct(startCapital || 1, total), [startCapital, total])
 
   const visible = useMemo(() => {
     if (!ohlc.length) return []
@@ -148,7 +165,7 @@ export default function ChartGame() {
   const fmt = (n?: number) => (n == null ? '-' : n.toLocaleString())
   const fmt2 = (n?: number) => (n == null ? '-' : n.toFixed(2))
 
-  const trades = (g.history as unknown as Trade[])
+  const trades: Trade[] = g.history as any
 
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
@@ -164,7 +181,7 @@ export default function ChartGame() {
                 <CandleChart
                   key={chartKey}
                   data={visible}
-                  fullForMA={ohlc} 
+                  fullForMA={ohlc}
                   height={chartH}
                   sma={[20, 50, 60, 120, 240]}
                   showLegend
@@ -193,7 +210,7 @@ export default function ChartGame() {
               <Card className="p-6">
                 <div className="text-sm text-gray-500">게임현황</div>
                 <div className="mt-2 text-3xl font-bold">{fmt(total)} 원</div>
-                <div className="text-sm text-gray-500">초기자산 10,000,000</div>
+                <div className="text-sm text-gray-500">초기자산 {startCapital.toLocaleString()}</div>
                 <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>수익률 {fmt2(ret)}%</div>
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
@@ -231,7 +248,6 @@ export default function ChartGame() {
         </div>
       </div>
 
-      {/* 종료 모달 */}
       {g.status === 'ended' && (
         <EndModal total={total} ret={ret} symbol={symbol} onRetry={resetGame} gameId={gameId} />
       )}
@@ -242,22 +258,54 @@ export default function ChartGame() {
 function EndModal({ total, ret, symbol, onRetry, gameId }:{
   total:number; ret:number; symbol:string; onRetry:()=>void; gameId: string | null
 }) {
-  const save = async () => {
-    await fetch('/api/scores', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol, total, returnPct: ret, gameId }),
-    })
-    location.href = '/leaderboard'
-  }
+  const [saving, setSaving] = useState(true)
+  const [done, setDone] = useState(false)
+  const setCapital = useUserStore((s: UserState) => s.setCapital)
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const r = await fetch('/api/scores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol, total, returnPct: ret, gameId }),
+        })
+        if (!mounted) return
+        if (r.ok) {
+          setDone(true)
+          setCapital(total)
+        } else {
+          console.error('save failed', await r.text())
+        }
+      } catch (e) {
+        console.error(e)
+      } finally {
+        if (mounted) setSaving(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [symbol, total, ret, gameId, setCapital])
+
   return (
     <div className="fixed inset-0 bg-black/40 grid place-items-center z-50">
       <div className="w-[420px] rounded-2xl shadow-xl bg-white p-6">
         <div className="text-xl font-bold">게임 종료</div>
         <div className="mt-2">최종자산 {total.toLocaleString()}원 ({ret.toFixed(2)}%)</div>
+
+        <div className="mt-3 text-sm text-gray-500">
+          {saving
+            ? "기록 저장 중..."
+            : (done ? "저장 완료! 계정 자본에 반영되었습니다." : "저장을 완료하지 못했습니다. 다시 시도해 주세요.")}
+        </div>
+
         <div className="mt-4 flex justify-end gap-2">
-          <button className="rounded-xl border px-4 py-2 font-semibold hover:bg-gray-50" onClick={onRetry}>다시하기</button>
-          <button className="rounded-xl bg-black text-white px-4 py-2 font-semibold" onClick={save}>기록 저장</button>
+          <button className="rounded-xl border px-4 py-2 font-semibold hover:bg-gray-50" onClick={onRetry}>
+            다시하기
+          </button>
+          <a href="/leaderboard" className="rounded-xl bg-black text-white px-4 py-2 font-semibold">
+            리더보드
+          </a>
         </div>
       </div>
     </div>

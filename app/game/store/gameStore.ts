@@ -1,6 +1,14 @@
 "use client";
 import { create } from "zustand";
 
+// 거래 타입 따로 선언
+type Trade = {
+  side: "BUY" | "SELL";
+  price: number;
+  qty: number;
+  time: string;
+};
+
 type State = {
   symbol: string;
   prices: number[];
@@ -16,7 +24,7 @@ type State = {
   avgPrice: number | null;
 
   status: "idle" | "playing" | "ended";
-  history: { side: "BUY" | "SELL"; price: number; qty: number; time: string }[];
+  history: Trade[];
 };
 
 type InitInput = {
@@ -26,17 +34,20 @@ type InitInput = {
   maxTurns: number;
   feeBps: number;
   slippageBps: number;
+  startCash?: number; // ★ 시작자본 옵션
 };
 
 const INITIAL_CASH = 10_000_000;
 
-export const useGame = create<State & {
-  init: (x: InitInput) => void;
-  next: () => void;
-  buy: (qty: number) => void;
-  sell: (qty: number) => void;
-  end: () => void;
-}>((set, get) => ({
+export const useGame = create<
+  State & {
+    init: (x: InitInput) => void;
+    next: () => void;
+    buy: (qty: number) => void;
+    sell: (qty: number) => void;
+    end: () => void;
+  }
+>((set, get) => ({
   symbol: "",
   prices: [],
   startIndex: 0,
@@ -53,7 +64,8 @@ export const useGame = create<State & {
   status: "idle",
   history: [],
 
-  init: ({ symbol, prices, startIndex, maxTurns, feeBps, slippageBps }) => {
+  // ★ startCash 적용
+  init: ({ symbol, prices, startIndex, maxTurns, feeBps, slippageBps, startCash }) => {
     set({
       symbol,
       prices,
@@ -63,7 +75,7 @@ export const useGame = create<State & {
       turn: 0,
       feeBps,
       slippageBps,
-      cash: INITIAL_CASH,
+      cash: startCash ?? INITIAL_CASH,
       shares: 0,
       avgPrice: null,
       status: "playing",
@@ -80,6 +92,7 @@ export const useGame = create<State & {
     set({ cursor: nextCursor, turn: newTurn, status: shouldEnd ? "ended" : "playing" });
   },
 
+  // ★ BUY 리터럴 단언
   buy: (qty: number) => {
     const s = get();
     if (s.status !== "playing") return;
@@ -91,15 +104,20 @@ export const useGame = create<State & {
     if (s.cash < cost + fee) return;
     const newCash = s.cash - cost - fee;
     const newQty = s.shares + qty;
-    const newAvg = s.avgPrice == null ? fill : (s.avgPrice * s.shares + fill * qty) / newQty;
+    const newAvg =
+      s.avgPrice == null ? fill : (s.avgPrice * s.shares + fill * qty) / newQty;
     set({
       cash: Math.floor(newCash),
       shares: newQty,
       avgPrice: newAvg,
-      history: [{ side: "BUY", price: fill, qty, time: new Date().toISOString() }, ...s.history].slice(0, 200),
+      history: [
+        { side: "BUY" as "BUY", price: fill, qty, time: new Date().toISOString() },
+        ...s.history,
+      ].slice(0, 200),
     });
   },
 
+  // ★ SELL 리터럴 단언
   sell: (qty: number) => {
     const s = get();
     if (s.status !== "playing") return;
@@ -117,7 +135,10 @@ export const useGame = create<State & {
       cash: Math.floor(newCash),
       shares: newQty,
       avgPrice: newAvg,
-      history: [{ side: "SELL", price: fill, qty, time: new Date().toISOString() }, ...s.history].slice(0, 200),
+      history: [
+        { side: "SELL" as "SELL", price: fill, qty, time: new Date().toISOString() },
+        ...s.history,
+      ].slice(0, 200),
     });
   },
 
