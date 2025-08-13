@@ -9,13 +9,14 @@ export async function GET() {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const u = await prisma.user.findUnique({
+  let u = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
       id: true,
       capital: true,
       hearts: true,
       maxHearts: true,
+      lastRefillAt: true,
     },
   });
 
@@ -23,8 +24,36 @@ export async function GET() {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
 
+  // 자동 충전 로직
+  const now = new Date();
+  const diffHours = Math.floor(
+    (now.getTime() - u.lastRefillAt.getTime()) / (1000 * 60 * 60)
+  );
+
+  if (diffHours > 0 && u.hearts < u.maxHearts) {
+    const refillCount = Math.min(diffHours, u.maxHearts - u.hearts);
+    u = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        hearts: { increment: refillCount },
+        lastRefillAt: now,
+      },
+      select: {
+        id: true,
+        capital: true,
+        hearts: true,
+        maxHearts: true,
+        lastRefillAt: true,
+      },
+    });
+  }
+
+  // lastRefillAt을 ISO 문자열로 변환
   return NextResponse.json({
     ok: true,
-    user: u,
+    user: {
+      ...u,
+      lastRefillAt: u.lastRefillAt.toISOString(),
+    },
   });
 }
