@@ -14,6 +14,7 @@ export default async function GamePage() {
 
   return (
     <main className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-0">
+      
       <ChartGame />
     </main>
   );
