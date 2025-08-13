@@ -192,6 +192,7 @@ export default function ChartGame() {
 
             {/* 우: 사이드 패널 */}
             <aside className="space-y-4 overflow-auto">
+              <AdRecharge />
               <Card className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="text-base text-gray-600">
@@ -241,7 +242,7 @@ export default function ChartGame() {
                     </ul>
                   )}
                 </div>
-                <AdRecharge />
+                
               </Card>
             </aside>
           </div>
