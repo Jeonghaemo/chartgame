@@ -24,6 +24,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="flex items-center gap-3 text-sm">
               {session?.user ? (
                 <>
+                {/* 랭킹 보기 버튼 추가 */}
+          <Link href="/leaderboard">
+            <button className="rounded-md bg-yellow-400 hover:bg-yellow-500 px-3 py-1.5 text-sm font-semibold">
+              랭킹 보기
+            </button>
+          </Link>
                   <span className="text-slate-600">
                     자본금 {((session.user as any).capital ?? 10000000).toLocaleString()}원
                   </span>
