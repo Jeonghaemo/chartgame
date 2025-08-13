@@ -3,7 +3,7 @@
 
 import { create } from "zustand";
 
-type UserState = {
+export type UserState = {
   id?: string;
   capital?: number;
   hearts?: number;
@@ -11,6 +11,7 @@ type UserState = {
   // 액션
   setFromMe: () => Promise<void>;
   setHearts: (hearts: number) => void;
+  setCapital: (capital: number) => void; // ★ 추가
 };
 
 export const useUserStore = create<UserState>((set) => ({
@@ -38,4 +39,5 @@ export const useUserStore = create<UserState>((set) => ({
   },
 
   setHearts: (hearts: number) => set({ hearts }),
+  setCapital: (capital: number) => set({ capital }), // ★ 추가
 }));

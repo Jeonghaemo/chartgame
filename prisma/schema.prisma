@@ -23,6 +23,7 @@ model User {
   accounts Account[]
   sessions Session[]
   games    Game[]
+  scores   Score[]
 
   // 광고 시청 기록 역관계
   adWatches AdWatch[]
@@ -81,8 +82,8 @@ model Game {
 
   orders    Order[]
   snapshots BalanceSnapshot[]
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Score     Score[]
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -116,13 +117,28 @@ model BalanceSnapshot {
 model AdWatch {
   id        String   @id @default(cuid())
   userId    String
-  provider  String   // "COUPANG" | "NAVER"
+  provider  String // "COUPANG" | "NAVER"
   clickedAt DateTime @default(now())
-  dayKey    String   // "YYYY-MM-DD" (Asia/Seoul 기준)
-  index     Int      // 1~4: 오늘의 시청 순번
+  dayKey    String // "YYYY-MM-DD" (Asia/Seoul 기준)
+  index     Int // 1~4: 오늘의 시청 순번
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dayKey, index]) // 같은 날 같은 순번 중복 방지
   @@index([userId, dayKey])
-  @@unique([userId, dayKey, index])  // 같은 날 같은 순번 중복 방지
+}
+
+model Score {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String
+  total     Int
+  returnPct Float
+  gameId    String?
+  createdAt DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game? @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
