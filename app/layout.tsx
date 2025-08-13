@@ -1,11 +1,16 @@
 import "./globals.css";
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/lib/auth";
+import HeaderHearts from "@/components/HeaderHearts"; // ★ 추가
 
-export const metadata = { title: "차트게임", description: "알파스퀘어 스타일 50턴 차트게임" };
+export const metadata = {
+  title: "차트게임",
+  description: "알파스퀘어 스타일 50턴 차트게임",
+};
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
+
   return (
     <html lang="ko">
       <body className="min-h-screen bg-slate-50 text-slate-900">
@@ -14,15 +19,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav className="flex items-center gap-4">
               <Link href="/" className="font-semibold">차트게임</Link>
               <Link href="/game" className="text-sm text-slate-600 hover:text-slate-900">게임</Link>
-              
             </nav>
+
             <div className="flex items-center gap-3 text-sm">
               {session?.user ? (
                 <>
                   <span className="text-slate-600">
-                    자본금 {((session.user as any).capital ?? 10000000).toLocaleString()}원 ·
-                    생명력 {((session.user as any).hearts ?? 5)}/{((session.user as any).maxHearts ?? 5)}
+                    자본금 {((session.user as any).capital ?? 10000000).toLocaleString()}원
                   </span>
+                  <HeaderHearts /> {/* ★ 생명력 + 카운트다운 UI */}
                   <form action={async () => { "use server"; await signOut(); }}>
                     <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">로그아웃</button>
                   </form>
@@ -31,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <form
                   action={async () => {
                     "use server";
-                    await signIn(); // 프로바이더 선택 화면
+                    await signIn();
                   }}
                 >
                   <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">로그인</button>

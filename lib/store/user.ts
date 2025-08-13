@@ -8,6 +8,7 @@ export type UserState = {
   capital?: number;
   hearts?: number;
   maxHearts?: number;
+  lastRefillAt?: string;
   // 액션
   setFromMe: () => Promise<void>;
   setHearts: (hearts: number) => void;
@@ -31,6 +32,7 @@ export const useUserStore = create<UserState>((set) => ({
           capital: j.user.capital,
           hearts: j.user.hearts,
           maxHearts: j.user.maxHearts,
+          lastRefillAt: j.user.lastRefillAt,
         });
       }
     } catch {
