@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 declare global { interface Window { LightweightCharts?: any } }
 
 type OHLC = { time: number | string; open: number; high: number; low: number; close: number; volume?: number }
+type Trade = { time: number | string; side: "BUY" | "SELL" }
 type Props = {
   data: OHLC[]
   fullForMA?: OHLC[]
@@ -12,6 +13,7 @@ type Props = {
   sma?: number[]
   showLegend?: boolean
   showVolume?: boolean
+  trades?: Trade[]
 }
 
 function toDayTs(t: number | string): number {
@@ -44,6 +46,7 @@ export default function CandleChart({
   sma = [20, 60, 120, 240],
   showLegend = true,
   showVolume = true,
+  trades = []
 }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const topRef = useRef<HTMLDivElement | null>(null)
@@ -141,6 +144,7 @@ export default function CandleChart({
         height: dims.main,
         width: topRef.current.clientWidth,
         layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#374151" },
+        leftPriceScale: { visible: false }, // ✅ 왼쪽 가격축 숨기기
         rightPriceScale: { borderColor: "#e5e7eb", scaleMargins: { top: 0.05, bottom: 0.05 } },
         timeScale: { borderColor: "#e5e7eb", visible: true },
         grid: { vertLines: { color: "#eff2f6" }, horzLines: { color: "#eff2f6" } },
@@ -150,8 +154,9 @@ export default function CandleChart({
         upColor: up, downColor: down,
         borderUpColor: up, borderDownColor: down,
         wickUpColor: up, wickDownColor: down,
-        priceLineVisible: false,
-        lastValueVisible: false,
+        priceLineVisible: true,
+        lastValueVisible: true,
+        priceFormat: { type: "price", precision: 0, minMove: 1 } // ✅ 가격 정수 표시
       })
 
       const chartVol = createChart(volRef.current, {
@@ -174,7 +179,6 @@ export default function CandleChart({
       candleRef.current = candle
       volSeriesRef.current = volSeries
 
-      // 초기 SMA 라인 세팅
       sma.forEach(p => {
         const key = `SMA${p}`
         const line = chartTop.addLineSeries({
@@ -195,35 +199,52 @@ export default function CandleChart({
       roRef.current = ro
 
       chartTop.timeScale().subscribeVisibleTimeRangeChange((range: any) => {
-  // 초기엔 range가 null이거나 from/to가 비어 있는 경우가 자주 발생
-  if (!range || range.from == null || range.to == null) return;
-  const volTs = chartVol.timeScale?.();
-  if (!volTs || typeof volTs.setVisibleRange !== "function") return;
-
-  try {
-    volTs.setVisibleRange({ from: range.from, to: range.to });
-  } catch {
-    // 라이브러리가 간혹 초기 상태에서 예외를 던짐 → 무시
-  }
-});
-
+        if (!range || range.from == null || range.to == null) return
+        try {
+          chartVol.timeScale().setVisibleRange({ from: range.from, to: range.to })
+        } catch {}
+      })
 
       candle.setData(candles)
+
+      if (Array.isArray(trades) && trades.length > 0) {
+  const markers = trades.map(t => {
+    // 1. 날짜 변환
+    const tradeTime = toDayTs(t.time)
+
+    // 2. candles 배열에서 동일한 time 찾기
+    const candleMatch = candles.find(c => c.time === tradeTime)
+
+    // 3. 없으면 가장 가까운 캔들의 time 사용
+    const matchedTime = candleMatch
+      ? candleMatch.time
+      : candles.reduce((prev, curr) => {
+          return Math.abs((curr.time as number) - tradeTime) <
+                 Math.abs((prev.time as number) - tradeTime)
+            ? curr
+            : prev
+        }).time
+
+    // 4. 마커 객체 리턴
+    return {
+      time: matchedTime,
+      position: t.side === "BUY" ? "belowBar" : "aboveBar",
+      color: t.side === "BUY" ? "#e63946" : "#457b9d",
+      shape: t.side === "BUY" ? "arrowUp" : "arrowDown",
+      text: t.side === "BUY" ? "매수" : "매도"
+    }
+  })
+
+  candle.setMarkers(markers)
+}
+
+
       volSeries.setData(volumes)
       for (const key of Object.keys(lineRefs.current)) {
         lineRefs.current[key].setData(smaVisible[key] ?? [])
       }
 
-      chartTop.timeScale().scrollToRealTime();
-const r = chartTop.timeScale().getVisibleRange();
-if (r && r.from != null && r.to != null) {
-  const volTs = chartVol.timeScale?.();
-  if (volTs && typeof volTs.setVisibleRange === "function") {
-    try { volTs.setVisibleRange({ from: r.from, to: r.to }); } catch {}
-  }
-}
- 
-
+      chartTop.timeScale().scrollToRealTime()
     }
 
     load()
@@ -235,47 +256,7 @@ if (r && r.from != null && r.to != null) {
       lineRefs.current = {}
       mountedRef.current = false
     }
-  }, [])
-
-  // ✅ 데이터나 SMA 기간 변경 시 라인 시리즈 완전 재생성
-  useEffect(() => {
-    if (!chartTopRef.current) return
-    Object.values(lineRefs.current).forEach(line => chartTopRef.current.removeSeries(line))
-    lineRefs.current = {}
-    sma.forEach(p => {
-      const key = `SMA${p}`
-      const line = chartTopRef.current.addLineSeries({
-        lineWidth: 2,
-        color: pickSMAColor(key),
-        priceLineVisible: false,
-        lastValueVisible: false,
-      })
-      lineRefs.current[key] = line
-      line.setData(smaVisible[key] ?? [])
-    })
-  }, [smaVisible, sma])
-
-  useEffect(() => {
-    if (!candleRef.current || !volSeriesRef.current || !chartTopRef.current || !chartVolRef.current) return
-
-    candleRef.current.setData(candles)
-    volSeriesRef.current.setData(volumes)
-    for (const key of Object.keys(lineRefs.current)) {
-      lineRefs.current[key].setData(smaVisible[key] ?? [])
-    }
-
-    chartTopRef.current.timeScale().scrollToRealTime()
-    const r = chartTopRef.current.timeScale().getVisibleRange()
-    if (r) chartVolRef.current.timeScale().setVisibleRange(r)
-  }, [candles, volumes, smaVisible])
-
-  useEffect(() => {
-    if (!chartTopRef.current || !chartVolRef.current) return
-    chartTopRef.current.applyOptions({ height: dims.main })
-    chartVolRef.current.applyOptions({ height: dims.vol })
-    const r = chartTopRef.current.timeScale().getVisibleRange()
-    if (r) chartVolRef.current.timeScale().setVisibleRange(r)
-  }, [dims])
+  }, [candles, volumes, smaVisible, trades, dims.main, dims.vol, sma])
 
   const deltas = useMemo(() => {
     if (data.length < 2) return { o: 0, h: 0, l: 0, c: 0 }
