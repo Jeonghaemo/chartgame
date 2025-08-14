@@ -7,6 +7,8 @@ import { useGame } from '@/app/game/store/gameStore'
 import { valuation, pnlPct } from '@/app/game/store/helpers'
 import AdRecharge from "@/components/AdRecharge";
 import { useUserStore, UserState } from "@/lib/store/user";
+import OrderModal from "@/components/OrderModal";
+import GameResultModal from "@/components/GameResultModal"
 
 type OHLC = { time: number; open: number; high: number; low: number; close: number; volume?: number }
 type Trade = { side: 'BUY' | 'SELL'; price: number; qty: number; time: string }
@@ -22,6 +24,19 @@ export default function ChartGame() {
   const [symbol, setSymbol] = useState<string>('')
   const [gameId, setGameId] = useState<string | null>(null)
   const [startCapital, setStartCapital] = useState<number>(0)
+  const [orderType, setOrderType] = useState<null | "buy" | "sell">(null)
+
+  const [isGameEnd, setIsGameEnd] = useState(false)
+  const [result, setResult] = useState<null | {
+    startCapital: number
+    endCapital: number
+    profit: number
+    profitRate: number
+    tax: number
+    tradeCount: number
+    turnCount: number
+    heartsLeft: number
+  }>(null)
 
   const universeRef = useRef<string[]>([])
   const bootedRef = useRef(false)
@@ -34,7 +49,6 @@ export default function ChartGame() {
   }, [])
 
   const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
-
   const pickRandomStart = (len: number) => {
     const warmup = 120, tail = 60
     if (len <= warmup + tail) return Math.max(0, len - (tail + 1))
@@ -138,34 +152,44 @@ export default function ChartGame() {
     await loadAndInitBySymbol(chosen)
   }, [loadAndInitBySymbol, loadUniverse])
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (g.status !== 'playing') return
-      const el = e.target as HTMLElement
-      if (['INPUT','TEXTAREA'].includes(el?.tagName ?? '')) return
-      const k = e.key.toLowerCase()
-      if (k === 'a') g.buy(1)
-      else if (k === 's') g.sell(1)
-      else if (k === 'd' || k === ' ') g.next()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [g])
-
-  const last = g.prices[g.cursor]
+  // 가격/수익률 계산 (순서 조정)
+  const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
   const { total } = useMemo(() => valuation(g.cash, g.shares, last), [g.cash, g.shares, last])
-  const ret = useMemo(() => pnlPct(startCapital || 1, total), [startCapital, total])
+  const ret = useMemo(() => pnlPct(startCapital || 1, Math.round(total)), [startCapital, total])
 
-  const visible = useMemo(() => {
-    if (!ohlc.length) return []
-    const end = Math.min(g.cursor + 1, ohlc.length)
-    return ohlc.slice(0, end)
-  }, [ohlc, g.cursor])
+  // 자동 종료 감지
+  useEffect(() => {
+    if (g.turn + 1 >= g.maxTurns && g.status === 'playing') {
+      endGame()
+    }
+  }, [g.turn, g.maxTurns, g.status])
 
-  const fmt = (n?: number) => (n == null ? '-' : n.toLocaleString())
-  const fmt2 = (n?: number) => (n == null ? '-' : n.toFixed(2))
+  const endGame = useCallback(() => {
+    setResult({
+      startCapital,
+      endCapital: total,
+      profit: total - startCapital,
+      profitRate: ret,
+      tax: 0,
+      tradeCount: g.history.length,
+      turnCount: g.turn + 1,
+      heartsLeft: 4
+    })
+    setIsGameEnd(true)
+    g.end()
+  }, [startCapital, total, ret, g.history.length, g.turn, g])
+
+  const fmt = (n?: number) => (n == null ? '-' : Math.round(n).toLocaleString())
 
   const trades: Trade[] = g.history as any
+
+  const maxBuyShares = Math.floor(g.cash / (last || 1))
+  const maxSellShares = g.shares
+
+  const handleOrderSubmit = (qty: number) => {
+    if (orderType === "buy") g.buy(qty)
+    if (orderType === "sell") g.sell(qty)
+  }
 
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
@@ -180,7 +204,7 @@ export default function ChartGame() {
                 </div>
                 <CandleChart
                   key={chartKey}
-                  data={visible}
+                  data={ohlc.slice(0, g.cursor + 1)}
                   fullForMA={ohlc}
                   height={chartH}
                   sma={[20, 50, 60, 120, 240]}
@@ -198,12 +222,12 @@ export default function ChartGame() {
                   <div className="text-base text-gray-600">
                     <span className="font-semibold">{String(g.turn + 1).padStart(2, '0')}</span>/{g.maxTurns}턴 · 일
                   </div>
-                  <button onClick={() => g.end()} className="rounded-xl border px-4 py-2 text-base hover:bg-gray-50">게임 종료</button>
+                  <button onClick={endGame} className="rounded-xl border px-4 py-2 text-base hover:bg-gray-50">게임 종료</button>
                 </div>
 
                 <div className="mt-4 grid grid-cols-3 gap-3">
-                  <button onClick={() => g.buy(1)} className="col-span-1 rounded-xl bg-red-600 text-white py-3 font-semibold hover:bg-red-700">매수 (A)</button>
-                  <button onClick={() => g.sell(1)} className="col-span-1 rounded-xl bg-blue-600 text-white py-3 font-semibold hover:bg-blue-700">매도 (S)</button>
+                  <button onClick={() => setOrderType("buy")} className="col-span-1 rounded-xl bg-red-600 text-white py-3 font-semibold hover:bg-red-700">매수 (A)</button>
+                  <button onClick={() => setOrderType("sell")} className="col-span-1 rounded-xl bg-blue-600 text-white py-3 font-semibold hover:bg-blue-700">매도 (S)</button>
                   <button onClick={() => g.next()} className="col-span-1 rounded-xl bg-gray-900 text-white py-3 font-semibold hover:bg-black">다음 (D)</button>
                 </div>
               </Card>
@@ -211,14 +235,14 @@ export default function ChartGame() {
               <Card className="p-6">
                 <div className="text-sm text-gray-500">게임현황</div>
                 <div className="mt-2 text-3xl font-bold">{fmt(total)} 원</div>
-                <div className="text-sm text-gray-500">초기자산 {startCapital.toLocaleString()}</div>
-                <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>수익률 {fmt2(ret)}%</div>
+                <div className="text-sm text-gray-500">초기자산 {fmt(startCapital)}</div>
+                <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>수익률 {ret.toFixed(2)}%</div>
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
                   <div className="text-gray-500">보유현금</div><div className="text-right">{fmt(g.cash)}</div>
-                  <div className="text-gray-500">주식수</div><div className="text-right">{g.shares}</div>
-                  <div className="text-gray-500">평단가</div><div className="text-right">{g.avgPrice ? Math.round(g.avgPrice).toLocaleString() : '-'}</div>
-                  <div className="text-gray-500">현재가</div><div className="text-right">{last?.toLocaleString?.() ?? '-'}</div>
+                  <div className="text-gray-500">주식수</div><div className="text-right">{fmt(g.shares)}</div>
+                  <div className="text-gray-500">평단가</div><div className="text-right">{g.avgPrice ? fmt(g.avgPrice) : '-'}</div>
+                  <div className="text-gray-500">현재가</div><div className="text-right">{last != null ? fmt(last) : '-'}</div>
                 </div>
               </Card>
 
@@ -234,81 +258,37 @@ export default function ChartGame() {
                           <span className={t.side === 'BUY' ? 'text-red-600 font-semibold' : 'text-blue-600 font-semibold'}>
                             {t.side === 'BUY' ? '매수' : '매도'}
                           </span>
-                          <span>{Math.round(t.price).toLocaleString()}</span>
-                          <span className="text-gray-500">{t.qty}주</span>
+                          <span>{fmt(Math.round(t.price))}</span>
+                          <span className="text-gray-500">{fmt(t.qty)}주</span>
                           <span className="text-gray-400">{new Date(t.time).toLocaleDateString('ko-KR')}</span>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
-                
               </Card>
             </aside>
           </div>
         </div>
       </div>
 
-      {g.status === 'ended' && (
-        <EndModal total={total} ret={ret} symbol={symbol} onRetry={resetGame} gameId={gameId} />
+      {isGameEnd && result && (
+        <GameResultModal
+          isOpen={isGameEnd}
+          onClose={() => setIsGameEnd(false)}
+          result={result}
+        />
       )}
-    </div>
-  )
-}
 
-function EndModal({ total, ret, symbol, onRetry, gameId }:{
-  total:number; ret:number; symbol:string; onRetry:()=>void; gameId: string | null
-}) {
-  const [saving, setSaving] = useState(true)
-  const [done, setDone] = useState(false)
-  const setCapital = useUserStore((s: UserState) => s.setCapital)
-
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const r = await fetch('/api/scores', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol, total, returnPct: ret, gameId }),
-        })
-        if (!mounted) return
-        if (r.ok) {
-          setDone(true)
-          setCapital(total)
-        } else {
-          console.error('save failed', await r.text())
-        }
-      } catch (e) {
-        console.error(e)
-      } finally {
-        if (mounted) setSaving(false)
-      }
-    })()
-    return () => { mounted = false }
-  }, [symbol, total, ret, gameId, setCapital])
-
-  return (
-    <div className="fixed inset-0 bg-black/40 grid place-items-center z-50">
-      <div className="w-[420px] rounded-2xl shadow-xl bg-white p-6">
-        <div className="text-xl font-bold">게임 종료</div>
-        <div className="mt-2">최종자산 {total.toLocaleString()}원 ({ret.toFixed(2)}%)</div>
-
-        <div className="mt-3 text-sm text-gray-500">
-          {saving
-            ? "기록 저장 중..."
-            : (done ? "저장 완료! 계정 자본에 반영되었습니다." : "저장을 완료하지 못했습니다. 다시 시도해 주세요.")}
-        </div>
-
-        <div className="mt-4 flex justify-end gap-2">
-          <button className="rounded-xl border px-4 py-2 font-semibold hover:bg-gray-50" onClick={onRetry}>
-            다시하기
-          </button>
-          <a href="/leaderboard" className="rounded-xl bg-black text-white px-4 py-2 font-semibold">
-            리더보드
-          </a>
-        </div>
-      </div>
+      {orderType && (
+        <OrderModal
+          type={orderType}
+          currentPrice={last || 0}
+          maxShares={orderType === "buy" ? maxBuyShares : maxSellShares}
+          onClose={() => setOrderType(null)}
+          onSubmit={handleOrderSubmit}
+        />
+      )}
     </div>
   )
 }
