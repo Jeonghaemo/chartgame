@@ -6,7 +6,6 @@ import CandleChart from '@/components/CandleChart'
 import { useGame } from '@/app/game/store/gameStore'
 import { valuation, pnlPct } from '@/app/game/store/helpers'
 import AdRecharge from "@/components/AdRecharge";
-import { useUserStore, UserState } from "@/lib/store/user";
 import OrderModal from "@/components/OrderModal";
 import GameResultModal from "@/components/GameResultModal"
 
@@ -36,17 +35,23 @@ export default function ChartGame() {
     tradeCount: number
     turnCount: number
     heartsLeft: number
+    rank: number | null
+    prevRank: number | null
   }>(null)
 
   const universeRef = useRef<string[]>([])
   const bootedRef = useRef(false)
 
+  // 단축키 매핑
   useEffect(() => {
-    const calc = () => setChartH(Math.max(560, Math.floor(window.innerHeight - 160)))
-    calc()
-    window.addEventListener('resize', calc)
-    return () => window.removeEventListener('resize', calc)
-  }, [])
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'a') setOrderType("buy")
+      if (e.key.toLowerCase() === 's') setOrderType("sell")
+      if (e.key.toLowerCase() === 'd') g.next()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [g])
 
   const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
   const pickRandomStart = (len: number) => {
@@ -152,37 +157,53 @@ export default function ChartGame() {
     await loadAndInitBySymbol(chosen)
   }, [loadAndInitBySymbol, loadUniverse])
 
-  // 가격/수익률 계산 (순서 조정)
+  // 가격/수익률 계산
   const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
   const { total } = useMemo(() => valuation(g.cash, g.shares, last), [g.cash, g.shares, last])
   const ret = useMemo(() => pnlPct(startCapital || 1, Math.round(total)), [startCapital, total])
 
-  // 자동 종료 감지
+  // 자동 종료
   useEffect(() => {
     if (g.turn + 1 >= g.maxTurns && g.status === 'playing') {
       endGame()
     }
   }, [g.turn, g.maxTurns, g.status])
 
-  const endGame = useCallback(() => {
-    setResult({
-      startCapital,
-      endCapital: total,
-      profit: total - startCapital,
-      profitRate: ret,
-      tax: 0,
-      tradeCount: g.history.length,
-      turnCount: g.turn + 1,
-      heartsLeft: 4
-    })
-    setIsGameEnd(true)
-    g.end()
-  }, [startCapital, total, ret, g.history.length, g.turn, g])
+  const endGame = useCallback(async () => {
+  let rank: number | null = null
+  let prevRank: number | null = null
+
+  try {
+    const res = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' }) // 리더보드 API 호출
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.myRank) {
+        rank = data.myRank.rank ?? null
+        prevRank = null // 필요하다면 서버에서 추가 구현
+      }
+    }
+  } catch (e) {
+    console.error('순위 불러오기 실패:', e)
+  }
+
+  setResult({
+    startCapital,
+    endCapital: total,
+    profit: total - startCapital,
+    profitRate: ret,
+    tax: 0,
+    tradeCount: g.history.length,
+    turnCount: g.turn + 1,
+    heartsLeft: 4,
+    rank,
+    prevRank
+  })
+  setIsGameEnd(true)
+  g.end()
+}, [startCapital, total, ret, g.history.length, g.turn, g])
 
   const fmt = (n?: number) => (n == null ? '-' : Math.round(n).toLocaleString())
-
   const trades: Trade[] = g.history as any
-
   const maxBuyShares = Math.floor(g.cash / (last || 1))
   const maxSellShares = g.shares
 
@@ -275,7 +296,10 @@ export default function ChartGame() {
       {isGameEnd && result && (
         <GameResultModal
           isOpen={isGameEnd}
-          onClose={() => setIsGameEnd(false)}
+          onClose={() => {
+            setIsGameEnd(false)
+            resetGame()
+          }}
           result={result}
         />
       )}
