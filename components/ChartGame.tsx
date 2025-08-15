@@ -157,12 +157,10 @@ export default function ChartGame() {
     await loadAndInitBySymbol(chosen)
   }, [loadAndInitBySymbol, loadUniverse])
 
-  // 가격/수익률 계산
   const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
   const { total } = useMemo(() => valuation(g.cash, g.shares, last), [g.cash, g.shares, last])
   const ret = useMemo(() => pnlPct(startCapital || 1, Math.round(total)), [startCapital, total])
 
-  // 자동 종료
   useEffect(() => {
     if (g.turn + 1 >= g.maxTurns && g.status === 'playing') {
       endGame()
@@ -170,47 +168,73 @@ export default function ChartGame() {
   }, [g.turn, g.maxTurns, g.status])
 
   const endGame = useCallback(async () => {
-  let rank: number | null = null
-  let prevRank: number | null = null
+    let rank: number | null = null
+    let prevRank: number | null = null
 
-  try {
-    const res = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' }) // 리더보드 API 호출
-    if (res.ok) {
-      const data = await res.json()
-      if (data?.myRank) {
-        rank = data.myRank.rank ?? null
-        prevRank = null // 필요하다면 서버에서 추가 구현
+    try {
+      const res = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.myRank) {
+          rank = data.myRank.rank ?? null
+          prevRank = null
+        }
       }
+    } catch (e) {
+      console.error('순위 불러오기 실패:', e)
     }
-  } catch (e) {
-    console.error('순위 불러오기 실패:', e)
-  }
 
-  setResult({
-    startCapital,
-    endCapital: total,
-    profit: total - startCapital,
-    profitRate: ret,
-    tax: 0,
-    tradeCount: g.history.length,
-    turnCount: g.turn + 1,
-    heartsLeft: 4,
-    rank,
-    prevRank
-  })
-  setIsGameEnd(true)
-  g.end()
-}, [startCapital, total, ret, g.history.length, g.turn, g])
+    setResult({
+      startCapital,
+      endCapital: total,
+      profit: total - startCapital,
+      profitRate: ret,
+      tax: 0,
+      tradeCount: g.history.length,
+      turnCount: g.turn + 1,
+      heartsLeft: 4,
+      rank,
+      prevRank
+    })
+    setIsGameEnd(true)
+    g.end()
+  }, [startCapital, total, ret, g.history.length, g.turn, g])
 
   const fmt = (n?: number) => (n == null ? '-' : Math.round(n).toLocaleString())
-  const trades: Trade[] = g.history as any
+  const trades: Trade[] = useMemo(() => {
+  // 현재까지 보이는 OHLC 데이터의 UTC 초 단위 타임스탬프 집합
+  const visibleTimes = new Set(
+    ohlc.slice(0, g.cursor + 1).map(d => {
+      return typeof d.time === "number"
+        ? (d.time > 1e12 ? Math.floor(d.time / 1000) : d.time)
+        : Math.floor(new Date(d.time).getTime() / 1000);
+    })
+  );
+
+  // 거래내역에서 현재 보이는 구간만 필터링
+  return (g.history as Trade[]).filter(t => {
+    const tradeTime = typeof t.time === "number"
+      ? (t.time > 1e12 ? Math.floor(t.time / 1000) : t.time)
+      : Math.floor(new Date(t.time).getTime() / 1000);
+    return visibleTimes.has(tradeTime);
+  });
+}, [ohlc, g.cursor, g.history]);
   const maxBuyShares = Math.floor(g.cash / (last || 1))
   const maxSellShares = g.shares
 
   const handleOrderSubmit = (qty: number) => {
-    if (orderType === "buy") g.buy(qty)
-    if (orderType === "sell") g.sell(qty)
-  }
+  const currentOhlc = ohlc[g.cursor];
+  const tradeTime =
+    typeof currentOhlc.time === "number"
+      ? (currentOhlc.time > 1e12
+          ? Math.floor(currentOhlc.time / 1000)
+          : currentOhlc.time)
+      : Math.floor(new Date(currentOhlc.time).getTime() / 1000);
+
+  if (orderType === "buy") g.buy(qty, tradeTime);
+  if (orderType === "sell") g.sell(qty, tradeTime);
+};
+
 
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
@@ -231,6 +255,7 @@ export default function ChartGame() {
                   sma={[20, 50, 60, 120, 240]}
                   showLegend
                   showVolume
+                  trades={trades} // 🔹 매매 마커 표시
                 />
               </Card>
             </div>
