@@ -17,26 +17,19 @@ type Props = {
 }
 
 function toDayTs(t: number | string): number {
-  const d = typeof t === "number" ? new Date(t > 1e12 ? t : t * 1000) : new Date(t)
-  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000)
+  const d = typeof t === "number" ? new Date(t > 1e12 ? t : t * 1000) : new Date(t);
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 1000);
 }
 
 function calcSMA(closes: number[], period: number) {
-  const out: (number | null)[] = Array(closes.length).fill(null)
-  let sum = 0
+  const out: (number | null)[] = Array(closes.length).fill(null);
+  let sum = 0;
   for (let i = 0; i < closes.length; i++) {
-    sum += closes[i]
-    if (i >= period) sum -= closes[i - period]
-    if (i >= period - 1) out[i] = sum / period
+    sum += closes[i];
+    if (i >= period) sum -= closes[i - period];
+    if (i >= period - 1) out[i] = sum / period;
   }
-  return out
-}
-
-function splitHeights(total: number) {
-  const volPct = 0.26, gap = 10
-  const vol = Math.max(100, Math.round(total * volPct))
-  const main = Math.max(200, total - vol - gap)
-  return { main, vol }
+  return out;
 }
 
 export default function CandleChart({
@@ -48,223 +41,187 @@ export default function CandleChart({
   showVolume = true,
   trades = []
 }: Props) {
-  const rootRef = useRef<HTMLDivElement | null>(null)
-  const topRef = useRef<HTMLDivElement | null>(null)
-  const volRef = useRef<HTMLDivElement | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<any>(null);
+  const candleRef = useRef<any>(null);
+  const volSeriesRef = useRef<any>(null);
+  const lineRefs = useRef<Record<string, any>>({});
 
-  const chartTopRef = useRef<any>(null)
-  const chartVolRef = useRef<any>(null)
-  const candleRef = useRef<any>(null)
-  const volSeriesRef = useRef<any>(null)
-  const lineRefs = useRef<Record<string, any>>({})
+  const roRef = useRef<ResizeObserver | null>(null);
 
-  const roRef = useRef<ResizeObserver | null>(null)
-  const mountedRef = useRef(false)
-
-  const [dims, setDims] = useState(() => splitHeights(height))
-
-  const baseAll = useMemo(() => (fullForMA?.length ? fullForMA : data), [fullForMA, data])
-  const baseTs = useMemo(() => baseAll.map(d => toDayTs(d.time)), [baseAll])
-  const baseCloses = useMemo(() => baseAll.map(d => d.close), [baseAll])
+  const baseAll = useMemo(() => (fullForMA?.length ? fullForMA : data), [fullForMA, data]);
+  const baseTs = useMemo(() => baseAll.map(d => toDayTs(d.time)), [baseAll]);
+  const baseCloses = useMemo(() => baseAll.map(d => d.close), [baseAll]);
 
   const candles = useMemo(() => {
-    const arr = data.map(d => ({
+    return [...data.map(d => ({
       time: toDayTs(d.time),
       open: d.open, high: d.high, low: d.low, close: d.close
-    }))
-    arr.sort((a,b) => (a.time as number) - (b.time as number))
-    return arr
-  }, [data])
+    }))].sort((a, b) => (a.time as number) - (b.time as number));
+  }, [data]);
 
   const volumes = useMemo(() => {
-    const arr = data.map((d, i) => ({
+    return [...data.map((d, i) => ({
       time: toDayTs(d.time),
       value: d.volume ?? 0,
       color: i === 0 || d.close >= (data[i - 1]?.close ?? d.close) ? "#ef4444CC" : "#3b82f6CC",
-    }))
-    arr.sort((a,b) => (a.time as number) - (b.time as number))
-    return arr
-  }, [data])
+    }))].sort((a, b) => (a.time as number) - (b.time as number));
+  }, [data]);
 
   const smaFull = useMemo(() => {
-    const out: Record<string, { time: number; value: number }[]> = {}
+    const out: Record<string, { time: number; value: number }[]> = {};
     for (const p of sma) {
-      const arr = calcSMA(baseCloses, p)
-      const series: { time: number; value: number }[] = []
+      const arr = calcSMA(baseCloses, p);
+      const series: { time: number; value: number }[] = [];
       for (let i = 0; i < arr.length; i++) {
-        const v = arr[i]
-        if (v == null) continue
-        series.push({ time: baseTs[i], value: Number(v) })
+        if (arr[i] != null) series.push({ time: baseTs[i], value: Number(arr[i]) });
       }
-      out[`SMA${p}`] = series
+      out[`SMA${p}`] = series;
     }
-    return out
-  }, [baseCloses, baseTs, sma])
+    return out;
+  }, [baseCloses, baseTs, sma]);
 
   const smaVisible = useMemo(() => {
-    const lastTs = candles.length ? (candles[candles.length - 1].time as number) : null
-    const out: Record<string, { time: number; value: number }[]> = {}
+    const lastTs = candles.length ? (candles[candles.length - 1].time as number) : null;
+    const out: Record<string, { time: number; value: number }[]> = {};
     for (const k of Object.keys(smaFull)) {
-      out[k] = lastTs == null ? [] : (smaFull[k] ?? []).filter(pt => pt.time <= lastTs)
+      out[k] = lastTs == null ? [] : (smaFull[k] ?? []).filter(pt => pt.time <= lastTs);
     }
-    return out
-  }, [candles, smaFull])
-
-  useEffect(() => setDims(splitHeights(height)), [height])
+    return out;
+  }, [candles, smaFull]);
 
   useEffect(() => {
-    if (mountedRef.current) return
-    mountedRef.current = true
-
-    const load = async () => {
+    const init = async () => {
       if (!window.LightweightCharts) {
         await new Promise<void>((resolve, reject) => {
-          const id = "lwc-umd"
+          const id = "lwc-umd";
           if (document.getElementById(id)) {
-            const el = document.getElementById(id) as HTMLScriptElement
-            el.addEventListener("load", () => resolve())
-            el.addEventListener("error", e => reject(e))
+            const el = document.getElementById(id) as HTMLScriptElement;
+            el.addEventListener("load", () => resolve());
+            el.addEventListener("error", e => reject(e));
           } else {
-            const s = document.createElement("script")
-            s.id = id
-            s.src = "https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"
-            s.async = true
-            s.onload = () => resolve()
-            s.onerror = (e) => reject(e)
-            document.body.appendChild(s)
+            const s = document.createElement("script");
+            s.id = id;
+            s.src = "https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js";
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = (e) => reject(e);
+            document.body.appendChild(s);
           }
-        })
+        });
       }
-      if (!topRef.current || !volRef.current) return
+      if (!rootRef.current) return;
 
-      const { createChart, ColorType } = window.LightweightCharts
-      const up = "#ef4444", down = "#3b82f6"
+      const { createChart, ColorType } = window.LightweightCharts;
+      const up = "#ef4444", down = "#3b82f6";
 
-      // 메인 차트
-      const chartTop = createChart(topRef.current, {
-        height: dims.main,
-        width: topRef.current.clientWidth,
+      const chart = createChart(rootRef.current, {
+        height,
+        width: rootRef.current.clientWidth,
         layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#374151" },
         leftPriceScale: { visible: false },
-        rightPriceScale: { borderColor: "#e5e7eb", scaleMargins: { top: 0.05, bottom: 0.05 } },
+        rightPriceScale: { borderColor: "#e5e7eb", scaleMargins: { top: 0.05, bottom: showVolume ? 0.25 : 0.05 } },
         timeScale: { borderColor: "#e5e7eb", visible: true },
         grid: { vertLines: { color: "#eff2f6" }, horzLines: { color: "#eff2f6" } },
         crosshair: { mode: 1 },
-      })
-      const candle = chartTop.addCandlestickSeries({
+      });
+
+      const candle = chart.addCandlestickSeries({
         upColor: up, downColor: down,
         borderUpColor: up, borderDownColor: down,
         wickUpColor: up, wickDownColor: down,
         priceLineVisible: true,
         lastValueVisible: true,
         priceFormat: { type: "price", precision: 0, minMove: 1 }
-      })
+      });
 
-      // 거래량 차트
-      const chartVol = createChart(volRef.current, {
-        height: dims.vol,
-        width: volRef.current.clientWidth,
-        layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#374151" },
-        rightPriceScale: { borderColor: "#e5e7eb" },
-        timeScale: { borderColor: "#e5e7eb", visible: false },
-        grid: { vertLines: { color: "#eff2f6" }, horzLines: { color: "#eff2f6" } },
-        crosshair: { mode: 1 },
-      })
-      const volSeries = chartVol.addHistogramSeries({
-        priceFormat: { type: "volume" },
-        lastValueVisible: false,
-        priceLineVisible: false,
-      })
+      let volSeries: any = null;
+      if (showVolume) {
+        volSeries = chart.addHistogramSeries({
+          priceScaleId: "volume",
+          priceFormat: { type: "volume" },
+          priceLineVisible: false,
+          lastValueVisible: false,
+          color: "#26a69a",
+        });
+        chart.priceScale("volume").applyOptions({
+          scaleMargins: { top: 0.8, bottom: 0 }
+        });
+      }
 
-      chartTopRef.current = chartTop
-      chartVolRef.current = chartVol
-      candleRef.current = candle
-      volSeriesRef.current = volSeries
+      chartRef.current = chart;
+      candleRef.current = candle;
+      volSeriesRef.current = volSeries;
 
-      // SMA 라인 추가
       sma.forEach(p => {
-        const key = `SMA${p}`
-        const line = chartTop.addLineSeries({
+        const key = `SMA${p}`;
+        const line = chart.addLineSeries({
           lineWidth: 2, color: pickSMAColor(key),
           priceLineVisible: false, lastValueVisible: false,
-        })
-        lineRefs.current[key] = line
-      })
+        });
+        lineRefs.current[key] = line;
+      });
 
-      // 리사이즈 반영
       const ro = new ResizeObserver(() => {
-        const w = rootRef.current?.clientWidth ?? 600
-        chartTop.applyOptions({ width: w })
-        chartVol.applyOptions({ width: w })
-        const r = chartTop.timeScale().getVisibleRange()
-        if (r) chartVol.timeScale().setVisibleRange(r)
-      })
-      ro.observe(rootRef.current!)
-      roRef.current = ro
+        const w = rootRef.current?.clientWidth ?? 600;
+        chart.applyOptions({ width: w });
+      });
+      ro.observe(rootRef.current!);
+      roRef.current = ro;
+    };
 
-      // 메인 차트 스크롤 → 거래량 차트 동기화
-      chartTop.timeScale().subscribeVisibleTimeRangeChange((range: any) => {
-        if (range?.from != null && range?.to != null) {
-          try {
-            chartVol.timeScale().setVisibleRange({ from: range.from, to: range.to })
-          } catch {}
-        }
-      })
-
-      // 데이터 세팅
-      candle.setData(candles)
-      volSeries.setData(volumes)
-
-      // 매수/매도 마커 표시
-      if (Array.isArray(trades) && trades.length > 0) {
-        const markers = trades.map(t => {
-          const tradeTime = toDayTs(t.time)
-          const candleMatch = candles.find(c => c.time === tradeTime)
-          const matchedTime = candleMatch
-            ? candleMatch.time
-            : candles.reduce((prev, curr) => {
-                return Math.abs((curr.time as number) - tradeTime) <
-                       Math.abs((prev.time as number) - tradeTime)
-                  ? curr
-                  : prev
-              }).time
-          return {
-            time: matchedTime,
-            position: t.side === "BUY" ? "belowBar" : "aboveBar",
-            color: t.side === "BUY" ? "#e63946" : "#457b9d",
-            shape: t.side === "BUY" ? "arrowUp" : "arrowDown",
-            text: t.side === "BUY" ? "매수" : "매도"
-          }
-        })
-        candle.setMarkers(markers)
-      }
-
-      // SMA 데이터 반영
-      for (const key of Object.keys(lineRefs.current)) {
-        lineRefs.current[key].setData(smaVisible[key] ?? [])
-      }
-
-      chartTop.timeScale().scrollToRealTime()
-    }
-
-    load()
+    init();
 
     return () => {
-      roRef.current?.disconnect()
-      chartTopRef.current?.remove?.()
-      chartVolRef.current?.remove?.()
-      lineRefs.current = {}
-      mountedRef.current = false
+      roRef.current?.disconnect();
+      chartRef.current?.remove?.();
+      lineRefs.current = {};
+    };
+  }, [height, showVolume, sma]);
+
+  // 데이터 세팅
+  useEffect(() => {
+    if (!candleRef.current) return;
+    candleRef.current.setData(candles);
+    volSeriesRef.current?.setData(volumes);
+
+    if (Array.isArray(trades) && trades.length > 0) {
+      const markers = trades.map(t => {
+        const tradeTime = toDayTs(t.time);
+        const candleMatch = candles.find(c => c.time === tradeTime);
+        const matchedTime = candleMatch
+          ? candleMatch.time
+          : candles.reduce((prev, curr) =>
+              Math.abs((curr.time as number) - tradeTime) <
+              Math.abs((prev.time as number) - tradeTime)
+                ? curr
+                : prev
+            ).time;
+        return {
+          time: matchedTime,
+          position: t.side === "BUY" ? "belowBar" : "aboveBar",
+          color: t.side === "BUY" ? "#e63946" : "#457b9d",
+          shape: t.side === "BUY" ? "arrowUp" : "arrowDown",
+          text: t.side === "BUY" ? "매수" : "매도"
+        };
+      });
+      candleRef.current.setMarkers(markers);
     }
-  }, [candles, volumes, smaVisible, trades, dims.main, dims.vol, sma])
+
+    for (const key of Object.keys(lineRefs.current)) {
+      lineRefs.current[key].setData(smaVisible[key] ?? []);
+    }
+
+    chartRef.current?.timeScale().scrollToRealTime();
+  }, [candles, volumes, smaVisible, trades]);
 
   const deltas = useMemo(() => {
-    if (data.length < 2) return { o: 0, h: 0, l: 0, c: 0 }
-    const last = data[data.length - 1], prev = data[data.length - 2]
-    const base = prev.close || 1
-    const pct = (v: number) => ((v - base) / base) * 100
-    return { o: pct(last.open), h: pct(last.high), l: pct(last.low), c: pct(last.close) }
-  }, [data])
+    if (data.length < 2) return { o: 0, h: 0, l: 0, c: 0 };
+    const last = data[data.length - 1], prev = data[data.length - 2];
+    const base = prev.close || 1;
+    const pct = (v: number) => ((v - base) / base) * 100;
+    return { o: pct(last.open), h: pct(last.high), l: pct(last.low), c: pct(last.close) };
+  }, [data]);
 
   return (
     <div ref={rootRef} className="relative w-full" style={{ height }}>
@@ -281,25 +238,21 @@ export default function CandleChart({
           {sma.map(p => <span key={p} className="font-bold">{`SMA ${p}`}</span>)}
         </div>
       )}
-
-      <div ref={topRef} style={{ height: dims.main }} />
-      <div className="border-t border-slate-200 my-1" />
-      {showVolume && <div ref={volRef} style={{ height: dims.vol }} />}
     </div>
-  )
+  );
 }
 
 function pickSMAColor(key: string) {
-  if (/SMA20/.test(key)) return "#8e24aa"
-  if (/SMA60/.test(key)) return "#ff9800"
-  if (/SMA120/.test(key)) return "#1976d2"
-  if (/SMA240/.test(key)) return "#2e7d32"
-  if (/SMA50/.test(key)) return "#6b7280"
-  return "#455a64"
+  if (/SMA20/.test(key)) return "#8e24aa";
+  if (/SMA60/.test(key)) return "#ff9800";
+  if (/SMA120/.test(key)) return "#1976d2";
+  if (/SMA240/.test(key)) return "#2e7d32";
+  if (/SMA50/.test(key)) return "#6b7280";
+  return "#455a64";
 }
 
 function Delta({ v }: { v: number }) {
-  const cls = v > 0 ? "text-red-600" : v < 0 ? "text-blue-600" : "text-gray-500"
-  const sign = v > 0 ? "+" : ""
-  return <b className={cls}>{`${sign}${v.toFixed(2)}%`}</b>
+  const cls = v > 0 ? "text-red-600" : v < 0 ? "text-blue-600" : "text-gray-500";
+  const sign = v > 0 ? "+" : "";
+  return <b className={cls}>{`${sign}${v.toFixed(2)}%`}</b>;
 }
