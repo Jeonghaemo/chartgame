@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react";
 
 declare global { interface Window { LightweightCharts?: any } }
 
@@ -140,11 +140,12 @@ export default function CandleChart({
       const { createChart, ColorType } = window.LightweightCharts
       const up = "#ef4444", down = "#3b82f6"
 
+      // 메인 차트
       const chartTop = createChart(topRef.current, {
         height: dims.main,
         width: topRef.current.clientWidth,
         layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#374151" },
-        leftPriceScale: { visible: false }, // ✅ 왼쪽 가격축 숨기기
+        leftPriceScale: { visible: false },
         rightPriceScale: { borderColor: "#e5e7eb", scaleMargins: { top: 0.05, bottom: 0.05 } },
         timeScale: { borderColor: "#e5e7eb", visible: true },
         grid: { vertLines: { color: "#eff2f6" }, horzLines: { color: "#eff2f6" } },
@@ -156,9 +157,10 @@ export default function CandleChart({
         wickUpColor: up, wickDownColor: down,
         priceLineVisible: true,
         lastValueVisible: true,
-        priceFormat: { type: "price", precision: 0, minMove: 1 } // ✅ 가격 정수 표시
+        priceFormat: { type: "price", precision: 0, minMove: 1 }
       })
 
+      // 거래량 차트
       const chartVol = createChart(volRef.current, {
         height: dims.vol,
         width: volRef.current.clientWidth,
@@ -179,6 +181,7 @@ export default function CandleChart({
       candleRef.current = candle
       volSeriesRef.current = volSeries
 
+      // SMA 라인 추가
       sma.forEach(p => {
         const key = `SMA${p}`
         const line = chartTop.addLineSeries({
@@ -188,6 +191,7 @@ export default function CandleChart({
         lineRefs.current[key] = line
       })
 
+      // 리사이즈 반영
       const ro = new ResizeObserver(() => {
         const w = rootRef.current?.clientWidth ?? 600
         chartTop.applyOptions({ width: w })
@@ -198,48 +202,44 @@ export default function CandleChart({
       ro.observe(rootRef.current!)
       roRef.current = ro
 
+      // 메인 차트 스크롤 → 거래량 차트 동기화
       chartTop.timeScale().subscribeVisibleTimeRangeChange((range: any) => {
-        if (!range || range.from == null || range.to == null) return
-        try {
-          chartVol.timeScale().setVisibleRange({ from: range.from, to: range.to })
-        } catch {}
+        if (range?.from != null && range?.to != null) {
+          try {
+            chartVol.timeScale().setVisibleRange({ from: range.from, to: range.to })
+          } catch {}
+        }
       })
 
+      // 데이터 세팅
       candle.setData(candles)
-
-      if (Array.isArray(trades) && trades.length > 0) {
-  const markers = trades.map(t => {
-    // 1. 날짜 변환
-    const tradeTime = toDayTs(t.time)
-
-    // 2. candles 배열에서 동일한 time 찾기
-    const candleMatch = candles.find(c => c.time === tradeTime)
-
-    // 3. 없으면 가장 가까운 캔들의 time 사용
-    const matchedTime = candleMatch
-      ? candleMatch.time
-      : candles.reduce((prev, curr) => {
-          return Math.abs((curr.time as number) - tradeTime) <
-                 Math.abs((prev.time as number) - tradeTime)
-            ? curr
-            : prev
-        }).time
-
-    // 4. 마커 객체 리턴
-    return {
-      time: matchedTime,
-      position: t.side === "BUY" ? "belowBar" : "aboveBar",
-      color: t.side === "BUY" ? "#e63946" : "#457b9d",
-      shape: t.side === "BUY" ? "arrowUp" : "arrowDown",
-      text: t.side === "BUY" ? "매수" : "매도"
-    }
-  })
-
-  candle.setMarkers(markers)
-}
-
-
       volSeries.setData(volumes)
+
+      // 매수/매도 마커 표시
+      if (Array.isArray(trades) && trades.length > 0) {
+        const markers = trades.map(t => {
+          const tradeTime = toDayTs(t.time)
+          const candleMatch = candles.find(c => c.time === tradeTime)
+          const matchedTime = candleMatch
+            ? candleMatch.time
+            : candles.reduce((prev, curr) => {
+                return Math.abs((curr.time as number) - tradeTime) <
+                       Math.abs((prev.time as number) - tradeTime)
+                  ? curr
+                  : prev
+              }).time
+          return {
+            time: matchedTime,
+            position: t.side === "BUY" ? "belowBar" : "aboveBar",
+            color: t.side === "BUY" ? "#e63946" : "#457b9d",
+            shape: t.side === "BUY" ? "arrowUp" : "arrowDown",
+            text: t.side === "BUY" ? "매수" : "매도"
+          }
+        })
+        candle.setMarkers(markers)
+      }
+
+      // SMA 데이터 반영
       for (const key of Object.keys(lineRefs.current)) {
         lineRefs.current[key].setData(smaVisible[key] ?? [])
       }
