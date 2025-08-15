@@ -226,18 +226,35 @@ export default function CandleChart({
   return (
     <div ref={rootRef} className="relative w-full" style={{ height }}>
       {showLegend && (
-        <div
-          className="absolute left-2 top-2 z-50 flex items-center gap-3 text-xs rounded-md px-2 py-1 pointer-events-none"
-          style={{ background: "rgba(255,255,255,0.85)", border: "1px solid #e5e7eb", backdropFilter: "blur(2px)" }}
-        >
-          <span>시 <Delta v={deltas.o} /></span>
-          <span>고 <Delta v={deltas.h} /></span>
-          <span>저 <Delta v={deltas.l} /></span>
-          <span>종 <Delta v={deltas.c} /></span>
-          <span className="text-gray-300">|</span>
-          {sma.map(p => <span key={p} className="font-bold">{`SMA ${p}`}</span>)}
-        </div>
-      )}
+  <div
+    className="absolute left-2 top-2 z-50 flex flex-wrap items-center gap-2 text-[10px] sm:text-xs rounded-md px-2 py-1 pointer-events-none"
+    style={{
+      background: "rgba(255,255,255,0.85)",
+      border: "1px solid #e5e7eb",
+      backdropFilter: "blur(2px)",
+      maxWidth: "95%"
+    }}
+  >
+    <span>시 <Delta v={deltas.o} /></span>
+    <span>고 <Delta v={deltas.h} /></span>
+    <span>저 <Delta v={deltas.l} /></span>
+    <span>종 <Delta v={deltas.c} /></span>
+    <span className="text-gray-300">|</span>
+
+    <span className="font-bold text-black">이동평균</span>
+    {sma.map(p => (
+      <span
+        key={p}
+        className="font-bold"
+        style={{ color: pickSMAColor(`SMA${p}`) }}
+      >
+        {p}
+      </span>
+    ))}
+  </div>
+)}
+
+
     </div>
   );
 }
