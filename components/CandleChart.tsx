@@ -245,21 +245,37 @@ export default function CandleChart({
       // ====== 끝선 맞춤 (보이는 오른쪽 경계로) ======
       const alignRightEdgeExact = () => {
         if (!priceRootRef.current || !volRootRef.current) return;
-        const ts = priceChart.timeScale();
-        const lr = ts.getVisibleLogicalRange();
-        if (!lr) return;
-        const xRight = ts.logicalToCoordinate(lr.to);
-        if (xRight == null) return;
-
+        
+        // 두 차트 모두 같은 컨테이너 너비 사용
         const containerW = priceRootRef.current.clientWidth;
-        // +1px 보정(디바이스 픽셀 라운딩 방지)
-        const rightPadding = Math.max(0, Math.ceil(containerW - xRight + 1));
-        volRootRef.current.style.paddingRight = `${rightPadding}px`;
-        volChart.applyOptions({ width: volRootRef.current.clientWidth });
-
-        // 범위 재복제(미세 오차 방지)
-        const lr2 = priceChart.timeScale().getVisibleLogicalRange();
-        if (lr2) volChart.timeScale().setVisibleLogicalRange(lr2);
+        
+        // 가격 차트 기준으로 정렬
+        const priceTS = priceChart.timeScale();
+        const lr = priceTS.getVisibleLogicalRange();
+        if (!lr) return;
+        
+        // 가격 차트의 오른쪽 끝 좌표 계산
+        const xRight = priceTS.logicalToCoordinate(lr.to);
+        if (xRight == null) return;
+        
+        // 거래량 차트도 같은 너비로 설정
+        volChart.applyOptions({ width: containerW });
+        
+        // 거래량 차트의 timeScale도 동일한 논리 범위 설정
+        const volTS = volChart.timeScale();
+        volTS.setVisibleLogicalRange(lr);
+        
+        // 거래량 차트의 오른쪽 끝 좌표 확인 및 보정
+        const volXRight = volTS.logicalToCoordinate(lr.to);
+        if (volXRight != null && Math.abs(volXRight - xRight) > 1) {
+          // 미세 조정이 필요한 경우
+          const padding = Math.max(0, containerW - xRight);
+          volRootRef.current.style.paddingRight = `${padding}px`;
+          volChart.applyOptions({ width: containerW - padding });
+        } else {
+          // 패딩 리셋
+          volRootRef.current.style.paddingRight = "0px";
+        }
       };
 
       // ==== 양방향 스크롤/줌 동기화 + 정렬 ====
@@ -268,17 +284,23 @@ export default function CandleChart({
         if (syncing) return;
         syncing = true;
         const lr = priceChart.timeScale().getVisibleLogicalRange();
-        if (lr) volChart.timeScale().setVisibleLogicalRange(lr);
+        if (lr) {
+          volChart.timeScale().setVisibleLogicalRange(lr);
+          // 동기화 후 즉시 정렬
+          setTimeout(alignRightEdgeExact, 0);
+        }
         syncing = false;
-        alignRightEdgeExact();
       };
       const syncFromVolume = () => {
         if (syncing) return;
         syncing = true;
         const lr = volChart.timeScale().getVisibleLogicalRange();
-        if (lr) priceChart.timeScale().setVisibleLogicalRange(lr);
+        if (lr) {
+          priceChart.timeScale().setVisibleLogicalRange(lr);
+          // 동기화 후 즉시 정렬
+          setTimeout(alignRightEdgeExact, 0);
+        }
         syncing = false;
-        alignRightEdgeExact();
       };
       priceChart.timeScale().subscribeVisibleLogicalRangeChange(syncFromPrice);
       volChart.timeScale().subscribeVisibleLogicalRangeChange(syncFromVolume);
@@ -293,10 +315,16 @@ export default function CandleChart({
         const w = rootRef.current?.clientWidth ?? 600;
         const priceH2 = Math.round((rootRef.current?.clientHeight ?? height) * (1 - ratio));
         const volH2   = Math.max(80, (rootRef.current?.clientHeight ?? height) - priceH2);
+        
+        // 두 차트 모두 같은 너비로 설정
         priceChart.applyOptions({ width: w, height: priceH2 });
-        volChart.applyOptions({ height: volH2 });
+        volChart.applyOptions({ width: w, height: volH2 });
+        
         placeVolLabel();
-        alignRightEdgeExact();
+        
+        // 리사이즈 후 정렬 (약간의 지연을 두어 차트가 완전히 렌더링된 후 실행)
+        setTimeout(alignRightEdgeExact, 10);
+        
         if (volHoverRef.current) volHoverRef.current.style.top = `${priceH2 + 8}px`;
       });
       ro.observe(rootRef.current!);
@@ -363,8 +391,8 @@ export default function CandleChart({
       rootRef.current.addEventListener("mousemove", handleMove);
       rootRef.current.addEventListener("mouseleave", hideHover);
 
-      // 초기 1회 끝선 맞춤
-      setTimeout(alignRightEdgeExact, 0);
+      // 초기 1회 끝선 맞춤 (차트 초기화 완료 후)
+      setTimeout(alignRightEdgeExact, 50);
 
       return () => {
         rootRef.current?.removeEventListener("mousemove", handleMove);
@@ -442,18 +470,9 @@ export default function CandleChart({
 
       // 범위 적용 후 오른쪽 끝 정렬(보정)
       setTimeout(() => {
-        const ts = priceChartRef.current?.timeScale();
-        const lr2 = ts?.getVisibleLogicalRange();
-        if (!lr2) return;
-        const xRight = ts!.logicalToCoordinate(lr2.to);
-        if (xRight == null) return;
-        const containerW = priceRootRef.current!.clientWidth;
-        const rightPadding = Math.max(0, Math.ceil(containerW - xRight + 1));
-        volRootRef.current!.style.paddingRight = `${rightPadding}px`;
-        volChartRef.current!.applyOptions({ width: volRootRef.current!.clientWidth });
-        const lr3 = ts!.getVisibleLogicalRange();
-        if (lr3) volChartRef.current!.timeScale().setVisibleLogicalRange(lr3);
-      }, 0);
+        if (!priceChartRef.current || !volChartRef.current) return;
+        alignRightEdgeExact();
+      }, 100);
     }
   }, [candles, volumes, smaVisible, trades]);
 
