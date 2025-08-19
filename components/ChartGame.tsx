@@ -252,7 +252,7 @@ export default function ChartGame() {
                   data={ohlc.slice(0, g.cursor + 1)}
                   fullForMA={ohlc}
                   height={chartH}
-                  sma={[20, 60, 120, 240]}
+                  sma={[5, 20, 60, 120, 240]}
                   showLegend
                   showVolume
                   trades={trades} // 🔹 매매 마커 표시

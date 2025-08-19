@@ -20,7 +20,8 @@ type Props = {
   showLegend?: boolean
   showVolume?: boolean
   trades?: Trade[]
-  volumeAreaRatio?: number // 하단 거래량 영역 비율 (기본 0.22)
+  volumeAreaRatio?: number
+  gutter?: number
 }
 
 function toDayTs(t: number | string): number {
@@ -33,11 +34,21 @@ function calcSMA(closes: number[], period: number) {
   for (let i = 0; i < closes.length; i++) {
     sum += closes[i];
     if (i >= period) sum -= closes[i - period];
-    if (i >= period - 1) out[i] = sum / period;
+    if (i >= period - 1) out[i] = +(sum / period).toFixed(2);
   }
   return out;
 }
 const nf = new Intl.NumberFormat("ko-KR");
+const isValidLR = (lr: any) => lr && lr.from != null && lr.to != null;
+const pctStr = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
+const pctCls = (v: number) => v > 0 ? "text-red-600" : v < 0 ? "text-blue-600" : "text-gray-500";
+const abbr = (n: number) => {
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n/1e9).toFixed(2)}b`;
+  if (abs >= 1e6) return `${(n/1e6).toFixed(2)}m`;
+  if (abs >= 1e3) return `${(n/1e3).toFixed(0)}k`;
+  return nf.format(n);
+};
 
 export default function CandleChart({
   data,
@@ -47,12 +58,13 @@ export default function CandleChart({
   showLegend = true,
   showVolume = true,
   trades = [],
-  volumeAreaRatio = 0.22,
+  volumeAreaRatio = 0.24,
+  gutter = 64,
 }: Props) {
-  // 루트 + 상/하 영역
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  // 레이아웃 refs
+  const plotRef      = useRef<HTMLDivElement | null>(null);
   const priceRootRef = useRef<HTMLDivElement | null>(null);
-  const volRootRef = useRef<HTMLDivElement | null>(null);
+  const volRootRef   = useRef<HTMLDivElement | null>(null);
 
   // 차트 refs
   const priceChartRef = useRef<any>(null);
@@ -63,10 +75,18 @@ export default function CandleChart({
   const roRef         = useRef<ResizeObserver | null>(null);
 
   // 오버레이 DOM
-  const vlineRef       = useRef<HTMLDivElement | null>(null); // 공통 세로선
-  const priceHoverRef  = useRef<HTMLDivElement | null>(null); // OHLC 라벨
-  const volHoverRef    = useRef<HTMLDivElement | null>(null); // 거래량 라벨
-  const volLabelRef    = useRef<HTMLDivElement | null>(null); // 하단(마지막 값) 기본 라벨
+  const vlineRef      = useRef<HTMLDivElement | null>(null);
+  const volHoverRef   = useRef<HTMLDivElement | null>(null);
+  const volLabelRef   = useRef<HTMLDivElement | null>(null);
+
+  // 상단 2줄 컨테이너(1줄=OHLC hover, 2줄=SMA 라벨)
+  const legendWrapRef = useRef<HTMLDivElement | null>(null);
+  const hoverRowRef   = useRef<HTMLDivElement | null>(null);
+  const maRowRef      = useRef<HTMLDivElement | null>(null);
+
+  // ➕ 우측 버블(주가/거래량)
+  const priceBubbleRef = useRef<HTMLDivElement | null>(null);
+  const volBubbleRef   = useRef<HTMLDivElement | null>(null);
 
   // ===== 데이터 =====
   const baseAll    = useMemo(() => (fullForMA?.length ? fullForMA : data), [fullForMA, data]);
@@ -93,6 +113,18 @@ export default function CandleChart({
     volumes.forEach(v => m.set(v.time as number, v.value));
     return m;
   }, [volumes]);
+
+  const candleByTime = useMemo(() => {
+    const m = new Map<number, typeof candles[number]>();
+    candles.forEach(c => m.set(c.time as number, c));
+    return m;
+  }, [candles]);
+
+  const idxByTime = useMemo(() => {
+    const m = new Map<number, number>();
+    candles.forEach((c, i) => m.set(c.time as number, i));
+    return m;
+  }, [candles]);
 
   const smaFull = useMemo(() => {
     const out: Record<string, { time: number; value: number }[]> = {};
@@ -131,40 +163,44 @@ export default function CandleChart({
           }
         });
       }
-      if (!priceRootRef.current || !volRootRef.current || !rootRef.current) return;
+      if (!plotRef.current || !priceRootRef.current || !volRootRef.current) return;
 
       const { createChart, ColorType } = window.LightweightCharts;
       const up = "#ef4444", down = "#3b82f6";
 
-      const ratio  = Math.max(0.1, Math.min(0.45, volumeAreaRatio ?? 0.22));
-      const priceH = Math.round(height * (1 - ratio));
-      const volH   = Math.max(80, height - priceH);
+      const ratio  = Math.max(0.1, Math.min(0.45, volumeAreaRatio ?? 0.24));
+      const plotH  = height;
+      const priceH = Math.round(plotH * (1 - ratio));
+      const volH   = Math.max(80, plotH - priceH);
 
-      const commonTs = {
+      const plotRect = plotRef.current.getBoundingClientRect();
+      const plotW    = Math.max(0, Math.floor(plotRect.width));
+
+      const timeScaleOpts = {
         rightOffset: 0,
         barSpacing: 6,
         fixLeftEdge: true,
-        fixRightEdge: true,   // 오른쪽 여백 제거
+        fixRightEdge: true,
         timeVisible: true,
         secondsVisible: false,
+        borderColor: "#e5e7eb",
       };
 
-      // === 가격 차트 ===
+      // 가격 차트
       const priceChart = createChart(priceRootRef.current, {
         height: priceH,
-        width : priceRootRef.current.clientWidth,
+        width : plotW,
         layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#374151" },
-        leftPriceScale : { visible: false, borderColor: "#e5e7eb" },
-        rightPriceScale: { borderColor: "#e5e7eb", scaleMargins: { top: 0.05, bottom: 0.05 } },
-        timeScale: { visible: false, borderColor: "#e5e7eb" },
+        leftPriceScale : { visible: false },
+        rightPriceScale: { visible: false },
+        timeScale: { ...timeScaleOpts, visible: false },
         grid: { vertLines: { visible: false }, horzLines: { visible: false } },
         crosshair: {
           mode: 1,
-          vertLine: { visible: false, labelVisible: false },
-          horzLine: { visible: true,  labelVisible: true },
+          vertLine: { visible: true, labelVisible: false, width: 0 },
+          horzLine: { visible: true, labelVisible: true },
         },
       });
-      priceChart.applyOptions({ timeScale: commonTs });
 
       const candle = priceChart.addCandlestickSeries({
         priceScaleId: "right",
@@ -175,7 +211,7 @@ export default function CandleChart({
         priceFormat: { type: "price", precision: 0, minMove: 1 },
       });
 
-      // SMA
+      // SMA 라인
       for (const p of sma) {
         const key = `SMA${p}`;
         const line = priceChart.addLineSeries({
@@ -186,22 +222,21 @@ export default function CandleChart({
         lineRefs.current[key] = line;
       }
 
-      // === 거래량 차트 ===
+      // 거래량 차트
       const volChart = createChart(volRootRef.current, {
         height: volH,
-        width : volRootRef.current.clientWidth,
+        width : plotW,
         layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#6b7280" },
         leftPriceScale : { visible: false },
-        rightPriceScale: { visible: true, borderColor: "#e5e7eb" },
-        timeScale: { visible: true, borderColor: "#e5e7eb", timeVisible: true, secondsVisible: false },
+        rightPriceScale: { visible: false },
+        timeScale: { ...timeScaleOpts, visible: true },
         grid: { vertLines: { visible: false }, horzLines: { visible: false } },
         crosshair: {
           mode: 1,
-          vertLine: { visible: false, labelVisible: false },
-          horzLine: { visible: false, labelVisible: false }, // 거래량 수평선 제거
+          vertLine: { visible: true, labelVisible: false, width: 0 },
+          horzLine: { visible: false, labelVisible: false },
         },
       });
-      volChart.applyOptions({ timeScale: commonTs });
 
       const volSeries = volChart.addHistogramSeries({
         priceFormat: { type: "volume" },
@@ -209,146 +244,165 @@ export default function CandleChart({
       });
       volSeries.applyOptions({
         autoscaleInfoProvider: (orig: any) => {
-          const r = orig(); if (!r) return r;
-          r.priceRange.minValue = 0; return r;
-        },
-      });
+        const r = orig(); if (!r) return r;
+        r.priceRange.minValue = 0; return r;
+      }});
 
-      // === 공통 세로선 ===
+      // 공통 세로선(플롯 기준)
       const vline = document.createElement("div");
       Object.assign(vline.style, {
         position: "absolute", top: "0", bottom: "0", width: "0",
-        borderRight: "1px dashed rgba(0,0,0,0.22)", pointerEvents: "none", display: "none",
+        borderRight: "1px dashed rgba(0,0,0,0.28)", pointerEvents: "none", display: "none",
       } as CSSStyleDeclaration);
-      rootRef.current.appendChild(vline);
+      plotRef.current.appendChild(vline);
       vlineRef.current = vline;
 
-      // === Hover 라벨 (가격: OHLC, 거래량: 값) ===
-      const priceHover = document.createElement("div");
-      priceHover.className = "absolute z-40 text-xs rounded px-2 py-1";
-      Object.assign(priceHover.style, {
-        top: "8px", left: "8px", background: "rgba(255,255,255,0.9)",
-        border: "1px solid #e5e7eb", display: "none", pointerEvents: "none", backdropFilter: "blur(2px)",
-      } as CSSStyleDeclaration);
-      priceRootRef.current.appendChild(priceHover);
-      priceHoverRef.current = priceHover;
+      // === 상단 2줄 컨테이너(1줄=OHLC+%, 2줄=SMA 라벨) ===
+      if (showLegend) {
+        const wrap = document.createElement("div");
+        wrap.className = [
+          "absolute z-50",
+          "rounded-lg border border-gray-300",
+          "bg-white/95 backdrop-blur",
+          "px-2 py-1",
+          "text-[10px] sm:text-xs md:text-sm",
+          "flex flex-col gap-1",
+          "pointer-events-none",
+          "shadow-sm",
+          "max-w-[96%]"
+        ].join(" ");
+        Object.assign(wrap.style, { top: "8px", left: "8px" } as CSSStyleDeclaration);
 
-      const volHover = document.createElement("div");
-      volHover.className = "absolute z-40 text-xs rounded px-2 py-1";
-      Object.assign(volHover.style, {
-        top: `${priceH + 8}px`, left: "8px", background: "rgba(255,255,255,0.9)",
-        border: "1px solid #e5e7eb", display: "none", pointerEvents: "none", backdropFilter: "blur(2px)",
-      } as CSSStyleDeclaration);
-      rootRef.current.appendChild(volHover);
-      volHoverRef.current = volHover;
+        const hoverRow = document.createElement("div");
+        hoverRow.className = "flex flex-wrap items-center gap-x-2 sm:gap-x-3";
+        hoverRow.style.display = "none";
 
-      // ====== 끝선 맞춤 (보이는 오른쪽 경계로) ======
-      const alignRightEdgeExact = () => {
-        if (!priceRootRef.current || !volRootRef.current) return;
-        const ts = priceChart.timeScale();
-        const lr = ts.getVisibleLogicalRange();
-        if (!lr) return;
-        const xRight = ts.logicalToCoordinate(lr.to);
-        if (xRight == null) return;
+        const maRow = document.createElement("div");
+        maRow.className = "flex flex-wrap items-center gap-x-2 sm:gap-x-3";
+        maRow.innerHTML =
+          `<span class="text-gray-700 font-semibold">이동평균</span>` +
+          sma.map(p => `<span class="font-bold" style="color:${pickSMAColor(`SMA${p}`)}">${p}</span>`).join("");
 
-        const containerW = priceRootRef.current.clientWidth;
-        // +1px 보정(디바이스 픽셀 라운딩 방지)
-        const rightPadding = Math.max(0, Math.ceil(containerW - xRight + 1));
-        volRootRef.current.style.paddingRight = `${rightPadding}px`;
-        volChart.applyOptions({ width: volRootRef.current.clientWidth });
+        wrap.appendChild(hoverRow);
+        wrap.appendChild(maRow);
+        plotRef.current.appendChild(wrap);
 
-        // 범위 재복제(미세 오차 방지)
-        const lr2 = priceChart.timeScale().getVisibleLogicalRange();
-        if (lr2) volChart.timeScale().setVisibleLogicalRange(lr2);
-      };
-
-      // ==== 양방향 스크롤/줌 동기화 + 정렬 ====
-      let syncing = false;
-      const syncFromPrice = () => {
-        if (syncing) return;
-        syncing = true;
-        const lr = priceChart.timeScale().getVisibleLogicalRange();
-        if (lr) volChart.timeScale().setVisibleLogicalRange(lr);
-        syncing = false;
-        alignRightEdgeExact();
-      };
-      const syncFromVolume = () => {
-        if (syncing) return;
-        syncing = true;
-        const lr = volChart.timeScale().getVisibleLogicalRange();
-        if (lr) priceChart.timeScale().setVisibleLogicalRange(lr);
-        syncing = false;
-        alignRightEdgeExact();
-      };
-      priceChart.timeScale().subscribeVisibleLogicalRangeChange(syncFromPrice);
-      volChart.timeScale().subscribeVisibleLogicalRangeChange(syncFromVolume);
-
-      // ==== 리사이즈 ====
-      const placeVolLabel = () => {
-        if (!volRootRef.current || !volLabelRef.current) return;
-        volLabelRef.current.style.top = `${priceRootRef.current!.clientHeight + 6}px`;
-        volLabelRef.current.style.left = "10px";
-      };
-      const ro = new ResizeObserver(() => {
-        const w = rootRef.current?.clientWidth ?? 600;
-        const priceH2 = Math.round((rootRef.current?.clientHeight ?? height) * (1 - ratio));
-        const volH2   = Math.max(80, (rootRef.current?.clientHeight ?? height) - priceH2);
-        priceChart.applyOptions({ width: w, height: priceH2 });
-        volChart.applyOptions({ height: volH2 });
-        placeVolLabel();
-        alignRightEdgeExact();
-        if (volHoverRef.current) volHoverRef.current.style.top = `${priceH2 + 8}px`;
-      });
-      ro.observe(rootRef.current!);
-      roRef.current = ro;
-
-      // refs 바인딩
-      priceChartRef.current = priceChart;
-      volChartRef.current   = volChart;
-      candleRef.current     = candle;
-      volSeriesRef.current  = volSeries;
-
-      // 기본 거래량 라벨(마지막 값)
-      placeVolLabel();
-      const lastT = candles.at(-1)?.time as number | undefined;
-      if (volLabelRef.current) {
-        const v = lastT != null ? volByTime.get(lastT) ?? null : null;
-        volLabelRef.current.textContent = `거래량 ${v != null ? nf.format(v) : "-"}`;
+        legendWrapRef.current = wrap;
+        hoverRowRef.current   = hoverRow;
+        maRowRef.current      = maRow;
       }
 
-      // 루트 기준 마우스 이동 → 두 차트/라벨 동기화
-      const handleMove = (ev: MouseEvent) => {
-        if (!rootRef.current) return;
-        const rect = rootRef.current.getBoundingClientRect();
-        const x = ev.clientX - rect.left;
-        if (x < 0 || x > rect.width) return hideHover();
+      // === 우측 가격/볼륨 버블 생성 ===
+      const makeBubble = (parent: HTMLElement) => {
+        const box = document.createElement("div");
+        box.className = "absolute z-50 text-[10px] sm:text-xs md:text-sm font-semibold";
+        Object.assign(box.style, {
+          right: "8px",
+          transform: "translateY(-50%)",
+          display: "none",
+          padding: "4px 8px",
+          borderRadius: "8px",
+          background: "#3b5ccc",   // 파란 배경
+          color: "#fff",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.15)"
+        } as CSSStyleDeclaration);
 
-        if (vlineRef.current) {
+        // 작은 화살표
+        const arrow = document.createElement("div");
+        Object.assign(arrow.style, {
+          position: "absolute",
+          right: "100%",
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: "0", height: "0",
+          borderTop: "6px solid transparent",
+          borderBottom: "6px solid transparent",
+          borderRight: "6px solid #3b5ccc"
+        } as CSSStyleDeclaration);
+        box.appendChild(arrow);
+
+        parent.appendChild(box);
+        return box;
+      };
+      const priceBubble = makeBubble(priceRootRef.current);
+      const volumeBubble = makeBubble(volRootRef.current);
+      priceBubbleRef.current = priceBubble;
+      volBubbleRef.current   = volumeBubble;
+
+      // 논리범위 동기화
+      let syncing = false;
+      const priceToVol = (lr: any) => {
+        if (syncing || !isValidLR(lr)) return;
+        syncing = true; try { volChart.timeScale().setVisibleLogicalRange(lr); } finally { syncing = false; }
+      };
+      const volToPrice = (lr: any) => {
+        if (syncing || !isValidLR(lr)) return;
+        syncing = true; try { priceChart.timeScale().setVisibleLogicalRange(lr); } finally { syncing = false; }
+      };
+      (priceChart as any).__onLR = priceToVol;
+      (volChart as any).__onLR   = volToPrice;
+
+      // === 크로스헤어 이동 시: 상단 1줄(OHLC) + 우측 버블 2개 + 거래량 라벨 ===
+      const showAtTime = (t: any, from: "price" | "volume") => {
+        if (!t) return;
+        // 공통 X 세로선
+        const x = priceChart.timeScale().timeToCoordinate(t);
+        if (x != null && vlineRef.current) {
           vlineRef.current.style.display = "block";
           vlineRef.current.style.left = `${Math.round(x)}px`;
         }
 
-        const t = priceChart.timeScale().coordinateToTime(x);
-        if (t == null) return;
+        const tt = typeof t === "number" ? t : (t?.timestamp ?? t);
+        const ci = idxByTime.get(tt);
+        const c  = candleByTime.get(tt);
 
-        const c = nearestCandle(candles, t);
-        const v = nearestVolume(volumes, t);
+        // (1) 상단 1줄: OHLC(가격 + %)
+        if (c != null && ci != null && hoverRowRef.current) {
+          const prevClose = ci > 0 ? candles[ci - 1].close : c.close;
+          const b = prevClose || 1;
+          const o = ((c.open  - b) / b) * 100;
+          const h = ((c.high  - b) / b) * 100;
+          const l = ((c.low   - b) / b) * 100;
+          const cc= ((c.close - b) / b) * 100;
 
-        if (c && candleRef.current) priceChart.setCrosshairPosition(c.close, c.time, candleRef.current);
-        if (v && volSeriesRef.current) volChart.setCrosshairPosition(v.value, v.time, volSeriesRef.current);
-
-        if (c && priceHoverRef.current) {
-          priceHoverRef.current.style.display = "block";
-          priceHoverRef.current.innerHTML = `
-            <b>시</b> ${nf.format(c.open)} &nbsp;
-            <b>고</b> ${nf.format(c.high)} &nbsp;
-            <b>저</b> ${nf.format(c.low)} &nbsp;
-            <b>종</b> ${nf.format(c.close)}
-          `;
+          hoverRowRef.current.style.display = "flex";
+          hoverRowRef.current.innerHTML =
+            `<span>시 <b>${nf.format(c.open)}</b> <b class="${pctCls(o)}">${pctStr(o)}</b></span>` +
+            `<span>고 <b>${nf.format(c.high)}</b> <b class="${pctCls(h)}">${pctStr(h)}</b></span>` +
+            `<span>저 <b>${nf.format(c.low)}</b>  <b class="${pctCls(l)}">${pctStr(l)}</b></span>` +
+            `<span>종 <b>${nf.format(c.close)}</b> <b class="${pctCls(cc)}">${pctStr(cc)}</b></span>`;
+        } else if (hoverRowRef.current) {
+          hoverRowRef.current.style.display = "none";
         }
-        if (v && volHoverRef.current) {
-          volHoverRef.current.style.display = "block";
-          volHoverRef.current.textContent = `거래량 ${nf.format(v.value)}`;
+
+        // (2) 우측 가격 버블
+        if (c && priceBubbleRef.current && candleRef.current) {
+          const y = candleRef.current.priceToCoordinate(c.close);
+          if (y != null) {
+            priceBubbleRef.current.style.display = "block";
+            priceBubbleRef.current.style.top = `${Math.round(y)}px`;
+            priceBubbleRef.current.textContent = nf.format(c.close);
+          }
+        }
+
+        // (3) 우측 거래량 버블 + 하단 라벨
+        const vv = volByTime.get(tt);
+        if (vv != null) {
+          if (volBubbleRef.current && volSeriesRef.current) {
+            const yv = volSeriesRef.current.priceToCoordinate(vv);
+            if (yv != null) {
+              volBubbleRef.current.style.display = "block";
+              volBubbleRef.current.style.top = `${Math.round(yv)}px`;
+              volBubbleRef.current.textContent = abbr(vv);
+            }
+          }
+          if (volHoverRef.current) {
+            volHoverRef.current.style.display = "block";
+            volHoverRef.current.textContent = `거래량 ${nf.format(vv)}`;
+          }
+        } else {
+          if (volBubbleRef.current) volBubbleRef.current.style.display = "none";
+          if (volHoverRef.current)  volHoverRef.current.style.display  = "none";
         }
       };
 
@@ -356,29 +410,53 @@ export default function CandleChart({
         if (vlineRef.current) vlineRef.current.style.display = "none";
         priceChart.clearCrosshairPosition?.();
         volChart.clearCrosshairPosition?.();
-        if (priceHoverRef.current) priceHoverRef.current.style.display = "none";
-        if (volHoverRef.current)   volHoverRef.current.style.display   = "none";
+        if (hoverRowRef.current) hoverRowRef.current.style.display = "none";
+        if (volHoverRef.current)  volHoverRef.current.style.display  = "none";
+        if (priceBubbleRef.current) priceBubbleRef.current.style.display = "none";
+        if (volBubbleRef.current)   volBubbleRef.current.style.display   = "none";
       };
 
-      rootRef.current.addEventListener("mousemove", handleMove);
-      rootRef.current.addEventListener("mouseleave", hideHover);
+      priceChart.subscribeCrosshairMove((p: any) => {
+        if (!p || p.time == null) { hideHover(); return; }
+        showAtTime(p.time, "price");
+      });
+      volChart.subscribeCrosshairMove((p: any) => {
+        if (!p || p.time == null) { hideHover(); return; }
+        showAtTime(p.time, "volume");
+      });
 
-      // 초기 1회 끝선 맞춤
-      setTimeout(alignRightEdgeExact, 0);
+      // 리사이즈
+      const ro = new ResizeObserver(() => {
+        const plotW2  = Math.max(0, Math.floor(plotRef.current?.getBoundingClientRect().width ?? 600));
+        const priceH2 = Math.round((plotRef.current?.clientHeight ?? height) * (1 - ratio));
+        const volH2   = Math.max(80, (plotRef.current?.clientHeight ?? height) - priceH2);
+        priceChart.applyOptions({ width: plotW2, height: priceH2 });
+        volChart.applyOptions({  width: plotW2, height: volH2  });
+        if (volHoverRef.current) volHoverRef.current.style.top = `${priceH2 + 8}px`;
+      });
+      ro.observe(plotRef.current!);
+      roRef.current = ro;
 
-      return () => {
-        rootRef.current?.removeEventListener("mousemove", handleMove);
-        rootRef.current?.removeEventListener("mouseleave", hideHover);
-      };
+      // refs
+      priceChartRef.current = priceChart;
+      volChartRef.current   = volChart;
+      candleRef.current     = candle;
+      volSeriesRef.current  = volSeries;
+
+      // 하단 기본 거래량 라벨(최근 값)
+      const lastT = candles.at(-1)?.time as number | undefined;
+      if (lastT != null && volLabelRef.current) {
+        const v = volByTime.get(lastT);
+        volLabelRef.current.textContent = `거래량 ${v != null ? nf.format(v) : "-"}`;
+      }
     };
 
     const cleanup = init();
-
     return () => {
       roRef.current?.disconnect();
-      if (vlineRef.current?.parentElement) vlineRef.current.parentElement.removeChild(vlineRef.current);
-      if (priceHoverRef.current?.parentElement) priceHoverRef.current.parentElement.removeChild(priceHoverRef.current);
-      if (volHoverRef.current?.parentElement)   volHoverRef.current.parentElement.removeChild(volHoverRef.current);
+      [vlineRef, volHoverRef, legendWrapRef, priceBubbleRef, volBubbleRef].forEach(r => {
+        if (r.current?.parentElement) r.current.parentElement.removeChild(r.current);
+      });
       priceChartRef.current?.remove?.();
       volChartRef.current?.remove?.();
       priceChartRef.current = null;
@@ -386,151 +464,101 @@ export default function CandleChart({
       candleRef.current     = null;
       volSeriesRef.current  = null;
       lineRefs.current      = {};
+      hoverRowRef.current   = null;
+      maRowRef.current      = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height, showVolume, sma, volumes, volByTime, candles, volumeAreaRatio]);
+  }, [height, volumeAreaRatio, gutter, data, sma, showLegend]);
 
-  // ===== 데이터 바인딩 =====
+  // ===== 데이터 바인딩 + 마커 + 범위/구독 =====
   useEffect(() => {
     if (!candleRef.current || !priceChartRef.current || !volChartRef.current) return;
 
-    // 가격/SMA
     candleRef.current.setData(candles);
     for (const k of Object.keys(lineRefs.current)) lineRefs.current[k].setData(smaVisible[k] ?? []);
-
-    // 거래량
     if (volSeriesRef.current) volSeriesRef.current.setData(volumes);
 
-    // 마커
+    // 매수/매도 마커
     if (Array.isArray(trades) && trades.length > 0) {
       const markers = trades.map(t => {
-        const tradeTime = toDayTs(t.time);
-        const candleMatch = candles.find(c => c.time === tradeTime);
-        const matchedTime = candleMatch
-          ? candleMatch.time
-          : (candles.reduce((prev, curr) =>
-              Math.abs((curr.time as number) - tradeTime) <
-              Math.abs((prev.time as number) - tradeTime) ? curr : prev
-            ).time as number);
+        const ts = toDayTs(t.time);
         return {
-          time: matchedTime,
+          time: snapNearest(candles, ts),
           position: t.side === "BUY" ? "belowBar" : "aboveBar",
-          color: t.side === "BUY" ? "#e63946" : "#457b9d",
-          shape: t.side === "BUY" ? "arrowUp" : "arrowDown",
-          text: t.side === "BUY" ? "매수" : "매도",
+          color:   t.side === "BUY" ? "#e63946" : "#3b82f6",
+          shape:   t.side === "BUY" ? "arrowUp"  : "arrowDown",
+          text:    t.side === "BUY" ? "매수" : "매도",
         };
       });
       candleRef.current.setMarkers(markers);
+    } else {
+      candleRef.current.setMarkers([]);
     }
 
-    // 최근 300봉으로 초기 범위 설정(양쪽 동일)
-    const n = candles.length;
-    if (n > 0) {
-      const fromIdx = Math.max(0, n - 300);
-      const from = candles[fromIdx].time as number;
-      const to   = candles[n - 1].time as number;
-
-      // 동일 범위 적용
-      const priceTS = priceChartRef.current.timeScale();
-      const volTS   = volChartRef.current.timeScale();
-      priceTS.setVisibleLogicalRange({ from, to });
-  volTS.setVisibleLogicalRange({ from, to });
-
-      // ★ 추가: 논리범위를 한 번 더 복제해 초기 상태 고정
-      const lr = priceTS.getVisibleLogicalRange();
-      if (lr) volTS.setVisibleLogicalRange(lr);
-
-      // 범위 적용 후 오른쪽 끝 정렬(보정)
-      setTimeout(() => {
-        const ts = priceChartRef.current?.timeScale();
-        const lr2 = ts?.getVisibleLogicalRange();
-        if (!lr2) return;
-        const xRight = ts!.logicalToCoordinate(lr2.to);
-        if (xRight == null) return;
-        const containerW = priceRootRef.current!.clientWidth;
-        const rightPadding = Math.max(0, Math.ceil(containerW - xRight + 1));
-        volRootRef.current!.style.paddingRight = `${rightPadding}px`;
-        volChartRef.current!.applyOptions({ width: volRootRef.current!.clientWidth });
-        const lr3 = ts!.getVisibleLogicalRange();
-        if (lr3) volChartRef.current!.timeScale().setVisibleLogicalRange(lr3);
-      }, 0);
+    // 초기 논리범위(최근 300봉)
+    if (candles.length) {
+      const fromIdx = Math.max(0, candles.length - 300);
+      const lr = { from: fromIdx, to: candles.length - 1 };
+      priceChartRef.current.timeScale().setVisibleLogicalRange(lr);
+      volChartRef.current.timeScale().setVisibleLogicalRange(lr);
     }
+
+    const priceTS = priceChartRef.current.timeScale();
+    const volTS   = volChartRef.current.timeScale();
+    const onPL = (priceChartRef.current as any).__onLR;
+    const onVL = (volChartRef.current  as any).__onLR;
+    if (onPL) priceTS.subscribeVisibleLogicalRangeChange(onPL);
+    if (onVL) volTS.subscribeVisibleLogicalRangeChange(onVL);
+
+    return () => {
+      if (onPL) priceTS.unsubscribeVisibleLogicalRangeChange(onPL);
+      if (onVL) volTS.unsubscribeVisibleLogicalRangeChange(onVL);
+    };
   }, [candles, volumes, smaVisible, trades]);
 
-  // ===== 델타/레전드(고정) =====
-  const deltas = useMemo(() => {
-    if (data.length < 2) return { o: 0, h: 0, l: 0, c: 0 };
-    const last = data[data.length - 1], prev = data[data.length - 2];
-    const base = prev.close || 1;
-    const pct = (v: number) => ((v - base) / base) * 100;
-    return { o: pct(last.open), h: pct(last.high), l: pct(last.low), c: pct(last.close) };
-  }, [data]);
-
   return (
-    <div ref={rootRef} className="relative w-full" style={{ height }}>
-      {/* 상단 레전드(고정) */}
-      {showLegend && (
-        <div
-          className="absolute left-2 top-2 z-50 flex flex-wrap items-center gap-2 text-[10px] sm:text-xs rounded-md px-2 py-1 pointer-events-none"
-          style={{ background: "rgba(255,255,255,0.85)", border: "1px solid #e5e7eb", backdropFilter: "blur(2px)" }}
-        >
-          <span>시 <Delta v={deltas.o} /></span>
-          <span>고 <Delta v={deltas.h} /></span>
-          <span>저 <Delta v={deltas.l} /></span>
-          <span>종 <Delta v={deltas.c} /></span>
-          <span className="text-gray-300">|</span>
-          <span className="font-bold text-black">이동평균</span>
-          {sma.map(p => (<span key={p} className="font-bold" style={{ color: pickSMAColor(`SMA${p}`) }}>{p}</span>))}
+    <div className="w-full" style={{ height }}>
+      {/* grid: 플롯(1fr) + 공용 거터 */}
+      <div className="grid h-full overflow-hidden box-border" style={{ gridTemplateColumns: `1fr ${gutter}px` }}>
+        {/* 플롯 컬럼 */}
+        <div ref={plotRef} className="relative h-full">
+          {/* 상단 영역 */}
+          <div
+            ref={priceRootRef}
+            className="absolute left-0 right-0 top-0 box-border"
+            style={{ height: Math.round(height * (1 - (volumeAreaRatio ?? 0.24))) }}
+          />
+          {/* 하단 영역 */}
+          <div
+            ref={volRootRef}
+            className="absolute left-0 right-0 box-border"
+            style={{ bottom: 0, height: Math.max(80, Math.round(height * (volumeAreaRatio ?? 0.24))) }}
+          />
+
+          {/* 기본 거래량 라벨(최근 값) */}
+          {showVolume && (
+            <div
+              ref={volLabelRef}
+              className="absolute z-30 text-[10px] sm:text-xs md:text-sm text-gray-700"
+              style={{ pointerEvents: "none", top: Math.round(height * (1 - (volumeAreaRatio ?? 0.24))) + 6, left: 10 }}
+            />
+          )}
+
+          {/* 상/하 구분선 */}
+          <div
+            className="absolute left-0 right-0"
+            style={{ top: Math.round(height * (1 - (volumeAreaRatio ?? 0.24))), height: 1, background: "#d1d5db", pointerEvents: "none" }}
+          />
         </div>
-      )}
 
-      {/* 두 개의 영역 */}
-      <div
-        ref={priceRootRef}
-        className="absolute left-0 right-0 top-0"
-        style={{ height: Math.round(height * (1 - (volumeAreaRatio ?? 0.22))) }}
-      />
-      <div
-        ref={volRootRef}
-        className="absolute left-0 right-0"
-        style={{ bottom: 0, height: Math.max(80, Math.round(height * (volumeAreaRatio ?? 0.22))) }}
-      />
-
-      {/* 기본 거래량 라벨(최근 값) */}
-      {showVolume && (
-        <div ref={volLabelRef} className="absolute z-30 text-xs text-gray-700" style={{ pointerEvents: "none" }} />
-      )}
-
-      {/* 구분선 */}
-      <div
-        className="absolute left-0 right-0"
-        style={{ top: Math.round(height * (1 - (volumeAreaRatio ?? 0.22))), height: 1, background: "#d1d5db", pointerEvents: "none" }}
-      />
+        {/* 공용 Y축 거터 */}
+        <div className="relative h-full border-l" style={{ borderColor: "#e5e7eb" }} />
+      </div>
     </div>
   );
 }
 
 /* ===== 유틸 ===== */
-function nearestCandle(list: {time:number|any, open:number;high:number;low:number;close:number}[], t:any) {
-  const ti = typeof t === "number" ? t : (t?.timestamp ?? undefined);
-  if (ti == null) return list.find(c => (c.time as number) === t) ?? list[list.length-1];
-  let best = list[0], bd = Math.abs((list[0].time as number) - ti);
-  for (const c of list) {
-    const d = Math.abs((c.time as number) - ti);
-    if (d < bd) { best = c; bd = d; }
-  }
-  return best;
-}
-function nearestVolume(list: {time:number|any, value:number}[], t:any) {
-  const ti = typeof t === "number" ? t : (t?.timestamp ?? undefined);
-  if (ti == null) return list.find(v => (v.time as number) === t) ?? list[list.length-1];
-  let best = list[0], bd = Math.abs((list[0].time as number) - ti);
-  for (const v of list) {
-    const d = Math.abs((v.time as number) - ti);
-    if (d < bd) { best = v; bd = d; }
-  }
-  return best;
-}
 function pickSMAColor(key: string) {
   if (/SMA20/.test(key)) return "#8e24aa";
   if (/SMA60/.test(key)) return "#ff9800";
@@ -539,8 +567,12 @@ function pickSMAColor(key: string) {
   if (/SMA50/.test(key)) return "#6b7280";
   return "#455a64";
 }
-function Delta({ v }: { v: number }) {
-  const cls = v > 0 ? "text-red-600" : v < 0 ? "text-blue-600" : "text-gray-500";
-  const sign = v > 0 ? "+" : "";
-  return <b className={cls}>{`${sign}${v.toFixed(2)}%`}</b>;
+function snapNearest(list: { time:number|any }[], t:number) {
+  if (!list.length) return t;
+  let best = list[0].time as number, bd = Math.abs((list[0].time as number) - t);
+  for (const c of list) {
+    const d = Math.abs((c.time as number) - t);
+    if (d < bd) { best = c.time as number; bd = d; }
+  }
+  return best;
 }
