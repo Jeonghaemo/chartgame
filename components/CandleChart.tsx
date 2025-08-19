@@ -4,7 +4,9 @@
 import { useEffect, useMemo, useRef } from "react";
 
 declare global { interface Window { LightweightCharts?: any } }
-
+type CrosshairMoveParam = {
+  time?: number | { timestamp?: number } | null | undefined;
+};
 export type OHLC = {
   time: number | string;
   open: number; high: number; low: number; close: number;
@@ -68,9 +70,10 @@ export default function CandleChart({
   const roRef         = useRef<ResizeObserver | null>(null);
 
   // 공용 세로선 + 상단 2줄(OHLC / MA)
-  const vlineRef    = useRef<HTMLDivElement | null>(null);
-  const hoverRowRef = useRef<HTMLDivElement | null>(null);
-  const volLabelRef = useRef<HTMLDivElement | null>(null);
+  const vlineRef       = useRef<HTMLDivElement | null>(null);
+  const hoverRowRef    = useRef<HTMLDivElement | null>(null);
+  const volLabelRef    = useRef<HTMLDivElement | null>(null);
+  const legendWrapRef  = useRef<HTMLDivElement | null>(null); // ⭐ 래퍼 추적(중복 방지)
 
   // 데이터 메모
   const candles = useMemo(() => (
@@ -143,6 +146,35 @@ export default function CandleChart({
     } finally { pinningRef.current = false; }
   };
 
+  /** 두 차트의 플롯 오른쪽을 컨테이너 오른쪽에 정확히 맞춤 */
+  const alignRightEdgeExact = () => {
+    const pc = priceChartRef.current;
+    const vc = volChartRef.current;
+    if (!pc || !vc || !priceRootRef.current || !volRootRef.current) return;
+
+    // 가격 차트
+    const tsP = pc.timeScale();
+    const lrP = tsP.getVisibleLogicalRange?.();
+    if (lrP && lrP.to != null) {
+      const xRightP = tsP.logicalToCoordinate(lrP.to);
+      const wP = priceRootRef.current.clientWidth;
+      const padP = xRightP == null ? 0 : Math.max(0, Math.ceil(wP - xRightP));
+      priceRootRef.current.style.paddingRight = `${padP}px`;
+      pc.applyOptions({ width: wP });
+    }
+
+    // 거래량 차트
+    const tsV = vc.timeScale();
+    const lrV = tsV.getVisibleLogicalRange?.();
+    if (lrV && lrV.to != null) {
+      const xRightV = tsV.logicalToCoordinate(lrV.to);
+      const wV = volRootRef.current.clientWidth;
+      const padV = xRightV == null ? 0 : Math.max(0, Math.ceil(wV - xRightV));
+      volRootRef.current.style.paddingRight = `${padV}px`;
+      vc.applyOptions({ width: wV });
+    }
+  };
+
   // ===== 초기화 =====
   useEffect(() => {
     const init = async () => {
@@ -151,8 +183,8 @@ export default function CandleChart({
           const id = "lwc-umd";
           if (document.getElementById(id)) {
             const el = document.getElementById(id) as HTMLScriptElement;
-            el.addEventListener("load", () => resolve());
-            el.addEventListener("error", e => reject(e));
+            el.addEventListener("load", () => resolve(), { once: true });
+            el.addEventListener("error", e => reject(e), { once: true });
           } else {
             const s = document.createElement("script");
             s.id = id;
@@ -198,7 +230,7 @@ export default function CandleChart({
         grid: { vertLines: { visible: false }, horzLines: { visible: false } },
         crosshair: {
           mode: 1,
-          // ✅ 각 차트 자체 세로선은 숨김 (공용 vline만 사용할 것)
+          // ✅ 공용 vline만 사용
           vertLine: { visible: false, labelVisible: false },
           horzLine: { visible: true, labelVisible: true },
         },
@@ -212,7 +244,9 @@ export default function CandleChart({
         priceLineVisible: true,
         lastValueVisible: true,
         priceFormat: { type: "price", precision: 0, minMove: 1 },
+        
       });
+      
 
       // MA
       for (const p of sma) {
@@ -266,14 +300,20 @@ export default function CandleChart({
         borderRight: "1px dashed rgba(0,0,0,0.35)",
         pointerEvents: "none",
         display: "none",
-        zIndex: "60",                 // ← 캔버스 위로
+        zIndex: "60",
       } as CSSStyleDeclaration);
       rootRef.current.appendChild(vline);
       vlineRef.current = vline;
 
       // === 상단 OHLC + MA(2줄) ===
       if (showLegend) {
+        // ⭐ 혹시 남아있던 래퍼가 있으면 제거(중복 방지)
+        priceRootRef.current
+          .querySelectorAll('[data-legend-wrap="1"]')
+          .forEach((el) => el.parentElement?.removeChild(el));
+
         const wrap = document.createElement("div");
+        wrap.setAttribute("data-legend-wrap", "1"); // 마커
         wrap.className = [
           "absolute z-50 rounded-lg border border-gray-300",
           "bg-white/95 backdrop-blur px-2 py-1",
@@ -297,29 +337,28 @@ export default function CandleChart({
         priceRootRef.current.appendChild(wrap);
 
         hoverRowRef.current = hoverRow;
+        legendWrapRef.current = wrap; // ⭐ 보관
       }
 
       // === 동기 스크롤/줌 & 우측 고정 가드 ===
       let syncing = false;
       const onLR = (lr: any, fromChart: "price" | "vol") => {
         if (!isValidLR(lr)) return;
-        // 줌을 사용했으면 현재 스팬을 새 기준으로 저장
         if (!pinningRef.current) {
           const newSpan = lr.to - lr.from;
           if (newSpan > 5) spanRef.current = newSpan;
         }
-        // 우측 고정 유지: 오른쪽 끝에서 떨어지면 다시 붙이기
         if (lockToRight && !pinningRef.current) {
           const last = candles.length - 1;
           if (Math.abs(last - lr.to) > 0.5) { pinRight(); return; }
         }
-        // 차트 간 동기화
         if (syncing) return;
         syncing = true;
         try {
           if (fromChart === "price") volChart.timeScale().setVisibleLogicalRange(lr);
           else priceChart.timeScale().setVisibleLogicalRange(lr);
         } finally { syncing = false; }
+        alignRightEdgeExact();
       };
       priceChart.timeScale().subscribeVisibleLogicalRangeChange((lr: any) => onLR(lr, "price"));
       volChart.timeScale().subscribeVisibleLogicalRangeChange((lr: any) => onLR(lr, "vol"));
@@ -364,8 +403,14 @@ export default function CandleChart({
         volChart.clearCrosshairPosition?.();
         if (hoverRowRef.current) hoverRowRef.current.style.display = "none";
       };
-      priceChart.subscribeCrosshairMove(p => { if (!p || p.time == null) { hideHover(); return; } showAtTime(p.time); });
-      volChart.subscribeCrosshairMove(p =>   { if (!p || p.time == null) { hideHover(); return; } showAtTime(p.time); });
+      priceChart.subscribeCrosshairMove((p: CrosshairMoveParam) => {
+  if (!p || p.time == null) { hideHover(); return; }
+  showAtTime(p.time);
+});
+volChart.subscribeCrosshairMove((p: CrosshairMoveParam) => {
+  if (!p || p.time == null) { hideHover(); return; }
+  showAtTime(p.time);
+});
 
       // === 리사이즈 ===
       const ro = new ResizeObserver(() => {
@@ -375,6 +420,7 @@ export default function CandleChart({
         priceChart.applyOptions({ width: w, height: priceH2 });
         volChart.applyOptions({  width: w, height: volH2  });
         if (lockToRight) pinRight();
+        alignRightEdgeExact();
       });
       ro.observe(rootRef.current!);
       roRef.current = ro;
@@ -384,11 +430,11 @@ export default function CandleChart({
       candleRef.current     = candle;
       volSeriesRef.current  = volSeries;
 
-      // 초기 우측 고정 및 스팬 기록
       if (lockToRight) {
         pinRight();
         const lr = priceChart.timeScale().getVisibleLogicalRange?.();
         if (isValidLR(lr)) spanRef.current = lr.to - lr.from;
+        alignRightEdgeExact();
       }
       const lastT = candles.at(-1)?.time as number | undefined;
       if (volLabelRef.current) volLabelRef.current.textContent = `거래량 ${lastT ? nf.format(volByTime.get(lastT) ?? 0) : "-"}`;
@@ -397,7 +443,15 @@ export default function CandleChart({
     const cleanup = init();
     return () => {
       roRef.current?.disconnect();
+
       if (vlineRef.current?.parentElement) vlineRef.current.parentElement.removeChild(vlineRef.current);
+      vlineRef.current = null;
+
+      // ⭐ 레전드 래퍼도 확실히 제거
+      if (legendWrapRef.current?.parentElement) legendWrapRef.current.parentElement.removeChild(legendWrapRef.current);
+      legendWrapRef.current = null;
+      hoverRowRef.current = null;
+
       priceChartRef.current?.remove?.();
       volChartRef.current?.remove?.();
       priceChartRef.current = null;
@@ -406,8 +460,8 @@ export default function CandleChart({
       volSeriesRef.current  = null;
       lineRefs.current      = {};
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height, volumeAreaRatio, sma, showLegend, lockToRight, rightWindowBars, data, fullForMA]);
+    // ❗ 데이터 변경 시에는 재초기화하지 않도록 data/fullForMA는 제외
+  }, [height, volumeAreaRatio, sma, showLegend, lockToRight, rightWindowBars]);
 
   // ===== 데이터 바인딩/마커/고정 =====
   useEffect(() => {
@@ -430,7 +484,8 @@ export default function CandleChart({
       candleRef.current?.setMarkers([]);
     }
 
-    if (lockToRight) pinRight(); // 새 봉 와도 폭 유지
+    if (lockToRight) pinRight();
+    alignRightEdgeExact();
   }, [candles, volumes, smaVisible, trades, lockToRight]);
 
   return (
@@ -470,6 +525,7 @@ function pickSMAColor(key: string) {
   if (/SMA20/.test(key)) return "#FC542A";
   if (/SMA60/.test(key)) return "#E89732";
   if (/SMA120/.test(key)) return "#A642B9";
-  if (/SMA240/.test(key)) return "##323532";
+  if (/SMA240/.test(key)) return "#323532";
   return "#455a64";
 }
+
