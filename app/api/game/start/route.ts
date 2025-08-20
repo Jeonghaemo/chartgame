@@ -15,7 +15,7 @@ export async function POST() {
       code: "SOME_STOCK", // 시작 종목코드, 필요시 변경
       startCash: 10000000,
       startIndex: 0, // 시작 인덱스
-      maxTurns: 50,
+      maxTurns: 60,
       feeBps: 5,
     },
   });

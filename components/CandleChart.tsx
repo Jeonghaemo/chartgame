@@ -136,7 +136,7 @@ export default function CandleChart({
     if (!priceChartRef.current || !volChartRef.current) return;
     const last = candles.length - 1;
     if (last < 0) return;
-    const span = Math.max(50, Math.min(2000, Math.round(spanRef.current)));
+    const span = Math.max(60, Math.min(2000, Math.round(spanRef.current)));
     const from = Math.max(0, last - span);
     const lr   = { from, to: last };
     pinningRef.current = true;

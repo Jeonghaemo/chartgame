@@ -55,7 +55,7 @@ export default function ChartGame() {
 
   const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
   const pickRandomStart = (len: number) => {
-    const warmup = 120, tail = 60
+    const warmup = 120, tail = 0
     if (len <= warmup + tail) return Math.max(0, len - (tail + 1))
     const maxRand = Math.max(1, len - (warmup + tail))
     return Math.min(warmup + Math.floor(Math.random() * maxRand), len - tail)
@@ -92,7 +92,7 @@ export default function ChartGame() {
     } catch {}
     setStartCapital(capital)
 
-    const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&range=2y&interval=1d`, { cache: 'no-store' })
+    const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&range=10y&interval=1d`, { cache: 'no-store' })
     const { ohlc } = (await r.json()) as { ohlc: OHLC[] }
     setOhlc(ohlc)
     setSymbol(sym)
@@ -104,12 +104,13 @@ export default function ChartGame() {
       symbol: sym,
       prices: closes,
       startIndex,
-      maxTurns: 50,
+      maxTurns: 60,
       feeBps: g.feeBps ?? 5,
       slippageBps: g.slippageBps ?? 0,
       startCash: capital,
     })
 
+    
     const resp = await fetch('/api/game/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -118,7 +119,7 @@ export default function ChartGame() {
         startIndex,
         startCash: capital,
         feeBps: g.feeBps ?? 5,
-        maxTurns: 50,
+        maxTurns: 60,
       }),
     })
     if (resp.ok) {

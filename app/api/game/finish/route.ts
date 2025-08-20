@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   await prisma.game.update({
     where: { id: gameId, userId: session.user.id },
     data: {
-      endIndex: 50, // 마지막 턴
+      endIndex: 60, // 마지막 턴
       finishedAt: new Date(),
       returnPct: returnPct,
     },

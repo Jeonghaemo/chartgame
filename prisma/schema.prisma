@@ -74,7 +74,7 @@ model Game {
   startCash  Int
   startIndex Int
   endIndex   Int?
-  maxTurns   Int       @default(50)
+  maxTurns   Int       @default(60)
   feeBps     Int       @default(5)
   createdAt  DateTime  @default(now())
   finishedAt DateTime?

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
         startIndex: 0,
         endIndex: 0,
         feeBps: 5,
-        maxTurns: 50,
+        maxTurns: 60,
         finishedAt: new Date(),
         returnPct,
       },

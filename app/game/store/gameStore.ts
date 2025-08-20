@@ -53,7 +53,7 @@ export const useGame = create<
   prices: [],
   startIndex: 0,
   cursor: 0,
-  maxTurns: 50,
+  maxTurns: 60,
   turn: 0,
   feeBps: 5,
   slippageBps: 0,
