@@ -55,7 +55,7 @@ export default function ChartGame() {
 
   const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
   const pickRandomStart = (len: number) => {
-    const warmup = 120, tail = 0
+    const warmup = 20, tail = 0
     if (len <= warmup + tail) return Math.max(0, len - (tail + 1))
     const maxRand = Math.max(1, len - (warmup + tail))
     return Math.min(warmup + Math.floor(Math.random() * maxRand), len - tail)

@@ -63,28 +63,30 @@ async function fetchYahooDaily(symbol: string, period1: number, period2: number)
   return out;
 }
 
+// app/api/history/route.ts (보완 포인트만)
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const symbol = url.searchParams.get("symbol") ?? "005930.KS";
-    // lookback 우선, 없으면 period1/2를 직접 지정 가능
-    const lookbackDays = Number(url.searchParams.get("days") ?? "500");
+    const lookbackDays = Number(url.searchParams.get("days") ?? "3650");
     const p1 = Number(url.searchParams.get("period1") ?? daysAgoSec(lookbackDays));
-    const p2 = Number(url.searchParams.get("period2") ?? nowSec());
+    // ✅ Yahoo end exclusive 대비 하루 여유
+    const p2 = Number(url.searchParams.get("period2") ?? (nowSec() + 86400));
 
-    const ohlc = await fetchYahooDaily(symbol, p1, p2);
+    let ohlc = await fetchYahooDaily(symbol, p1, p2);
+
+    // ✅ 혹시 모를 타임스탬프 꼬임/중복 정리(오름차순 + 중복 제거: 최신 우선)
+    const byTs = new Map<number, OHLC>();
+    for (const r of ohlc) byTs.set(r.time, r);
+    ohlc = Array.from(byTs.values()).sort((a, b) => a.time - b.time);
 
     return NextResponse.json(
       { ok: true, source: "yahoo", symbol, ohlc, count: ohlc.length },
-      {
-        headers: {
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-        },
-      }
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
     );
   } catch (err: any) {
     console.error("[/api/history] error:", err?.message || err);
-    // 폴백: 최소한 빈 배열 반환
     return NextResponse.json({ ok: false, symbol: null, ohlc: [] }, { status: 200 });
   }
 }
+
