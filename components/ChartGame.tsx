@@ -94,6 +94,7 @@ export default function ChartGame() {
 
     const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&range=10y&interval=1d`, { cache: 'no-store' })
     const { ohlc } = (await r.json()) as { ohlc: OHLC[] }
+
     setOhlc(ohlc)
     setSymbol(sym)
 
