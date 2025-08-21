@@ -82,61 +82,76 @@ export default function ChartGame() {
   }, [])
 
   const loadAndInitBySymbol = useCallback(async (sym: string) => {
-    let capital = 10_000_000
-    try {
-      const meRes = await fetch('/api/me', { cache: 'no-store' })
-      if (meRes.ok) {
-        const me = await meRes.json()
-        capital = me?.user?.capital ?? 10_000_000
-      }
-    } catch {}
-    setStartCapital(capital)
-
-    const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&range=10y&interval=1d`, { cache: 'no-store' })
-    const { ohlc } = (await r.json()) as { ohlc: OHLC[] }
-
-    setOhlc(ohlc)
-    setSymbol(sym)
-
-    const closes = ohlc.map(d => d.close)
-    const startIndex = pickRandomStart(ohlc.length)
-
-    g.init({
-      symbol: sym,
-      prices: closes,
-      startIndex,
-      maxTurns: 60,
-      feeBps: g.feeBps ?? 5,
-      slippageBps: g.slippageBps ?? 0,
-      startCash: capital,
-    })
-
-    
-    const resp = await fetch('/api/game/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        symbol: sym,
-        startIndex,
-        startCash: capital,
-        feeBps: g.feeBps ?? 5,
-        maxTurns: 60,
-      }),
-    })
-    if (resp.ok) {
-      const { gameId } = await resp.json()
-      setGameId(gameId ?? null)
-    } else {
-      const j = await resp.json().catch(() => ({}))
-      if (j?.error === 'NO_HEART') {
-        alert('생명력이 부족합니다. 1시간마다 1개씩 충전됩니다.')
-      } else {
-        alert('게임 시작 중 오류가 발생했습니다.')
-      }
+  let capital = 10_000_000
+  try {
+    const meRes = await fetch('/api/me', { cache: 'no-store' })
+    if (meRes.ok) {
+      const me = await meRes.json()
+      capital = me?.user?.capital ?? 10_000_000
     }
+  } catch {}
+  setStartCapital(capital)
 
-    setChartKey(k => k + 1)
-  }, [g])
+  // 수정된 API 호출 - 365일 슬라이스 + 60턴 데이터 요청
+  const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&slice=365&turns=60`, { 
+    cache: 'no-store' 
+  })
+  const response = await r.json()
+  const { ohlc, startIndex, initialChart, meta } = response
+
+  setOhlc(ohlc) // 전체 게임 데이터 (365 + 60일)
+  setSymbol(sym)
+
+  // 백엔드에서 계산된 startIndex 사용
+  const closes = ohlc.map((d: any) => d.close)
+
+  console.log(`게임 정보:`, {
+    symbol: sym,
+    totalData: ohlc.length,
+    startIndex,
+    initialChartDays: initialChart.length,
+    dateRange: `${meta.sliceStart} ~ ${meta.sliceEnd}`,
+    totalAvailable: meta.totalAvailableData
+  })
+
+  g.init({
+    symbol: sym,
+    prices: closes,
+    startIndex,
+    maxTurns: 60,
+    feeBps: g.feeBps ?? 5,
+    slippageBps: g.slippageBps ?? 0,
+    startCash: capital,
+  })
+
+  // 게임 시작 API 호출
+  const resp = await fetch('/api/game/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      symbol: sym,
+      startIndex,
+      startCash: capital,
+      feeBps: g.feeBps ?? 5,
+      maxTurns: 60,
+    }),
+  })
+  if (resp.ok) {
+    const { gameId } = await resp.json()
+    setGameId(gameId ?? null)
+  } else {
+    const j = await resp.json().catch(() => ({}))
+    if (j?.error === 'NO_HEART') {
+      alert('생명력이 부족합니다. 1시간마다 1개씩 충전됩니다.')
+    } else {
+      alert('게임 시작 중 오류가 발생했습니다.')
+    }
+  }
+
+  setChartKey(k => k + 1)
+}, [g])
+
+// pickRandomStart 함수는 더 이상 필요하지 않습니다 (제거 가능)
 
   useEffect(() => {
     if (bootedRef.current) return
