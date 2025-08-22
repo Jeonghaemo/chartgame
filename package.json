@@ -14,7 +14,7 @@
     "@auth/prisma-adapter": "^2.10.0",
     "@prisma/client": "^5.17.0",
     "dayjs": "^1.11.13",
-    "iconv-lite": "^0.6.3",
+    "iconv-lite": "^0.7.0",
     "lucide-react": "^0.539.0",
     "next": "14.2.5",
     "next-auth": "^5.0.0-beta.20",
