@@ -96,7 +96,7 @@ export default function ChartGame() {
         }
       }
 
-      // 2) 후보군 가져오기 (여기서 1개만 가져오면 안됨!)
+      // 2) 후보군 가져오기 
       console.log('[symbols] fetching list...')
       const params = new URLSearchParams({
         names: 'true',
@@ -105,7 +105,7 @@ export default function ChartGame() {
         excludePreferred: 'true',
         gameOptimized: 'true',
         
-        maxCount: '1500', 
+        maxCount: '1', 
       })
       const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
       if (!r.ok) throw new Error(`symbols API ${r.status}`)
