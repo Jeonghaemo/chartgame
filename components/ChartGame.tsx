@@ -8,6 +8,7 @@ import { valuation, pnlPct } from '@/app/game/store/helpers'
 import AdRecharge from '@/components/AdRecharge'
 import OrderModal from '@/components/OrderModal'
 import GameResultModal from '@/components/GameResultModal'
+import { useUserStore } from '@/lib/store/user';
 
 type OHLC = { time: number; open: number; high: number; low: number; close: number; volume?: number }
 type Trade = { side: 'BUY' | 'SELL'; price: number; qty: number; time: string }
@@ -24,6 +25,20 @@ const MIN_TOTAL_CANDLES = MIN_VISIBLE + RESERVED_TURNS // 425
 
 // 히스토리 검증 동시성
 const CONCURRENCY = 8
+
+// 종목의 히스토리 길이 검증 함수
+async function validateSymbolWithHistory(item: SymbolItem): Promise<SymbolItem | null> {
+  try {
+    const url = `/api/history?symbol=${encodeURIComponent(item.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const total: number = Number(json?.meta?.totalAvailableData ?? json?.ohlc?.length ?? 0);
+    return total >= MIN_TOTAL_CANDLES ? item : null;
+  } catch {
+    return null;
+  }
+}
 
 // 간단한 동시성 러너
 async function runWithConcurrency<T, R>(
@@ -48,7 +63,7 @@ export default function ChartGame() {
   const g = useGame()
   const [ohlc, setOhlc] = useState<OHLC[]>([])
   const [chartKey, setChartKey] = useState(0)
-  const [symbolLabel, setSymbolLabel] = useState<string>('') // 화면표시: "삼성전자 (005930.KS)"
+  const [symbolLabel, setSymbolLabel] = useState<string>('') // 화면표시
   const [gameId, setGameId] = useState<string | null>(null)
   const [startCapital, setStartCapital] = useState<number>(0)
   const [orderType, setOrderType] = useState<null | 'buy' | 'sell'>(null)
@@ -83,108 +98,81 @@ export default function ChartGame() {
 
   const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
-  // names=true 종목 로더 (+히스토리 길이 검증)
-  const loadUniverseWithNames = useCallback(async (): Promise<SymbolItem[]> => {
-    try {
-      // 1) 캐시 체크
-      const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
-      if (raw) {
-        const cached = JSON.parse(raw) as { symbols: SymbolItem[]; ts: number }
-        if (cached?.symbols?.length && Date.now() - cached.ts < SYMBOL_CACHE_TTL_MS) {
-          console.log(`[symbols] cached: ${cached.symbols.length}`)
-          return cached.symbols
-        }
+  // 빠른 샘플 → 전체 백그라운드 검증
+  const loadUniverseWithNames = useCallback(async () => {
+    // 캐시 먼저 체크
+    const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES);
+    if (raw) {
+      const cached = JSON.parse(raw) as { symbols: SymbolItem[]; ts: number };
+      if (cached?.symbols?.length && Date.now() - cached.ts < SYMBOL_CACHE_TTL_MS) {
+        return cached.symbols;
       }
-
-      // 2) 후보군 가져오기 
-      console.log('[symbols] fetching list...')
-      const params = new URLSearchParams({
-        names: 'true',
-        excludeETF: 'true',
-        excludeREIT: 'true',
-        excludePreferred: 'true',
-        gameOptimized: 'true',
-        
-        maxCount: '1', 
-      })
-      const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
-      if (!r.ok) throw new Error(`symbols API ${r.status}`)
-      const response = await r.json()
-      const list = (response.symbols || []) as SymbolItem[]
-      if (!list.length) throw new Error('no symbols')
-
-      // 3) 심볼 포맷 검증
-      const valid = list.filter(s => /^\d{6}\.(KS|KQ)$/.test(s.symbol))
-      if (!valid.length) throw new Error('no valid symbols')
-
-      console.log(`[symbols] candidates: ${valid.length} → history check (>= ${MIN_TOTAL_CANDLES})`)
-
-      // 4) 히스토리 길이 검증 (동시성 제한)
-      const checked = await runWithConcurrency(valid, CONCURRENCY, async (item) => {
-        try {
-          const url = `/api/history?symbol=${encodeURIComponent(item.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`
-          const res = await fetch(url, { cache: 'no-store' })
-          if (!res.ok) return null
-          const json = await res.json()
-          const total: number = Number(json?.meta?.totalAvailableData ?? json?.ohlc?.length ?? 0)
-          return total >= MIN_TOTAL_CANDLES ? item : null
-        } catch {
-          return null
-        }
-      })
-
-      const passed = checked.filter((x): x is SymbolItem => !!x)
-      if (!passed.length) throw new Error('no symbols passed history requirement')
-
-      console.log(`[symbols] passed: ${passed.length}`)
-
-      // 5) 캐시 저장
-      localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: passed, ts: Date.now() }))
-      return passed
-    } catch (e) {
-      console.error('loadUniverseWithNames failed:', e)
-      // 폴백
-      return [
-        { symbol: '005930.KS', name: '삼성전자', market: '코스피' },
-        { symbol: '000660.KS', name: 'SK하이닉스', market: '코스피' },
-        { symbol: '035420.KS', name: 'NAVER', market: '코스피' },
-        { symbol: '035720.KS', name: '카카오', market: '코스피' },
-        { symbol: '247540.KQ', name: '에코프로비엠', market: '코스닥' },
-        { symbol: '086520.KQ', name: '에코프로', market: '코스닥' },
-      ]
     }
-  }, [])
+
+    // Step1) 유효한 심볼 리스트 가져오기
+    const params = new URLSearchParams({
+      names: 'true',
+      excludeETF: 'true',
+      excludeREIT: 'true',
+      excludePreferred: 'true',
+      gameOptimized: 'true',
+      maxCount: '1500'
+    });
+    const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' });
+    const response = await r.json();
+    const list = (response.symbols || []) as SymbolItem[];
+    const valid = list.filter(s => /^\d{6}\.(KS|KQ)$/.test(s.symbol));
+
+    // Step2) 후보군 섞고 10개만 샘플링
+    const sample = valid.sort(() => Math.random() - 0.5).slice(0, 10);
+
+    const checkedSample = await runWithConcurrency(sample, CONCURRENCY, validateSymbolWithHistory);
+    const passed = checkedSample.filter((x): x is SymbolItem => !!x);
+
+    if (passed.length > 0) {
+      // 백그라운드 전체 유니버스 검증 시작
+      setTimeout(async () => {
+        const checkedAll = await runWithConcurrency(valid, CONCURRENCY, validateSymbolWithHistory);
+        const passedAll = checkedAll.filter((x): x is SymbolItem => !!x);
+        if (passedAll.length) {
+          localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: passedAll, ts: Date.now() }));
+        }
+      }, 0);
+      // 즉시 샘플 반환
+      return passed;
+    }
+
+    // fallback: 삼성전자 등 고정 종목 리턴
+    return [
+      { symbol: '005930.KS', name: '삼성전자', market: '코스피' },
+      { symbol: '000660.KS', name: 'SK하이닉스', market: '코스피' },
+      { symbol: '035420.KS', name: 'NAVER', market: '코스피' },
+      { symbol: '035720.KS', name: '카카오', market: '코스피' },
+      { symbol: '247540.KQ', name: '에코프로비엠', market: '코스닥' },
+      { symbol: '086520.KQ', name: '에코프로', market: '코스닥' }
+    ];
+  }, []);
 
   // 심볼 로딩/초기화
   const loadAndInitBySymbol = useCallback(async (sym: string) => {
-    let capital = 10_000_000
+    let capital = 10_000_000;
     try {
-      const meRes = await fetch('/api/me', { cache: 'no-store' })
+      const meRes = await fetch('/api/me', { cache: 'no-store' });
       if (meRes.ok) {
-        const me = await meRes.json()
-        capital = me?.user?.capital ?? 10_000_000
+        const me = await meRes.json();
+        capital = me?.user?.capital ?? 10_000_000;
       }
     } catch {}
-    setStartCapital(capital)
+    setStartCapital(capital);
 
     const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`, {
       cache: 'no-store',
-    })
-    const response = await r.json()
-    const { ohlc, startIndex, initialChart, meta } = response
+    });
+    const response = await r.json();
+    const { ohlc, startIndex, initialChart, meta } = response;
 
-    setOhlc(ohlc)
-
-    const closes = ohlc.map((d: any) => d.close)
-
-    console.log('게임 정보:', {
-      symbol: sym,
-      totalData: ohlc.length,
-      startIndex,
-      initialChartDays: initialChart.length,
-      dateRange: `${meta.sliceStart} ~ ${meta.sliceEnd}`,
-      totalAvailable: meta.totalAvailableData,
-    })
+    setOhlc(ohlc);
+    const closes = ohlc.map((d: any) => d.close);
 
     g.init({
       symbol: sym,
@@ -194,7 +182,7 @@ export default function ChartGame() {
       feeBps: g.feeBps ?? 5,
       slippageBps: g.slippageBps ?? 0,
       startCash: capital,
-    })
+    });
 
     const resp = await fetch('/api/game/start', {
       method: 'POST',
@@ -206,14 +194,14 @@ export default function ChartGame() {
         feeBps: g.feeBps ?? 5,
         maxTurns: RESERVED_TURNS,
       }),
-    })
+    });
     if (resp.ok) {
       const { gameId } = await resp.json()
       setGameId(gameId ?? null)
     } else {
       const j = await resp.json().catch(() => ({}))
       if (j?.error === 'NO_HEART') {
-        alert('생명력이 부족합니다. 1시간마다 1개씩 충전됩니다.')
+        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다.')
       } else {
         alert('게임 시작 중 오류가 발생했습니다.')
       }
@@ -366,7 +354,7 @@ export default function ChartGame() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={resetGame} className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
-                      새 종목
+                      차트 변경
                     </button>
                     <button onClick={endGame} className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
                       게임 종료
