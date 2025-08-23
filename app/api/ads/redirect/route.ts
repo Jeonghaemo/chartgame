@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // 2) 생명력 +1 (최대치 제한)
+  // 2) 하트 +1 (최대치 제한)
   const u = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (u) {
     const nextHearts = Math.min(u.maxHearts, u.hearts + 1);

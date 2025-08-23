@@ -8,7 +8,7 @@ export async function refillHearts(userId: string) {
 
   const now = dayjs();
   const last = dayjs(u.lastRefillAt);
-  const hours = Math.floor(now.diff(last, "hour"));
+  const hours = Math.floor(now.diff(last, "minute"));
   if (hours <= 0) return u;
 
   const nextHearts = Math.min(u.maxHearts, u.hearts + hours);
@@ -27,7 +27,7 @@ export async function refillHearts(userId: string) {
   return updated;
 }
 
-/** 게임 시작 시 생명력 1 차감 */
+/** 게임 시작 시 하트 1 차감 */
 export async function consumeHeart(userId: string) {
   const u = await refillHearts(userId);
   if (!u) throw new Error("USER_NOT_FOUND");

@@ -103,9 +103,9 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
           <span>{result.turnCount} 턴</span>
         </div>
 
-        {/* 남은 시드 */}
+        {/* 남은 하트 */}
         <div className="flex items-center justify-center gap-2 mb-4">
-          <span>남은 시드</span>
+          <span>남은 하트</span>
           <span className="text-red-500 font-bold">{result.heartsLeft} ❤️</span>
         </div>
 
@@ -115,7 +115,7 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
             className="flex-1 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition"
             onClick={onClose}
           >
-            닫기
+            메인화면
           </button>
           <button
             className="flex-1 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"

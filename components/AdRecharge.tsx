@@ -63,7 +63,7 @@ export default function AdRecharge() {
 
   const label =
     info?.eligible
-      ? `생명력 무료 충전 (${info.remaining}회 남음) - ${info.provider === "COUPANG" ? "쿠팡" : "네이버"}`
+      ? `하트 무료 충전 (${info.remaining}회 남음) - ${info.provider === "COUPANG" ? "쿠팡" : "네이버"}`
       : info?.reason === "DAILY_LIMIT"
       ? "오늘 충전 기회 소진(내일 4회)"
       : `쿨타임 진행 중: ${formatHMS(cool)}`;
@@ -71,7 +71,7 @@ export default function AdRecharge() {
   return (
     <div className="mt-4 rounded-2xl border p-4">
       <div className="flex items-center justify-between">
-        <div className="font-semibold">생명력 무료 충전</div>
+        <div className="font-semibold">❤️ 하트 무료 충전</div>
         <button
           disabled={!info?.eligible}
           onClick={handleOpen}
@@ -84,9 +84,9 @@ export default function AdRecharge() {
       {open && (
         <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center">
           <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
-            <div className="text-lg font-bold">광고 시청으로 생명력 +1</div>
+            <div className="text-lg font-bold">광고 시청으로 하트 +1</div>
             <div className="mt-2 text-sm text-gray-600">
-              광고를 클릭하면 새 탭에서 열립니다. 클릭이 확인되면 생명력이 1개 충전됩니다.
+              광고를 클릭하면 새 탭에서 열립니다. 클릭이 확인되면 하트가 1개 충전됩니다.
             </div>
 
             <div className="mt-4 h-40 rounded-xl border grid place-items-center">

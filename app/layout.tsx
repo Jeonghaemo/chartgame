@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <span className="text-slate-600">
                     자본금 {((session.user as any).capital ?? 10000000).toLocaleString()}원
                   </span>
-                  <HeaderHearts /> {/* ★ 생명력 + 카운트다운 UI */}
+                  <HeaderHearts /> {/* ★ 하트 + 카운트다운 UI */}
                   <form action={async () => { "use server"; await signOut(); }}>
                     <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">로그아웃</button>
                   </form>
