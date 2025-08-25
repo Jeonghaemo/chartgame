@@ -93,6 +93,7 @@ export default function ChartGame() {
     if (!gameId) return
     const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
     const equity = g.cash + g.shares * last
+
     await fetch('/api/game/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,28 +103,42 @@ export default function ChartGame() {
         cash: g.cash,
         shares: g.shares,
         equity,
+        turn: g.turn,         // 추가
+        avgPrice: g.avgPrice, // 추가
+        history: g.history,   // 추가
       }),
     }).catch(() => {})
-  }, [gameId, g.cursor, g.cash, g.shares, g.prices])
+  }, [gameId, g.cursor, g.cash, g.shares, g.prices, g.turn, g.avgPrice, g.history])
 
-  // 페이지 이탈 전 마지막 저장 (선택)
+  // beforeunload 핸들러도 동일하게 수정
   useEffect(() => {
     const handler = () => {
-      // best-effort
       try {
         const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
         const equity = g.cash + g.shares * last
         navigator.sendBeacon?.(
           '/api/game/progress',
-          new Blob([JSON.stringify({ gameId, ts: g.cursor, cash: g.cash, shares: g.shares, equity })], {
-            type: 'application/json',
-          })
+          new Blob(
+            [
+              JSON.stringify({
+                gameId,
+                ts: g.cursor,
+                cash: g.cash,
+                shares: g.shares,
+                equity,
+                turn: g.turn,
+                avgPrice: g.avgPrice,
+                history: g.history,
+              }),
+            ],
+            { type: 'application/json' }
+          )
         )
       } catch {}
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [gameId, g.cursor, g.cash, g.shares, g.prices])
+  }, [gameId, g.cursor, g.cash, g.shares, g.prices, g.turn, g.avgPrice, g.history])
 
   // 단축키 (저장 포함)
   useEffect(() => {
@@ -141,7 +156,7 @@ export default function ChartGame() {
     return () => window.removeEventListener('keydown', handleKey)
   }, [g, canPlay, saveProgress])
 
-  const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
+  const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * Math.random() * arr.length)] // 살짝 무작위성 강화
 
   const loadUniverseWithNames = useCallback(async () => {
     const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
@@ -310,7 +325,14 @@ export default function ChartGame() {
               startIndex: number
               maxTurns: number
               feeBps: number
-              snapshot: null | { cursor: number; cash: number; shares: number }
+              snapshot: null | {
+                cursor: number
+                cash: number
+                shares: number
+                turn?: number
+                avgPrice?: number | null
+                history?: Trade[]
+              }
             }
 
             // 차트 로딩
@@ -340,6 +362,16 @@ export default function ChartGame() {
               ;(g as any).setCursor?.(ginfo.snapshot.cursor)
               ;(g as any).setCash?.(ginfo.snapshot.cash)
               ;(g as any).setShares?.(ginfo.snapshot.shares)
+
+              // 확장 필드 복원
+              useGame.setState({
+                turn: typeof ginfo.snapshot.turn === 'number' ? ginfo.snapshot.turn : g.turn,
+                avgPrice:
+                  typeof ginfo.snapshot.avgPrice === 'number' || ginfo.snapshot.avgPrice === null
+                    ? ginfo.snapshot.avgPrice
+                    : g.avgPrice,
+                history: Array.isArray(ginfo.snapshot.history) ? ginfo.snapshot.history : [],
+              })
             }
 
             setChartKey(k => k + 1)
@@ -369,7 +401,7 @@ export default function ChartGame() {
       void saveProgress()
     }, 150)
     return () => clearTimeout(id)
-  }, [g.cursor, g.cash, g.shares, saveProgress])
+  }, [g.cursor, g.cash, g.shares, g.turn, g.avgPrice, g.history, saveProgress])
 
   // 새 게임(차트 변경)
   const resetGame = useCallback(async () => {
@@ -570,7 +602,9 @@ export default function ChartGame() {
                 <div className="text-sm text-gray-500">게임현황</div>
                 <div className="mt-2 text-3xl font-bold">{fmt(total)} 원</div>
                 <div className="text-sm text-gray-500">초기자산 {fmt(startCapital)}</div>
-                <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>수익률 {ret.toFixed(2)}%</div>
+                <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  수익률 {ret.toFixed(2)}%
+                </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
                   <div className="text-gray-500">보유현금</div>

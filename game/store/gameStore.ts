@@ -29,7 +29,16 @@ type InitInput = {
   maxTurns: number;
   feeBps: number;
   slippageBps: number;
-  startCash?: number; // ChartGame에서 넘기는 capital
+  startCash?: number;
+};
+
+type SnapshotInput = {
+  cursor: number;
+  cash: number;
+  shares: number;
+  turn?: number;
+  avgPrice?: number | null;
+  history?: Trade[];
 };
 
 type BuySellTime = number | string | undefined;
@@ -53,11 +62,14 @@ export const useGame = create<
     sell: (qty: number, time?: BuySellTime) => void;
     end: () => void;
 
-    // ✅ 복원용 액션
+    // 복원용 액션들 - 확장
     setCursor: (cursor: number) => void;
     setCash: (cash: number) => void;
     setShares: (shares: number) => void;
-    applySnapshot: (snap: { cursor: number; cash: number; shares: number }) => void;
+    setTurn: (turn: number) => void;
+    setAvgPrice: (avgPrice: number | null) => void;
+    setHistory: (history: Trade[]) => void;
+    applySnapshot: (snap: SnapshotInput) => void;
   }
 >((set, get) => ({
   symbol: "",
@@ -163,13 +175,19 @@ export const useGame = create<
 
   end: () => set({ status: "ended" }),
 
-  // ✅ 복원용 액션들
+  // 복원용 액션들
   setCursor: (cursor: number) => set({ cursor }),
   setCash: (cash: number) => set({ cash }),
   setShares: (shares: number) => set({ shares }),
-  applySnapshot: (snap) => set({
+  setTurn: (turn: number) => set({ turn }),
+  setAvgPrice: (avgPrice: number | null) => set({ avgPrice }),
+  setHistory: (history: Trade[]) => set({ history }),
+  applySnapshot: (snap: SnapshotInput) => set({
     cursor: snap.cursor,
     cash: snap.cash,
     shares: snap.shares,
+    turn: snap.turn ?? 0,
+    avgPrice: snap.avgPrice ?? null,
+    history: snap.history ?? [],
   }),
 }));

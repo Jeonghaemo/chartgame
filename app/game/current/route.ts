@@ -16,7 +16,7 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
-      code: true,        // ← 우리는 code 필드에 symbol을 저장하고 있음
+      code: true,
       startCash: true,
       startIndex: true,
       maxTurns: true,
@@ -28,24 +28,38 @@ export async function GET() {
     return NextResponse.json({ ok: true, game: null })
   }
 
-  // 최신 스냅샷 1개
+  // 최신 스냅샷 1개 (추가 필드들 포함)
   const snapshot = await prisma.balanceSnapshot.findFirst({
     where: { gameId: game.id },
     orderBy: { ts: 'desc' },
-    select: { ts: true, cash: true, position: true },
+    select: { 
+      ts: true, 
+      cash: true, 
+      position: true,
+      turn: true,
+      avgPrice: true,
+      history: true,
+    },
   })
 
   return NextResponse.json({
     ok: true,
     game: {
       id: game.id,
-      symbol: game.code, // 클라에서 history 불러올 때 사용
+      symbol: game.code,
       startCash: game.startCash,
       startIndex: game.startIndex,
       maxTurns: game.maxTurns,
       feeBps: game.feeBps,
       snapshot: snapshot
-        ? { cursor: snapshot.ts, cash: snapshot.cash, shares: snapshot.position }
+        ? { 
+            cursor: snapshot.ts, 
+            cash: snapshot.cash, 
+            shares: snapshot.position,
+            turn: snapshot.turn,
+            avgPrice: snapshot.avgPrice,
+            history: snapshot.history ? JSON.parse(snapshot.history) : [],
+          }
         : null,
     },
   })

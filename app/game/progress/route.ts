@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const userId = session.user.id
 
   const body = await req.json().catch(() => ({}))
-  const { gameId, ts, cash, shares, equity } = body ?? {}
+  const { gameId, ts, cash, shares, equity, turn, avgPrice, history } = body ?? {}
 
   if (!gameId || typeof ts !== 'number') {
     return NextResponse.json({ error: 'BAD_INPUT' }, { status: 400 })
@@ -28,6 +28,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'GAME_FINISHED' }, { status: 400 })
   }
 
+  // 거래 히스토리를 JSON 문자열로 변환
+  const historyJson = history ? JSON.stringify(history) : null
+
   // @@unique([gameId, ts]) 기준으로 업서트
   await prisma.balanceSnapshot.upsert({
     where: { gameId_ts: { gameId: game.id, ts } },
@@ -37,11 +40,17 @@ export async function POST(req: Request) {
       cash: Number.isFinite(cash) ? cash : 0,
       position: Number.isFinite(shares) ? shares : 0,
       equity: Number.isFinite(equity) ? equity : 0,
+      turn: Number.isFinite(turn) ? turn : null,
+      avgPrice: Number.isFinite(avgPrice) ? avgPrice : null,
+      history: historyJson,
     },
     update: {
       cash: Number.isFinite(cash) ? cash : 0,
       position: Number.isFinite(shares) ? shares : 0,
       equity: Number.isFinite(equity) ? equity : 0,
+      turn: Number.isFinite(turn) ? turn : null,
+      avgPrice: Number.isFinite(avgPrice) ? avgPrice : null,
+      history: historyJson,
     },
   })
 

@@ -104,10 +104,16 @@ model Order {
 model BalanceSnapshot {
   id        String   @id @default(cuid())
   gameId    String
-  ts        Int
-  equity    Float
-  cash      Float
-  position  Float
+  ts        Int      // cursor 위치
+  equity    Float    // 총 자산
+  cash      Float    // 현금
+  position  Float    // 주식 수량
+  
+  // 새로 추가된 필드들
+  turn      Int?     // 현재 턴
+  avgPrice  Float?   // 평균 단가
+  history   String?  // 거래 히스토리 (JSON 문자열)
+  
   createdAt DateTime @default(now())
   game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
