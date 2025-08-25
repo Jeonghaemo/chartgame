@@ -11,15 +11,9 @@ export async function POST(req: Request) {
     const userId = session.user.id
 
     const body = await req.json().catch(() => ({}))
-    const {
-      gameId,
-      finalCapital,         // 최종 총자산 (필수)
-      returnPct,            // 수익률 % (필수)
-      symbol,               // Score 저장용 (선택)
-      endIndex,             // 마지막 턴 인덱스 (선택)
-    } = body ?? {}
+    const { gameId, finalCapital, returnPct, symbol, endIndex } = body ?? {}
 
-    // --- 유효성 점검 ---
+    // 1) 기본 검증
     if (!gameId) {
       return NextResponse.json({ error: 'MISSING_GAME_ID' }, { status: 400 })
     }
@@ -28,47 +22,68 @@ export async function POST(req: Request) {
     if (!Number.isFinite(endCapNum) || !Number.isFinite(retPctNum)) {
       return NextResponse.json({ error: 'INVALID_NUMERIC_VALUES' }, { status: 400 })
     }
+    const endIdxNumRaw = Number(endIndex)
+    const endIdxNum = Number.isFinite(endIdxNumRaw) ? endIdxNumRaw : undefined
 
-    // --- 소유권 검증 ---
+    // 2) 소유권/상태 조회
     const game = await prisma.game.findUnique({
       where: { id: String(gameId) },
-      select: { id: true, userId: true, startCash: true },
+      select: { id: true, userId: true, startCash: true, finishedAt: true, startIndex: true, maxTurns: true },
     })
     if (!game || game.userId !== userId) {
       return NextResponse.json({ error: 'GAME_NOT_FOUND' }, { status: 404 })
     }
 
-    // --- 게임 종료 정보 업데이트 ---
-    await prisma.game.update({
-      where: { id: game.id }, // update는 고유키만 허용하므로 id만 사용
-      data: {
-        endIndex: typeof endIndex === 'number' ? endIndex : 60, // 필요 시 g.cursor 값 보내서 대체 가능
-        finishedAt: new Date(),
-        returnPct: retPctNum,
-      },
-    })
-
-    // --- Score 기록 (선택) ---
-    if (symbol) {
-      await prisma.score.create({
-        data: {
-          userId,
-          symbol: String(symbol),
-          total: Math.round(endCapNum),
-          returnPct: retPctNum,
-          gameId: game.id,
-        },
+    // 이미 종료된 게임 재호출이면 idempotent 처리
+    if (game.finishedAt) {
+      // 자본 동기화만 한 번 더 보장하고 OK 반환해도 됨(선택)
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { capital: Math.round(endCapNum) },
+        select: { capital: true },
       })
+      return NextResponse.json({ ok: true, capital: updatedUser.capital, alreadyFinished: true })
     }
 
-    // --- 유저 자본 동기화 ---
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { capital: Math.round(endCapNum) },
-      select: { capital: true },
+    // 3) endIndex 보정 (선택)
+    const maxIdx = (game.startIndex ?? 0) + (game.maxTurns ?? 60) - 1
+    const safeEndIndex = endIdxNum != null
+      ? Math.max(game.startIndex ?? 0, Math.min(endIdxNum, maxIdx))
+      : maxIdx // 값이 없으면 마지막 턴으로
+
+    // 4) 트랜잭션(선택) — 업데이트 + 점수 + 자본 동기화
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.game.update({
+        where: { id: game.id },
+        data: {
+          endIndex: safeEndIndex,
+          finishedAt: new Date(),
+          returnPct: retPctNum,
+        },
+      })
+
+      if (symbol) {
+        await tx.score.create({
+          data: {
+            userId,
+            symbol: String(symbol),
+            total: Math.round(endCapNum),
+            returnPct: retPctNum,
+            gameId: game.id,
+          },
+        })
+      }
+
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: { capital: Math.round(endCapNum) },
+        select: { capital: true },
+      })
+
+      return updatedUser.capital
     })
 
-    return NextResponse.json({ ok: true, capital: updatedUser.capital })
+    return NextResponse.json({ ok: true, capital: result })
   } catch (e) {
     console.error('/api/game/finish error', e)
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 })

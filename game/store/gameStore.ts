@@ -29,7 +29,7 @@ type InitInput = {
   maxTurns: number;
   feeBps: number;
   slippageBps: number;
-  startCash?: number; // ← ChartGame에서 넘기는 capital 반영
+  startCash?: number; // ChartGame에서 넘기는 capital
 };
 
 type BuySellTime = number | string | undefined;
@@ -42,7 +42,6 @@ function toISO(t?: BuySellTime): string {
     const ms = t > 1e12 ? t : t * 1000;
     return new Date(ms).toISOString();
   }
-  // string
   return new Date(t).toISOString();
 }
 
@@ -53,6 +52,12 @@ export const useGame = create<
     buy: (qty: number, time?: BuySellTime) => void;
     sell: (qty: number, time?: BuySellTime) => void;
     end: () => void;
+
+    // ✅ 복원용 액션
+    setCursor: (cursor: number) => void;
+    setCash: (cash: number) => void;
+    setShares: (shares: number) => void;
+    applySnapshot: (snap: { cursor: number; cash: number; shares: number }) => void;
   }
 >((set, get) => ({
   symbol: "",
@@ -118,12 +123,7 @@ export const useGame = create<
     const newAvg =
       s.avgPrice == null ? fill : (s.avgPrice * s.shares + fill * qty) / newQty;
 
-    const trade: Trade = {
-      side: "BUY",
-      price: fill,
-      qty,
-      time: toISO(time),
-    };
+    const trade: Trade = { side: "BUY", price: fill, qty, time: toISO(time) };
 
     set({
       cash: Math.floor(newCash),
@@ -151,12 +151,7 @@ export const useGame = create<
     const newQty = s.shares - qty;
     const newAvg = newQty === 0 ? null : s.avgPrice;
 
-    const trade: Trade = {
-      side: "SELL",
-      price: fill,
-      qty,
-      time: toISO(time),
-    };
+    const trade: Trade = { side: "SELL", price: fill, qty, time: toISO(time) };
 
     set({
       cash: Math.floor(newCash),
@@ -167,4 +162,14 @@ export const useGame = create<
   },
 
   end: () => set({ status: "ended" }),
+
+  // ✅ 복원용 액션들
+  setCursor: (cursor: number) => set({ cursor }),
+  setCash: (cash: number) => set({ cash }),
+  setShares: (shares: number) => set({ shares }),
+  applySnapshot: (snap) => set({
+    cursor: snap.cursor,
+    cash: snap.cash,
+    shares: snap.shares,
+  }),
 }));

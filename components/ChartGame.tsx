@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Card from './Card'
 import CandleChart from '@/components/CandleChart'
-import { useGame } from '@/app/game/store/gameStore'
-import { valuation, pnlPct } from '@/app/game/store/helpers'
+import { useGame } from '@/game/store/gameStore'
+import { valuation, pnlPct } from '@/game/store/helpers'
 import AdRecharge from '@/components/AdRecharge'
 import OrderModal from '@/components/OrderModal'
 import GameResultModal from '@/components/GameResultModal'
@@ -64,8 +64,7 @@ export default function ChartGame() {
   const [startCapital, setStartCapital] = useState<number>(0)
   const [orderType, setOrderType] = useState<null | 'buy' | 'sell'>(null)
   const [isGameEnd, setIsGameEnd] = useState(false)
-  const [canPlay, setCanPlay] = useState(true) // ✅ 하트 부족 시 false
-  
+  const [canPlay, setCanPlay] = useState(true)
 
   const [result, setResult] = useState<null | {
     startCapital: number
@@ -83,22 +82,64 @@ export default function ChartGame() {
   const universeRef = useRef<SymbolItem[]>([])
   const bootedRef = useRef(false)
 
-  // 하트 상태 및 setter (전역 Zustand store)
+  // 하트 상태
   const hearts = useUserStore(state => state.hearts)
   const setHearts = useUserStore(state => state.setHearts)
 
-  // 단축키 (플레이 가능 & 진행중일 때만)
+  // ================================
+  // 진행상태 저장 API (스냅샷)
+  // ================================
+  const saveProgress = useCallback(async () => {
+    if (!gameId) return
+    const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
+    const equity = g.cash + g.shares * last
+    await fetch('/api/game/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gameId,
+        ts: g.cursor,
+        cash: g.cash,
+        shares: g.shares,
+        equity,
+      }),
+    }).catch(() => {})
+  }, [gameId, g.cursor, g.cash, g.shares, g.prices])
+
+  // 페이지 이탈 전 마지막 저장 (선택)
+  useEffect(() => {
+    const handler = () => {
+      // best-effort
+      try {
+        const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
+        const equity = g.cash + g.shares * last
+        navigator.sendBeacon?.(
+          '/api/game/progress',
+          new Blob([JSON.stringify({ gameId, ts: g.cursor, cash: g.cash, shares: g.shares, equity })], {
+            type: 'application/json',
+          })
+        )
+      } catch {}
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [gameId, g.cursor, g.cash, g.shares, g.prices])
+
+  // 단축키 (저장 포함)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!canPlay || g.status !== 'playing') return
       const k = e.key.toLowerCase()
       if (k === 'a') setOrderType('buy')
       if (k === 's') setOrderType('sell')
-      if (k === 'd') g.next()
+      if (k === 'd') {
+        g.next()
+        void saveProgress()
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [g, canPlay])
+  }, [g, canPlay, saveProgress])
 
   const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
@@ -133,10 +174,7 @@ export default function ChartGame() {
         const checkedAll = await runWithConcurrency(valid, CONCURRENCY, validateSymbolWithHistory)
         const passedAll = checkedAll.filter((x): x is SymbolItem => !!x)
         if (passedAll.length) {
-          localStorage.setItem(
-            SYMBOL_CACHE_KEY_NAMES,
-            JSON.stringify({ symbols: passedAll, ts: Date.now() }),
-          )
+          localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: passedAll, ts: Date.now() }))
         }
       }, 0)
       return passed
@@ -153,10 +191,10 @@ export default function ChartGame() {
   }, [])
 
   /**
-   * 새 게임(초기화) 절차
-   * 1) /api/me로 내 하트/자본 확인 → 0이면 알림 후 메인 이동
-   * 2) /api/history 로 데이터 로드(아직 g.init 금지)
-   * 3) /api/game/start 호출(서버에서 하트 차감) → OK일 때만 g.init
+   * 새 게임(초기화)
+   * 1) /api/me 확인(하트)
+   * 2) /api/history 선로딩
+   * 3) /api/game/start(서버 차감) 성공 시 g.init
    */
   const loadAndInitBySymbol = useCallback(
     async (sym: string) => {
@@ -180,31 +218,31 @@ export default function ChartGame() {
       if (!currentHearts || currentHearts <= 0) {
         setCanPlay(false)
         alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-        router.push('/')            // ✅ 알림 후 메인 이동
+        router.push('/')
         return
       }
 
-      // (2) 차트 데이터 선로딩 (아직 g.init 금지)
-      const r = await fetch(`/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`, {
-        cache: 'no-store',
-      })
+      // (2) 차트 데이터
+      const r = await fetch(
+        `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
+        { cache: 'no-store' }
+      )
       const response = await r.json()
       const { ohlc, startIndex } = response
       setOhlc(ohlc)
       const closes = ohlc.map((d: any) => d.close)
 
-      // (3) 서버에 게임 시작 요청 (여기서 하트 차감/검증)
+      // (3) 서버 시작(하트 차감)
       const resp = await fetch('/api/game/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // 서버가 symbol 또는 code를 기대하는지에 맞춰주세요.
-          // 현재 클라이언트는 symbol을 보내고 있음.
-          symbol: sym,
+          code: sym,
           startIndex,
           startCash: capital,
           feeBps: g.feeBps ?? 5,
           maxTurns: RESERVED_TURNS,
+          forceNew: true, // 새 게임(차트 변경)에서만 강제
         }),
       })
 
@@ -213,21 +251,20 @@ export default function ChartGame() {
         if (j?.error === 'NO_HEART') {
           setCanPlay(false)
           alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-          router.push('/')          // ✅ 알림 후 메인 이동
+          router.push('/')
           return
         }
         alert('게임 시작 중 오류가 발생했습니다.')
         return
       }
 
-      const { gameId, hearts: serverHearts } = await resp.json()
-      setGameId(gameId ?? null)
-      if (typeof serverHearts === 'number') {
-        setHearts(serverHearts)
-        setCanPlay(serverHearts > 0)
+      const data = await resp.json()
+      setGameId(data?.gameId ?? null)
+      if (typeof data?.hearts === 'number') {
+        setHearts(data.hearts)
+        setCanPlay(data.hearts > 0)
       }
 
-      // ✅ 서버 OK 후에만 실제 게임 시작
       g.init({
         symbol: sym,
         prices: closes,
@@ -242,34 +279,83 @@ export default function ChartGame() {
     [g, setHearts, hearts, router]
   )
 
-  // 최초 부팅: 하트 확인 → 0이면 알림 후 메인 이동, 아니면 새게임 진행
+  // 부팅: 이어하기 먼저 시도 → 실패 시 새 게임
   useEffect(() => {
     if (bootedRef.current) return
     bootedRef.current = true
 
     ;(async () => {
-      let okHearts = hearts
+      // 0) 내 정보 동기화
       try {
         const meRes = await fetch('/api/me', { cache: 'no-store' })
         if (meRes.ok) {
           const me = await meRes.json()
           const currentHearts = me?.user?.hearts ?? 0
-          okHearts = currentHearts
           setHearts(currentHearts)
           setCanPlay(currentHearts > 0)
           setStartCapital(me?.user?.capital ?? 10_000_000)
         }
       } catch {}
 
-      if (!okHearts || okHearts <= 0) {
-        setCanPlay(false)
-        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-        router.push('/')          // ✅ 알림 후 메인 이동
-        return
+      // 1) 이어하기
+      try {
+        const r = await fetch('/api/game/current', { cache: 'no-store' })
+        if (r.ok) {
+          const data = await r.json()
+          if (data?.game) {
+            const ginfo = data.game as {
+              id: string
+              symbol: string
+              startCash: number
+              startIndex: number
+              maxTurns: number
+              feeBps: number
+              snapshot: null | { cursor: number; cash: number; shares: number }
+            }
+
+            // 차트 로딩
+            const hist = await fetch(
+              `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
+              { cache: 'no-store' }
+            )
+            const hjson = await hist.json()
+            const ohlcArr: OHLC[] = hjson.ohlc
+            setOhlc(ohlcArr)
+            setSymbolLabel(`${ginfo.symbol}`)
+            setGameId(ginfo.id)
+            setStartCapital(ginfo.startCash)
+
+            const closes = ohlcArr.map(d => d.close)
+            g.init({
+              symbol: ginfo.symbol,
+              prices: closes,
+              startIndex: ginfo.startIndex,
+              maxTurns: ginfo.maxTurns ?? RESERVED_TURNS,
+              feeBps: ginfo.feeBps ?? (g.feeBps ?? 5),
+              slippageBps: g.slippageBps ?? 0,
+              startCash: ginfo.startCash,
+            })
+
+            if (ginfo.snapshot) {
+              ;(g as any).setCursor?.(ginfo.snapshot.cursor)
+              ;(g as any).setCash?.(ginfo.snapshot.cash)
+              ;(g as any).setShares?.(ginfo.snapshot.shares)
+            }
+
+            setChartKey(k => k + 1)
+            return // 이어하기 성공 → 종료
+          }
+        }
+      } catch {
+        // 이어하기 실패 시 무시
       }
 
-      const uni = await loadUniverseWithNames()
-      universeRef.current = uni
+      // 2) 이어할 게임이 없으면 새 게임
+      let uni = universeRef.current
+      if (!uni || uni.length === 0) {
+        uni = await loadUniverseWithNames()
+        universeRef.current = uni
+      }
       const chosen = pickRandom<SymbolItem>(uni)
       await loadAndInitBySymbol(chosen.symbol)
       setSymbolLabel(`${chosen.name} (${chosen.symbol})`)
@@ -277,12 +363,20 @@ export default function ChartGame() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ✅ 새 게임(차트 변경): 하트 없으면 알림 후 메인 이동. 하트 차감은 /api/game/start에서 처리.
+  // 상태 변경 시 살짝 디바운스해서 자동 저장
+  useEffect(() => {
+    const id = setTimeout(() => {
+      void saveProgress()
+    }, 150)
+    return () => clearTimeout(id)
+  }, [g.cursor, g.cash, g.shares, saveProgress])
+
+  // 새 게임(차트 변경)
   const resetGame = useCallback(async () => {
     if (!hearts || hearts <= 0) {
       setCanPlay(false)
       alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-      router.push('/')            // ✅ 확인 후 메인 이동
+      router.push('/')
       return
     }
 
@@ -304,66 +398,62 @@ export default function ChartGame() {
     if (g.turn + 1 >= g.maxTurns && g.status === 'playing') {
       endGame()
     }
-  }, [g.turn, g.maxTurns, g.status])
+  }, [g.turn, g.maxTurns, g.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const endGame = useCallback(async () => {
-  let rank: number | null = null
-  let prevRank: number | null = null
+    let rank: number | null = null
+    let prevRank: number | null = null
 
-  const endCapital = total
-  const finalReturnPct = ret
-  const finalIndex = g.cursor
+    const endCapital = total
+    const finalReturnPct = ret
+    const finalIndex = g.cursor
 
-  // 1) 서버에 게임 종료/정산 요청 → User.capital 동기화
-  try {
-    if (gameId) {
-      await fetch('/api/game/finish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameId,
-          finalCapital: endCapital,   // ✅ 네 finish 라우트가 받는 키
-          returnPct: finalReturnPct,  // ✅ 동일
-          symbol: g.symbol,           // Score 저장용 (finish 라우트에서 사용)
-          endIndex: finalIndex,       // 선택(기록용)
-        }),
-      })
-    }
-  } catch (e) {
-    console.error('finish API error', e)
-  }
-
-  // 2) (선택) 순위 불러오기
-  try {
-    const res = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' })
-    if (res.ok) {
-      const data = await res.json()
-      if (data?.myRank) {
-        rank = data.myRank.rank ?? null
-        prevRank = null
+    try {
+      if (gameId) {
+        await fetch('/api/game/finish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameId,
+            finalCapital: endCapital,
+            returnPct: finalReturnPct,
+            symbol: (g as any).symbol,
+            endIndex: finalIndex,
+          }),
+        })
       }
+    } catch (e) {
+      console.error('finish API error', e)
     }
-  } catch (e) {
-    console.error('순위 불러오기 실패:', e)
-  }
 
-  // 3) 결과 모달 오픈
-  setResult({
-    startCapital,
-    endCapital,
-    profit: endCapital - startCapital,
-    profitRate: finalReturnPct,
-    tax: 0,
-    tradeCount: g.history.length,
-    turnCount: g.turn + 1,
-    heartsLeft: hearts ?? 0,
-    rank,
-    prevRank,
-  })
-  setIsGameEnd(true)
-  g.end()
-}, [gameId, startCapital, total, ret, g.history.length, g.turn, g, hearts])
+    try {
+      const res = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.myRank) {
+          rank = data.myRank.rank ?? null
+          prevRank = null
+        }
+      }
+    } catch (e) {
+      console.error('순위 불러오기 실패:', e)
+    }
 
+    setResult({
+      startCapital,
+      endCapital,
+      profit: endCapital - startCapital,
+      profitRate: finalReturnPct,
+      tax: 0,
+      tradeCount: g.history.length,
+      turnCount: g.turn + 1,
+      heartsLeft: hearts ?? 0,
+      rank,
+      prevRank,
+    })
+    setIsGameEnd(true)
+    g.end()
+  }, [gameId, startCapital, total, ret, g.history.length, g.turn, g, hearts])
 
   const fmt = (n?: number) => (n == null ? '-' : Math.round(n).toLocaleString())
 
@@ -375,7 +465,7 @@ export default function ChartGame() {
             ? Math.floor(d.time / 1000)
             : d.time
           : Math.floor(new Date(d.time).getTime() / 1000)
-      }),
+      })
     )
     return (g.history as Trade[]).filter(t => {
       const tradeTime =
@@ -388,7 +478,7 @@ export default function ChartGame() {
     })
   }, [ohlc, g.cursor, g.history])
 
-  const handleOrderSubmit = (qty: number) => {
+  const handleOrderSubmit = async (qty: number) => {
     if (!canPlay || g.status !== 'playing') return
     const currentOhlc = ohlc[g.cursor]
     const tradeTime =
@@ -400,6 +490,8 @@ export default function ChartGame() {
 
     if (orderType === 'buy') g.buy(qty, tradeTime)
     if (orderType === 'sell') g.sell(qty, tradeTime)
+
+    await saveProgress()
   }
 
   return (
@@ -462,7 +554,10 @@ export default function ChartGame() {
                     매도 (S)
                   </button>
                   <button
-                    onClick={() => g.next()}
+                    onClick={async () => {
+                      g.next()
+                      await saveProgress()
+                    }}
                     disabled={g.status !== 'playing' || !canPlay}
                     className="col-span-1 rounded-xl bg-gray-900 text-white py-3 font-semibold hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -498,7 +593,7 @@ export default function ChartGame() {
           isOpen={isGameEnd}
           onClose={() => {
             setIsGameEnd(false)
-            router.push('/')   // ✅ 닫기 누르면 메인 이동
+            router.push('/') // 닫기 → 메인 이동
           }}
           result={result}
         />
@@ -508,7 +603,11 @@ export default function ChartGame() {
         <OrderModal
           type={orderType}
           currentPrice={g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0}
-          maxShares={orderType === 'buy' ? Math.floor(g.cash / ((g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0) || 1)) : g.shares}
+          maxShares={
+            orderType === 'buy'
+              ? Math.floor(g.cash / ((g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0) || 1))
+              : g.shares
+          }
           onClose={() => setOrderType(null)}
           onSubmit={handleOrderSubmit}
         />

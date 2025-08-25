@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { consumeHeart, refillHearts } from '@/lib/hearts' // hearts.ts의 실제 경로에 맞게 import
+import { consumeHeart, refillHearts } from '@/lib/hearts'
 
 export async function POST(req: Request) {
   try {
@@ -10,15 +10,32 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
     }
-
     const userId = session.user.id
-    const body = await req.json()
-    const { code, startIndex, startCash, feeBps, maxTurns } = body ?? {}
 
-    // 1) 최신 하트 반영(충전)
+    const body = await req.json().catch(() => ({}))
+    const { symbol, code, startIndex, startCash, feeBps, maxTurns, forceNew } = body ?? {}
+    const gameCode: string = String(code ?? symbol ?? '').trim()
+    if (!gameCode) {
+      return NextResponse.json({ error: 'BAD_CODE' }, { status: 400 })
+    }
+
+    // 최신 하트 반영
     await refillHearts(userId)
 
-    // 2) 하트 원자적 차감 (없으면 여기서 실패)
+    // 진행 중 게임이 있고, 새 게임 강제가 아니라면 → 재사용
+    if (!forceNew) {
+      const existing = await prisma.game.findFirst({
+        where: { userId, finishedAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      })
+      if (existing) {
+        const me = await prisma.user.findUnique({ where: { id: userId }, select: { hearts: true } })
+        return NextResponse.json({ ok: true, gameId: existing.id, hearts: me?.hearts ?? 0, reused: true })
+      }
+    }
+
+    // 하트 차감
     try {
       await consumeHeart(userId)
     } catch (e: any) {
@@ -31,31 +48,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'HEART_CONSUME_FAILED' }, { status: 500 })
     }
 
-    // 3) 게임 생성 (schema.prisma의 Game.code 사용)
+    // 새 게임 생성
     const game = await prisma.game.create({
       data: {
         userId,
-        code: String(code ?? ''),                    // ✅ symbol 아님. code 필드에 저장
+        code: gameCode,
         startIndex: Number(startIndex ?? 0),
         startCash: Number(startCash ?? 10_000_000),
         feeBps: Number(feeBps ?? 5),
         maxTurns: Number(maxTurns ?? 60),
-        // finishedAt은 진행 중이므로 null, status 필드 없이도 OK
       },
       select: { id: true },
     })
 
-    // 4) 남은 하트 반환
-    const me = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { hearts: true },
-    })
-
-    return NextResponse.json({
-      ok: true,
-      gameId: game.id,
-      hearts: me?.hearts ?? 0,
-    })
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { hearts: true } })
+    return NextResponse.json({ ok: true, gameId: game.id, hearts: me?.hearts ?? 0, reused: false })
   } catch (e) {
     console.error('/api/game/start error', e)
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 })
