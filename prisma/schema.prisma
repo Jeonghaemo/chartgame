@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -22,7 +23,12 @@ model User {
 
   accounts Account[]
   sessions Session[]
-  games    Game[]
+  games    Game[]        // Game.user(@relation("UserGames"))의 반대편
+
+  // 활성 게임 (유저당 1개만)
+  activeGameId String?   @unique
+  activeGame   Game?     @relation("ActiveGame", fields: [activeGameId], references: [id])
+
   scores   Score[]
 
   // 광고 시청 기록 역관계
@@ -76,6 +82,7 @@ model Game {
   endIndex   Int?
   maxTurns   Int       @default(60)
   feeBps     Int       @default(5)
+  status     String    @default("ACTIVE")
   createdAt  DateTime  @default(now())
   finishedAt DateTime?
   returnPct  Float?
@@ -83,7 +90,12 @@ model Game {
   orders    Order[]
   snapshots BalanceSnapshot[]
   Score     Score[]
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 일반 유저–게임 관계(유저가 가진 모든 게임)
+  user      User       @relation("UserGames", fields: [userId], references: [id], onDelete: Cascade)
+
+  // 활성 게임 역방향(유저의 activeGame)
+  activeUser User?     @relation("ActiveGame")
 
   @@index([userId, createdAt])
 }
@@ -108,12 +120,12 @@ model BalanceSnapshot {
   equity    Float    // 총 자산
   cash      Float    // 현금
   position  Float    // 주식 수량
-  
+
   // 새로 추가된 필드들
   turn      Int?     // 현재 턴
   avgPrice  Float?   // 평균 단가
   history   String?  // 거래 히스토리 (JSON 문자열)
-  
+
   createdAt DateTime @default(now())
   game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
@@ -127,7 +139,7 @@ model AdWatch {
   provider  String // "COUPANG" | "NAVER"
   clickedAt DateTime @default(now())
   dayKey    String // "YYYY-MM-DD" (Asia/Seoul 기준)
-  index     Int // 1~4: 오늘의 시청 순번
+  index     Int    // 1~4: 오늘의 시청 순번
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
