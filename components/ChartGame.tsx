@@ -110,7 +110,7 @@ export default function ChartGame() {
     }).catch(() => {})
   }, [gameId, g.cursor, g.cash, g.shares, g.prices, g.turn, g.avgPrice, g.history])
 
-  // beforeunload 핸들러도 동일하게 수정
+  // beforeunload 핸들러도 동일하게 저장
   useEffect(() => {
     const handler = () => {
       try {
@@ -140,10 +140,13 @@ export default function ChartGame() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [gameId, g.cursor, g.cash, g.shares, g.prices, g.turn, g.avgPrice, g.history])
 
-  // 단축키 (저장 포함)
+  // 단축키 (A/S/D + R)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!canPlay || g.status !== 'playing') return
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target as HTMLElement)?.isContentEditable) return
+
       const k = e.key.toLowerCase()
       if (k === 'a') setOrderType('buy')
       if (k === 's') setOrderType('sell')
@@ -151,12 +154,17 @@ export default function ChartGame() {
         g.next()
         void saveProgress()
       }
+      if (k === 'r') {
+        if ((useGame.getState().chartChangesLeft ?? 0) > 0) {
+          void resetGame()
+        }
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [g, canPlay, saveProgress])
 
-  const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * Math.random() * arr.length)] // 살짝 무작위성 강화
+  const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * Math.random() * arr.length)]
 
   const loadUniverseWithNames = useCallback(async () => {
     const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
@@ -206,35 +214,52 @@ export default function ChartGame() {
   }, [])
 
   /**
-   * 새 게임(초기화)
-   * 1) /api/me 확인(하트)
-   * 2) /api/history 선로딩
-   * 3) /api/game/start(서버 차감) 성공 시 g.init
+   * 차트 로딩 + 초기화
+   * consumeHeart=true: 새 게임 시작 (/api/game/start 호출, 하트 차감, chartChangesLeft=3으로 리셋)
+   * consumeHeart=false: 차트만 변경 (하트 비소모, 서버 호출 없음, chartChangesLeft만 1 감소)
    */
   const loadAndInitBySymbol = useCallback(
-    async (sym: string) => {
+    async (sym: string, opts?: { consumeHeart?: boolean }) => {
+      const consumeHeart = opts?.consumeHeart !== false // 기본 true
+
       // (1) 내 상태 확인
       let capital = 10_000_000
       let currentHearts: number | undefined = hearts
-      try {
-        const meRes = await fetch('/api/me', { cache: 'no-store' })
-        if (meRes.ok) {
-          const me = await meRes.json()
-          capital = me?.user?.capital ?? 10_000_000
-          if (typeof me?.user?.hearts === 'number') {
-            currentHearts = me.user.hearts
-            setHearts(me.user.hearts)
-            setCanPlay(me.user.hearts > 0)
-          }
-        }
-      } catch {}
-      setStartCapital(capital)
 
-      if (!currentHearts || currentHearts <= 0) {
-        setCanPlay(false)
-        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-        router.push('/')
-        return
+      if (consumeHeart) {
+        try {
+          const meRes = await fetch('/api/me', { cache: 'no-store' })
+          if (meRes.ok) {
+            const me = await meRes.json()
+            capital = me?.user?.capital ?? 10_000_000
+            if (typeof me?.user?.hearts === 'number') {
+              currentHearts = me.user.hearts
+              setHearts(me.user.hearts)
+              setCanPlay(me.user.hearts > 0)
+            }
+          }
+        } catch {}
+        setStartCapital(capital)
+
+        if (!currentHearts || currentHearts <= 0) {
+          setCanPlay(false)
+          alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
+          router.push('/')
+          return
+        }
+      } else {
+        // 하트 비소모: capital만 동기화 (하트 체크/차감 없음)
+        try {
+          const meRes = await fetch('/api/me', { cache: 'no-store' })
+          if (meRes.ok) {
+            const me = await meRes.json()
+            capital = me?.user?.capital ?? 10_000_000
+            if (typeof me?.user?.hearts === 'number') {
+              setHearts(me.user.hearts)
+            }
+          }
+        } catch {}
+        setStartCapital(capital)
       }
 
       // (2) 차트 데이터
@@ -247,39 +272,48 @@ export default function ChartGame() {
       setOhlc(ohlc)
       const closes = ohlc.map((d: any) => d.close)
 
-      // (3) 서버 시작(하트 차감)
-      const resp = await fetch('/api/game/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: sym,
-          startIndex,
-          startCash: capital,
-          feeBps: g.feeBps ?? 5,
-          maxTurns: RESERVED_TURNS,
-          forceNew: true, // 새 게임(차트 변경)에서만 강제
-        }),
-      })
+      if (consumeHeart) {
+        // (3-A) 새 게임 시작: 서버에 시작 보고(하트 차감)
+        const resp = await fetch('/api/game/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: sym,
+            startIndex,
+            startCash: capital,
+            feeBps: g.feeBps ?? 5,
+            maxTurns: RESERVED_TURNS,
+            forceNew: true,
+          }),
+        })
 
-      if (!resp.ok) {
-        const j = await resp.json().catch(() => ({}))
-        if (j?.error === 'NO_HEART') {
-          setCanPlay(false)
-          alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-          router.push('/')
+        if (!resp.ok) {
+          const j = await resp.json().catch(() => ({}))
+          if (j?.error === 'NO_HEART') {
+            setCanPlay(false)
+            alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
+            router.push('/')
+            return
+          }
+          alert('게임 시작 중 오류가 발생했습니다.')
           return
         }
-        alert('게임 시작 중 오류가 발생했습니다.')
-        return
+
+        const data = await resp.json()
+        setGameId(data?.gameId ?? null)
+        if (typeof data?.hearts === 'number') {
+          setHearts(data.hearts)
+          setCanPlay(data.hearts > 0)
+        }
+
+        // 새 게임 시작 시 차트변경 3회로 리셋
+        useGame.setState({ chartChangesLeft: 3 })
+      } else {
+        // (3-B) 차트변경: 서버 호출/하트 차감 없음
+        // gameId는 유지 (없으면 finish 보고만 스킵)
       }
 
-      const data = await resp.json()
-      setGameId(data?.gameId ?? null)
-      if (typeof data?.hearts === 'number') {
-        setHearts(data.hearts)
-        setCanPlay(data.hearts > 0)
-      }
-
+      // 공통 init
       g.init({
         symbol: sym,
         prices: closes,
@@ -365,7 +399,8 @@ export default function ChartGame() {
 
               // 확장 필드 복원
               useGame.setState({
-                turn: typeof ginfo.snapshot.turn === 'number' ? ginfo.snapshot.turn : g.turn,
+                turn:
+                  typeof ginfo.snapshot.turn === 'number' ? ginfo.snapshot.turn : g.turn,
                 avgPrice:
                   typeof ginfo.snapshot.avgPrice === 'number' || ginfo.snapshot.avgPrice === null
                     ? ginfo.snapshot.avgPrice
@@ -382,14 +417,14 @@ export default function ChartGame() {
         // 이어하기 실패 시 무시
       }
 
-      // 2) 이어할 게임이 없으면 새 게임
+      // 2) 이어할 게임이 없으면 새 게임 시작 (하트 차감, 3회 리셋)
       let uni = universeRef.current
       if (!uni || uni.length === 0) {
         uni = await loadUniverseWithNames()
         universeRef.current = uni
       }
       const chosen = pickRandom<SymbolItem>(uni)
-      await loadAndInitBySymbol(chosen.symbol)
+      await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
       setSymbolLabel(`${chosen.name} (${chosen.symbol})`)
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -403,12 +438,11 @@ export default function ChartGame() {
     return () => clearTimeout(id)
   }, [g.cursor, g.cash, g.shares, g.turn, g.avgPrice, g.history, saveProgress])
 
-  // 새 게임(차트 변경)
+  // 차트변경 (하트 소모 없음, 3회 제한)
   const resetGame = useCallback(async () => {
-    if (!hearts || hearts <= 0) {
-      setCanPlay(false)
-      alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-      router.push('/')
+    // 남은 횟수 체크
+    if ((useGame.getState().chartChangesLeft ?? 0) <= 0) {
+      alert('차트변경 가능 횟수를 모두 사용했습니다. (최대 3회)')
       return
     }
 
@@ -418,9 +452,14 @@ export default function ChartGame() {
       universeRef.current = uni
     }
     const chosen = pickRandom<SymbolItem>(uni)
-    await loadAndInitBySymbol(chosen.symbol)
+
+    // 하트 소모 없이 차트만 다시
+    await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
     setSymbolLabel(`${chosen.name} (${chosen.symbol})`)
-  }, [hearts, loadUniverseWithNames, loadAndInitBySymbol, router])
+
+    // 횟수 차감
+    useGame.getState().decChartChanges()
+  }, [loadUniverseWithNames, loadAndInitBySymbol])
 
   const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
   const { total } = useMemo(() => valuation(g.cash, g.shares, last), [g.cash, g.shares, last])
@@ -526,6 +565,8 @@ export default function ChartGame() {
     await saveProgress()
   }
 
+  const chartChangesLeft = useGame(state => state.chartChangesLeft ?? 0)
+
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
       <div className="h-full w-full flex justify-center items-start">
@@ -558,8 +599,15 @@ export default function ChartGame() {
                     <span className="font-semibold">{String(g.turn + 1).padStart(2, '0')}</span>/{g.maxTurns}턴 · 일
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={resetGame} className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
-                      차트 변경
+                    <button
+                      onClick={resetGame}
+                      disabled={chartChangesLeft <= 0}
+                      className={`rounded-xl border px-3 py-2 text-sm ${
+                        chartChangesLeft > 0 ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                      }`}
+                      title="하트 소모 없이 차트만 변경합니다. (단축키: R)"
+                    >
+                      차트 변경 (R) ×{chartChangesLeft}
                     </button>
                     <button
                       onClick={() => (g.status === 'playing' ? endGame() : router.push('/'))}
@@ -601,13 +649,13 @@ export default function ChartGame() {
               <Card className="p-6">
                 <div className="text-sm text-gray-500">게임현황</div>
                 <div className="mt-2 text-3xl font-bold">{fmt(total)} 원</div>
-                <div className="text-sm text-gray-500">초기자산 {fmt(startCapital)}</div>
+                <div className="text-sm text-gray-500">현재 자산 {fmt(startCapital)}</div>
                 <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   수익률 {ret.toFixed(2)}%
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
-                  <div className="text-gray-500">보유현금</div>
+                  <div className="text-gray-500">보유 현금</div>
                   <div className="text-right">{fmt(g.cash)}</div>
                   <div className="text-gray-500">주식수</div>
                   <div className="text-right">{fmt(g.shares)}</div>
@@ -649,3 +697,4 @@ export default function ChartGame() {
     </div>
   )
 }
+

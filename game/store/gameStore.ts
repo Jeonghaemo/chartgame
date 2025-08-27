@@ -1,8 +1,12 @@
+// game/store/gameStore.ts
 "use client";
 import { create } from "zustand";
 
 type Side = "BUY" | "SELL";
 type Trade = { side: Side; price: number; qty: number; time: string };
+
+const INITIAL_CASH = 10_000_000;
+const INITIAL_CHART_CHANGES = 3; // ★ 추가: 차트변경 3회
 
 type State = {
   symbol: string;
@@ -20,6 +24,9 @@ type State = {
 
   status: "idle" | "playing" | "ended";
   history: Trade[];
+
+  // ★ 추가: 차트변경 횟수
+  chartChangesLeft: number;
 };
 
 type InitInput = {
@@ -42,8 +49,6 @@ type SnapshotInput = {
 };
 
 type BuySellTime = number | string | undefined;
-
-const INITIAL_CASH = 10_000_000;
 
 function toISO(t?: BuySellTime): string {
   if (t == null) return new Date().toISOString();
@@ -70,6 +75,10 @@ export const useGame = create<
     setAvgPrice: (avgPrice: number | null) => void;
     setHistory: (history: Trade[]) => void;
     applySnapshot: (snap: SnapshotInput) => void;
+
+    // ★ 추가: 차트변경 제어
+    resetChartChanges: () => void;
+    decChartChanges: () => void;
   }
 >((set, get) => ({
   symbol: "",
@@ -87,6 +96,9 @@ export const useGame = create<
 
   status: "idle",
   history: [],
+
+  // ★ 추가: 초기 3회
+  chartChangesLeft: INITIAL_CHART_CHANGES,
 
   init: ({ symbol, prices, startIndex, maxTurns, feeBps, slippageBps, startCash }) => {
     set({
@@ -182,12 +194,20 @@ export const useGame = create<
   setTurn: (turn: number) => set({ turn }),
   setAvgPrice: (avgPrice: number | null) => set({ avgPrice }),
   setHistory: (history: Trade[]) => set({ history }),
-  applySnapshot: (snap: SnapshotInput) => set({
-    cursor: snap.cursor,
-    cash: snap.cash,
-    shares: snap.shares,
-    turn: snap.turn ?? 0,
-    avgPrice: snap.avgPrice ?? null,
-    history: snap.history ?? [],
-  }),
+  applySnapshot: (snap: SnapshotInput) =>
+    set({
+      cursor: snap.cursor,
+      cash: snap.cash,
+      shares: snap.shares,
+      turn: snap.turn ?? 0,
+      avgPrice: snap.avgPrice ?? null,
+      history: snap.history ?? [],
+    }),
+
+  // ★ 추가: 차트변경 제어
+  resetChartChanges: () => set({ chartChangesLeft: INITIAL_CHART_CHANGES }),
+  decChartChanges: () => {
+    const left = Math.max(0, get().chartChangesLeft - 1);
+    set({ chartChangesLeft: left });
+  },
 }));
