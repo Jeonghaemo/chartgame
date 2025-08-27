@@ -136,17 +136,29 @@ export const useGame = create<
   },
 
   next: () => {
-    const s = get();
-    if (s.status !== "playing") return;
-    const nextCursor = Math.min(s.prices.length - 1, s.cursor + 1);
-    const newTurn = s.turn + 1;
-    const shouldEnd = newTurn >= s.maxTurns || nextCursor >= s.prices.length - 1;
+  const s = get();
+  if (s.status !== "playing") return;
+
+  const lastIdx = s.prices.length - 1;
+  // 이미 마지막 상태거나 다음이 마지막을 초과하면 종료만 하고 증가 X
+  const willHitTurnLimit = s.turn + 1 >= s.maxTurns;
+  const willHitCursorEnd = s.cursor + 1 >= lastIdx;
+
+  if (willHitTurnLimit || willHitCursorEnd) {
     set({
-      cursor: nextCursor,
-      turn: newTurn,
-      status: shouldEnd ? "ended" : "playing",
+      // turn/cursor 증가시키지 않음
+      status: "ended",
     });
-  },
+    return;
+  }
+
+  // 정상 증가
+  set({
+    cursor: Math.min(lastIdx, s.cursor + 1),
+    turn: s.turn + 1,
+    status: "playing",
+  });
+},
 
   buy: (qty: number, time?: BuySellTime) => {
     const s = get();
