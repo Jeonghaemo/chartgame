@@ -18,17 +18,17 @@ type LeaderboardResponse = {
 
 // 계급 뱃지 데이터
 function getRankBadge(total: number) {
+  if (total >= 1_000_000_000)
+    return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700", range: "1,000,000,000원 이상" };
   if (total >= 500_000_000)
-    return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700", range: "500,000,000원 이상" };
+    return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800", range: "500,000,000원 ~ 999,999,999원" };
   if (total >= 100_000_000)
-    return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800", range: "100,000,000원 ~ 499,999,999원" };
+    return { name: "물방개", icon: "🐳", color: "bg-blue-100 text-blue-800", range: "100,000,000원 ~ 499,999,999원" };
   if (total >= 50_000_000)
-    return { name: "물방개", icon: "🐳", color: "bg-blue-100 text-blue-800", range: "50,000,000원 ~ 99,999,999원" };
+    return { name: "불장러", icon: "🚀", color: "bg-red-100 text-red-700", range: "50,000,000원 ~ 99,999,999원" };
   if (total >= 20_000_000)
-    return { name: "불장러", icon: "🚀", color: "bg-red-100 text-red-700", range: "20,000,000원 ~ 49,999,999원" };
-  if (total >= 10_000_000)
-    return { name: "존버러", icon: "🐢", color: "bg-green-100 text-green-700", range: "10,000,000원 ~ 19,999,999원" };
-  return { name: "주린이", icon: "🐣", color: "bg-gray-100 text-gray-700", range: "10,000,000원 미만" };
+    return { name: "존버러", icon: "🐢", color: "bg-green-100 text-green-700", range: "20,000,000원 ~ 49,999,999원" };
+  return { name: "주린이", icon: "🐣", color: "bg-gray-100 text-gray-700", range: "20,000,000원 미만" };
 }
 
 // 말풍선 툴팁 컴포넌트
