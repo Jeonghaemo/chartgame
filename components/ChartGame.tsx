@@ -472,30 +472,42 @@ export default function ChartGame() {
   }, [g.turn, g.maxTurns, g.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const endGame = useCallback(async () => {
-    let rank: number | null = null
-    let prevRank: number | null = null
+  let rank: number | null = null
+  let prevRank: number | null = null
 
-    const endCapital = total
-    const finalReturnPct = ret
-    const finalIndex = g.cursor
+  const endCapital = total
+  const finalReturnPct = ret
+  const finalIndex = g.cursor
 
-    try {
-      if (gameId) {
-        await fetch('/api/game/finish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            gameId,
-            finalCapital: endCapital,
-            returnPct: finalReturnPct,
-            symbol: (g as any).symbol,
-            endIndex: finalIndex,
-          }),
-        })
-      }
-    } catch (e) {
-      console.error('finish API error', e)
+  // ★ 추가: 수수료/세금 계산
+  const feeAccrued = (g as any).feeAccrued ?? 0
+  const grossProfit = endCapital - startCapital
+
+  // (선택) 세금 규칙: 이익이 양수일 때만 세금. 기본 0 bps → 세금 0
+  const taxRateBps = (g as any).taxRateBps ?? 0
+  const taxOnly = grossProfit > 0 ? Math.floor(grossProfit * taxRateBps / 10000) : 0
+
+  const taxAndFees = Math.max(0, feeAccrued) + Math.max(0, taxOnly)
+
+  try {
+    if (gameId) {
+      await fetch('/api/game/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId,
+          finalCapital: endCapital,
+          returnPct: finalReturnPct,
+          symbol: (g as any).symbol,
+          endIndex: finalIndex,
+          // 필요하면 서버에도 보고 가능:
+          // feeAccrued, taxOnly, taxAndFees,
+        }),
+      })
     }
+  } catch (e) {
+    console.error('finish API error', e)
+  }
 
     try {
       const res = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' })
@@ -515,7 +527,7 @@ export default function ChartGame() {
       endCapital,
       profit: endCapital - startCapital,
       profitRate: finalReturnPct,
-      tax: 0,
+      tax: taxAndFees,
       tradeCount: g.history.length,
       turnCount: g.turn + 1,
       heartsLeft: hearts ?? 0,

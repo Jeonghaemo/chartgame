@@ -1,12 +1,8 @@
-// game/store/gameStore.ts
 "use client";
 import { create } from "zustand";
 
 type Side = "BUY" | "SELL";
 type Trade = { side: Side; price: number; qty: number; time: string };
-
-const INITIAL_CASH = 10_000_000;
-const INITIAL_CHART_CHANGES = 3; // ★ 추가: 차트변경 3회
 
 type State = {
   symbol: string;
@@ -15,8 +11,8 @@ type State = {
   cursor: number;
   maxTurns: number;
   turn: number;
-  feeBps: number;
-  slippageBps: number;
+  feeBps: number;         // 거래 수수료 (bps)
+  slippageBps: number;    // 슬리피지 (bps)
 
   cash: number;
   shares: number;
@@ -25,7 +21,13 @@ type State = {
   status: "idle" | "playing" | "ended";
   history: Trade[];
 
-  // ★ 추가: 차트변경 횟수
+  // ★ 누적 수수료 총합(원)
+  feeAccrued: number;
+
+  // ★ (선택) 세율(bps). 기본 0 = 세금 미적용
+  taxRateBps: number;
+
+  // ★ 차트변경 남은 횟수
   chartChangesLeft: number;
 };
 
@@ -46,9 +48,13 @@ type SnapshotInput = {
   turn?: number;
   avgPrice?: number | null;
   history?: Trade[];
+  // 필요 시 확장 가능 (feeAccrued, chartChangesLeft 등)
 };
 
 type BuySellTime = number | string | undefined;
+
+const INITIAL_CASH = 10_000_000;
+const INITIAL_CHART_CHANGES = 3;
 
 function toISO(t?: BuySellTime): string {
   if (t == null) return new Date().toISOString();
@@ -61,13 +67,14 @@ function toISO(t?: BuySellTime): string {
 
 export const useGame = create<
   State & {
+    // 기본 액션
     init: (x: InitInput) => void;
     next: () => void;
     buy: (qty: number, time?: BuySellTime) => void;
     sell: (qty: number, time?: BuySellTime) => void;
     end: () => void;
 
-    // 복원용 액션들 - 확장
+    // 복원용 액션
     setCursor: (cursor: number) => void;
     setCash: (cash: number) => void;
     setShares: (shares: number) => void;
@@ -76,11 +83,15 @@ export const useGame = create<
     setHistory: (history: Trade[]) => void;
     applySnapshot: (snap: SnapshotInput) => void;
 
-    // ★ 추가: 차트변경 제어
-    resetChartChanges: () => void;
-    decChartChanges: () => void;
+    // 차트변경 관련
+    resetChartChanges: () => void; // 새 게임 시작 시 3으로 리셋
+    decChartChanges: () => void;   // 차트변경 사용 시 1 감소
+
+    // (선택) 세율 제어
+    setTaxRateBps?: (bps: number) => void;
   }
 >((set, get) => ({
+  // ===== 초기값 =====
   symbol: "",
   prices: [],
   startIndex: 0,
@@ -97,9 +108,12 @@ export const useGame = create<
   status: "idle",
   history: [],
 
-  // ★ 추가: 초기 3회
+  feeAccrued: 0,
+  taxRateBps: 0,
+
   chartChangesLeft: INITIAL_CHART_CHANGES,
 
+  // ===== 액션 =====
   init: ({ symbol, prices, startIndex, maxTurns, feeBps, slippageBps, startCash }) => {
     set({
       symbol,
@@ -115,6 +129,9 @@ export const useGame = create<
       avgPrice: null,
       status: "playing",
       history: [],
+      feeAccrued: 0,                 // 새 게임 시작 시 수수료 누적 리셋
+      // taxRateBps는 유지(정책에 따라 여기서 0으로 리셋해도 됨)
+      // chartChangesLeft는 새 게임 트리거 측에서 3으로 재설정
     });
   },
 
@@ -140,6 +157,7 @@ export const useGame = create<
     const fill = last * (1 + s.slippageBps / 10000);
     const cost = fill * qty;
     const fee = cost * (s.feeBps / 10000);
+
     if (s.cash < cost + fee) return;
 
     const newCash = s.cash - cost - fee;
@@ -154,6 +172,7 @@ export const useGame = create<
       shares: newQty,
       avgPrice: newAvg,
       history: [trade, ...s.history].slice(0, 200),
+      feeAccrued: Math.floor((s.feeAccrued ?? 0) + fee),
     });
   },
 
@@ -182,12 +201,13 @@ export const useGame = create<
       shares: newQty,
       avgPrice: newAvg,
       history: [trade, ...s.history].slice(0, 200),
+      feeAccrued: Math.floor((s.feeAccrued ?? 0) + fee),
     });
   },
 
   end: () => set({ status: "ended" }),
 
-  // 복원용 액션들
+  // ===== 복원용 =====
   setCursor: (cursor: number) => set({ cursor }),
   setCash: (cash: number) => set({ cash }),
   setShares: (shares: number) => set({ shares }),
@@ -204,10 +224,13 @@ export const useGame = create<
       history: snap.history ?? [],
     }),
 
-  // ★ 추가: 차트변경 제어
+  // ===== 차트변경 제어 =====
   resetChartChanges: () => set({ chartChangesLeft: INITIAL_CHART_CHANGES }),
   decChartChanges: () => {
-    const left = Math.max(0, get().chartChangesLeft - 1);
+    const left = Math.max(0, (get().chartChangesLeft ?? 0) - 1);
     set({ chartChangesLeft: left });
   },
+
+  // (선택) 세율 변경
+  setTaxRateBps: (bps: number) => set({ taxRateBps: Math.max(0, Math.floor(bps)) }),
 }));
