@@ -31,7 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </button>
           </Link>
                   <span className="text-slate-600">
-                    자본금 {((session.user as any).capital ?? 10000000).toLocaleString()}원
+                    보유 자산 {((session.user as any).capital ?? 10000000).toLocaleString()}원
                   </span>
                   <HeaderHearts /> {/* ★ 하트 + 카운트다운 UI */}
                   <form action={async () => { "use server"; await signOut(); }}>

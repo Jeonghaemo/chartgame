@@ -109,7 +109,7 @@ export default function LeaderboardPage() {
         <span className={data.myRank.returnPct >= 0 ? "text-green-600" : "text-red-600"}>
           {data.myRank.returnPct.toFixed(2)}%
         </span> · 
-        최종자본금 {data.myRank.total.toLocaleString()}원
+        최종 자산 {data.myRank.total.toLocaleString()}원
       </span>
     </div>
   </div>
@@ -125,7 +125,7 @@ export default function LeaderboardPage() {
               <th className="px-3 py-2 text-left">순위</th>
               <th className="px-3 py-2 text-left">닉네임</th>
               <th className="px-3 py-2 text-right">수익률</th>
-              <th className="px-3 py-2 text-right">최종 자본금</th>
+              <th className="px-3 py-2 text-right">최종 자산</th>
               <th className="px-3 py-2 text-center">계급</th>
             </tr>
           </thead>
