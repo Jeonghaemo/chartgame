@@ -312,7 +312,7 @@ export default function ChartGame() {
         setStartCapital(capital)
       }
 
-      // 새 게임용 히스토리 호출 (여기는 서버가 startIndex를 정해서 내려줌)
+      // 새 게임용 히스토리 호출
       const r = await fetch(
         `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
         { cache: 'no-store' }
@@ -320,7 +320,7 @@ export default function ChartGame() {
       const response = await r.json()
       const { ohlc: ohlcResp, startIndex: startIndexResp } = response as { ohlc: OHLC[]; startIndex: number }
       setOhlc(ohlcResp)
-      writeOhlcToCache(sym, startIndexResp, ohlcResp) // ★ 캐시
+      writeOhlcToCache(sym, startIndexResp, ohlcResp)
       const closes = ohlcResp.map((d: any) => d.close)
 
       if (consumeHeart) {
@@ -329,7 +329,7 @@ export default function ChartGame() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: sym,
-            startIndex: startIndexResp, // ★ 서버에도 동일 startIndex 보고
+            startIndex: startIndexResp,
             startCash: capital,
             feeBps: g.feeBps ?? 5,
             maxTurns: RESERVED_TURNS,
@@ -395,12 +395,16 @@ export default function ChartGame() {
     [g, setHearts, hearts, router, gameId]
   )
 
-  // 차트변경(하트 비소모)
+  // 차트변경(하트 비소모) — 조건: turn===0 이고, BUY한 적이 없어야 함
   const resetGame = useCallback(async () => {
-    if ((useGame.getState().chartChangesLeft ?? 0) <= 0) {
-      alert('차트변경 가능 횟수를 모두 사용했습니다. (최대 3회)')
+    const state = useGame.getState()
+    const hasBought = (state.history as Trade[]).some(t => t.side === 'BUY')
+    const canChangeChartNow = (state.chartChangesLeft ?? 0) > 0 && state.turn === 0 && !hasBought
+    if (!canChangeChartNow) {
+      alert('차트 변경은 시작 직후(턴 0, 매수 전)에만 가능합니다.')
       return
     }
+
     let uni = universeRef.current
     if (!uni || uni.length === 0) {
       uni = await loadUniverseWithNames()
@@ -422,7 +426,15 @@ export default function ChartGame() {
     restoringRef.current = false
   }, [loadUniverseWithNames, loadAndInitBySymbol])
 
-  // 단축키 (A/S/D + R) + D 연타 보호
+  // --- 단축키 (A/S/D + R) + D 연타 보호 & R 조건 ---
+  // hasBought/canChangeChart는 렌더 타이밍에 기반한 값도 필요하므로 메모 값도 준비
+  const hasBoughtMemo = useMemo(
+    () => (g.history as Trade[]).some(t => t.side === 'BUY'),
+    [g.history]
+  )
+  const chartChangesLeft = useGame(state => state.chartChangesLeft ?? 0)
+  const canChangeChart = chartChangesLeft > 0 && g.turn === 0 && !hasBoughtMemo
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!canPlay || g.status !== 'playing') return
@@ -441,12 +453,12 @@ export default function ChartGame() {
         setTimeout(() => (nextLockRef.current = false), 80)
       }
       if (k === 'r') {
-        if ((useGame.getState().chartChangesLeft ?? 0) > 0) void resetGame()
+        if (canChangeChart) void resetGame()
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [g, canPlay, saveProgress, resetGame])
+  }, [g, canPlay, saveProgress, resetGame, canChangeChart])
 
   // ---------- 부팅: 서버 → 로컬 → 새 게임 ----------
   useEffect(() => {
@@ -491,10 +503,8 @@ export default function ChartGame() {
               }
             }
 
-            // ★ 캐시 먼저 시도
             let ohlcArr = readOhlcFromCache(ginfo.symbol, ginfo.startIndex)
             if (!ohlcArr) {
-              // API가 윈도우를 새로 뽑는 경우를 막기 위해 startIndex를 고정 파라미터로 전달
               const hist = await fetch(
                 `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}&startIndex=${ginfo.startIndex}`,
                 { cache: 'no-store' }
@@ -513,7 +523,7 @@ export default function ChartGame() {
             g.init({
               symbol: ginfo.symbol,
               prices: closes,
-              startIndex: ginfo.startIndex, // ★ 서버 startIndex 그대로
+              startIndex: ginfo.startIndex,
               maxTurns: ginfo.maxTurns ?? RESERVED_TURNS,
               feeBps: ginfo.feeBps ?? (g.feeBps ?? 5),
               slippageBps: g.slippageBps ?? 0,
@@ -522,9 +532,10 @@ export default function ChartGame() {
 
             const snap = ginfo.snapshot
             if (snap) {
-              const snapCursor = (typeof snap.cursor === 'number' ? snap.cursor : undefined) ??
-                                 (typeof snap.ts === 'number' ? snap.ts : undefined) ??
-                                 ginfo.startIndex
+              const snapCursor =
+                (typeof snap.cursor === 'number' ? snap.cursor : undefined) ??
+                (typeof snap.ts === 'number' ? snap.ts : undefined) ??
+                ginfo.startIndex
               ;(g as any).setCursor?.(snapCursor)
               ;(g as any).setCash?.(snap.cash)
               ;(g as any).setShares?.(snap.shares)
@@ -554,7 +565,6 @@ export default function ChartGame() {
               }
             }
 
-            // 로컬 동기화
             writeLocal(
               {
                 id: ginfo.id,
@@ -758,8 +768,6 @@ export default function ChartGame() {
     await saveProgress()
   }
 
-  const chartChangesLeft = useGame(state => state.chartChangesLeft ?? 0)
-
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
       <div className="h-full w-full flex justify-center items-start">
@@ -794,11 +802,15 @@ export default function ChartGame() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={resetGame}
-                      disabled={chartChangesLeft <= 0}
+                      disabled={!canChangeChart}
                       className={`rounded-xl border px-3 py-2 text-sm ${
-                        chartChangesLeft > 0 ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                        canChangeChart ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
                       }`}
-                      title="하트 소모 없이 차트만 변경합니다. (단축키: R)"
+                      title={
+                        canChangeChart
+                          ? '하트 소모 없이 차트만 변경합니다. (단축키: R)'
+                          : '차트 변경은 시작 직후(턴 0, 매수 전)에만 가능합니다.'
+                      }
                     >
                       차트 변경 (R) ×{chartChangesLeft}
                     </button>
