@@ -106,7 +106,7 @@ export default function LeaderboardPage() {
       <span className="text-gray-700 font-medium">
         {data.myRank.nickname} · 
         수익률{" "}
-        <span className={data.myRank.returnPct >= 0 ? "text-green-600" : "text-red-600"}>
+        <span className={data.myRank.returnPct >= 0 ? "text-red-600" : "text-blue-600"}>
           {data.myRank.returnPct.toFixed(2)}%
         </span> · 
         최종 자산 {data.myRank.total.toLocaleString()}원
@@ -162,7 +162,7 @@ export default function LeaderboardPage() {
                       <td className="px-3 py-2">{row.nickname}</td>
                       <td
                         className={`px-3 py-2 text-right ${
-                          row.returnPct >= 0 ? "text-green-600" : "text-red-600"
+                          row.returnPct >= 0 ? "text-red-600" : "text-blue-600"
                         }`}
                       >
                         {row.returnPct.toFixed(2)}%
@@ -186,8 +186,7 @@ export default function LeaderboardPage() {
                       <td
                         className={`px-3 py-2 text-right ${
                           data.myRank.returnPct >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
+                            ? "text-red-600" : "text-blue-600"
                         }`}
                       >
                         {data.myRank.returnPct.toFixed(2)}%
