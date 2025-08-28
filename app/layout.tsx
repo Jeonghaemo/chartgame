@@ -1,7 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/lib/auth";
-import HeaderHearts from "@/components/HeaderHearts"; // ★ 추가
+import HeaderHearts from "@/components/HeaderHearts"; 
 
 export const metadata = {
   title: "차트게임",

@@ -10,6 +10,7 @@ import OrderModal from '@/components/OrderModal'
 import GameResultModal from '@/components/GameResultModal'
 import { useUserStore } from '@/lib/store/user'
 import { useRouter } from 'next/navigation'
+import { Heart } from "lucide-react";
 
 type OHLC = { time: number; open: number; high: number; low: number; close: number; volume?: number }
 type Trade = { side: 'BUY' | 'SELL'; price: number; qty: number; time: string }
@@ -160,9 +161,9 @@ export default function ChartGame() {
   const nextLockRef = useRef(false)
   const restoringRef = useRef(true)
 
-  const hearts = useUserStore(state => state.hearts)
+  const hearts = useUserStore(s => s.hearts) ?? 0;
   const setHearts = useUserStore(state => state.setHearts)
-
+const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
   // 저장(서버+로컬)
   const saveProgress = useCallback(async () => {
     const symbol = (g as any).symbol
@@ -906,6 +907,17 @@ export default function ChartGame() {
             <aside className="space-y-4 overflow-auto">
               <AdRecharge />
 
+<Card className="p-4 text-center">
+  <div className="text-xl font-bold text-slate-700">
+    보유 자산 {(startCapital || 10_000_000).toLocaleString()}원
+  </div>
+
+  {/* HeaderHearts 아이콘 스타일 그대로 */}
+  <div className="mt-2 text-lg font-semibold flex items-center justify-center gap-2">
+  <Heart className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`} />
+  <span>{hearts} / {maxHearts}</span>
+</div>
+</Card>
               <Card className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="text-base text-gray-600">
