@@ -978,7 +978,7 @@ export default function ChartGame() {
                 {myRank && (
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500">내 순위</span>
+                      <span className="text-gray-500">순위</span>
                       <span className="font-bold">{myRank.rank}위</span>
                       {(() => {
                         const badge = getRankBadge(myRank.total)
@@ -989,12 +989,12 @@ export default function ChartGame() {
                         )
                       })()}
                       {typeof myRank.avgReturnPct === 'number' && (
-                        <span className={`ml-2 ${myRank.avgReturnPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          평균 {myRank.avgReturnPct.toFixed(2)}%
+                        <span className={`ml-0 ${myRank.avgReturnPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          수익률 {myRank.avgReturnPct.toFixed(2)}%
                         </span>
                       )}
                       {typeof myRank.winRate === 'number' && (
-                        <span className="ml-2 text-gray-600">
+                        <span className="ml-0 text-gray-600">
                           · 승률 {myRank.winRate.toFixed(1)}%
                           {(myRank.wins!=null&&myRank.losses!=null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
                         </span>

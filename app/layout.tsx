@@ -5,7 +5,7 @@ import HeaderHearts from "@/components/HeaderHearts"; // ★ 추가
 
 export const metadata = {
   title: "차트게임",
-  description: "알파스퀘어 스타일 50턴 차트게임",
+  description: "50턴 차트게임",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
