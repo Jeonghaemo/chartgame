@@ -22,6 +22,31 @@ const RESERVED_TURNS = 60
 const MIN_TOTAL_CANDLES = MIN_VISIBLE + RESERVED_TURNS // 425
 const CONCURRENCY = 8
 
+// === [ADD] 내 순위/계급 표시용 유틸 & 타입 ===
+function getRankBadge(total: number) {
+  if (total >= 1_000_000_000)
+    return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700" };
+  if (total >= 500_000_000)
+    return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800" };
+  if (total >= 100_000_000)
+    return { name: "물방개", icon: "🐳", color: "bg-blue-100 text-blue-800" };
+  if (total >= 50_000_000)
+    return { name: "불장러", icon: "🚀", color: "bg-red-100 text-red-700" };
+  if (total >= 20_000_000)
+    return { name: "존버러", icon: "🐢", color: "bg-green-100 text-green-700" };
+  return { name: "주린이", icon: "🐣", color: "bg-gray-100 text-gray-700" };
+}
+type MyRank = {
+  rank: number;
+  total: number;
+  avgReturnPct?: number;
+  winRate?: number;
+  wins?: number;
+  losses?: number;
+};
+// ================================================
+
+
 // ---------- OHLC 캐시(심볼+startIndex 기준) ----------
 const LS_OHLC_KEY = 'chartgame_ohlc_cache_v1'
 type OhlcCache = Record<string, OHLC[]>
@@ -122,6 +147,9 @@ export default function ChartGame() {
   const [isGameEnd, setIsGameEnd] = useState(false)
   const [canPlay, setCanPlay] = useState(true)
 
+    // [ADD] 내 순위 상태
+  const [myRank, setMyRank] = useState<MyRank | null>(null);
+
   const [result, setResult] = useState<null | {
     startCapital: number
     endCapital: number
@@ -133,6 +161,7 @@ export default function ChartGame() {
     heartsLeft: number
     rank: number | null
     prevRank: number | null
+    symbol?: string 
   }>(null)
 
   const universeRef = useRef<SymbolItem[]>([])
@@ -266,6 +295,32 @@ export default function ChartGame() {
       { symbol: '086520.KQ', name: '에코프로', market: '코스닥' },
     ]
   }, [])
+
+  const resolveLabel = useCallback(async (code: string) => {
+  const hit1 = universeRef.current?.find?.(s => s.symbol === code);
+  if (hit1) return `${hit1.name} (${hit1.symbol})`;
+
+  try {
+    const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES);
+    if (raw) {
+      const cached = JSON.parse(raw) as { symbols?: SymbolItem[] };
+      const hit2 = cached?.symbols?.find?.(s => s.symbol === code);
+      if (hit2) return `${hit2.name} (${hit2.symbol})`;
+    }
+  } catch {}
+
+  try {
+    let uni = universeRef.current;
+    if (!uni || uni.length === 0) {
+      uni = await loadUniverseWithNames();
+      universeRef.current = uni;
+    }
+    const hit3 = uni.find(s => s.symbol === code);
+    if (hit3) return `${hit3.name} (${hit3.symbol})`;
+  } catch {}
+
+  return code;
+}, [loadUniverseWithNames]);
 
   /**
    * 차트 로딩 + 초기화
@@ -515,7 +570,7 @@ export default function ChartGame() {
             }
 
             setOhlc(ohlcArr)
-            setSymbolLabel(`${ginfo.symbol}`)
+            setSymbolLabel(await resolveLabel(ginfo.symbol))
             setGameId(ginfo.id)
             setStartCapital(ginfo.startCash)
 
@@ -609,7 +664,7 @@ export default function ChartGame() {
           }
 
           setOhlc(ohlcArr)
-          setSymbolLabel(`${local.meta.symbol}`)
+          setSymbolLabel(await resolveLabel(local.meta.symbol))
           setGameId(local.meta.id ?? null)
           setStartCapital(local.meta.startCash ?? 10_000_000)
 
@@ -658,6 +713,27 @@ export default function ChartGame() {
       restoringRef.current = false
     })()
   }, [loadUniverseWithNames, loadAndInitBySymbol, g, setHearts])
+
+    // [ADD] 내 순위 불러오기 (최근 7일 기준)
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' })
+        if (!r.ok) return
+        const j = await r.json()
+        if (j?.myRank) {
+          setMyRank({
+            rank: Number(j.myRank.rank ?? 0),
+            total: Number(j.myRank.total ?? 0),
+            avgReturnPct: Number(j.myRank.avgReturnPct ?? 0),
+            winRate: Number(j.myRank.winRate ?? 0),
+            wins: Number(j.myRank.wins ?? 0),
+            losses: Number(j.myRank.losses ?? 0),
+          })
+        }
+      } catch {}
+    })()
+  }, [])
 
   // 값 계산
   const last = g.prices[g.cursor] != null ? Math.round(g.prices[g.cursor]) : 0
@@ -718,6 +794,7 @@ export default function ChartGame() {
       endCapital,
       profit: endCapital - startCapital,
       profitRate: finalReturnPct,
+      symbol: symbolLabel || String((g as any).symbol),
       tax: taxAndFees,
       tradeCount: g.history.length,
       turnCount: g.turn + 1,
@@ -856,11 +933,43 @@ export default function ChartGame() {
 
               <Card className="p-6">
                 <div className="text-sm text-gray-500">게임현황</div>
+                                {/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 */}
+                {myRank && (
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">순위</span>
+                      <span className="font-bold">{myRank.rank}위</span>
+                      {(() => {
+                        const badge = getRankBadge(myRank.total);
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
+                            {badge.icon} {badge.name}
+                          </span>
+                        );
+                      })()}
+                      {/* 평균 수익률/승률 간단 표시 (원하면 지워도 됨) */}
+                      {typeof myRank.avgReturnPct === 'number' && (
+                        <span className={`ml-2 ${myRank.avgReturnPct >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                          수익률 {myRank.avgReturnPct.toFixed(2)}%
+                        </span>
+                      )}
+                      {typeof myRank.winRate === 'number' && (
+                        <span className="ml-2 text-gray-600">
+                          · 승률 {myRank.winRate.toFixed(1)}%{(myRank.wins!=null&&myRank.losses!=null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
+                        </span>
+                      )}
+                    </div>
+                    
+                  </div>
+                )}
                 <div className="mt-2 text-3xl font-bold">{fmt(total)} 원</div>
                 <div className="text-sm text-gray-500">초기자산 {fmt(startCapital)}</div>
                 <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   수익률 {ret.toFixed(2)}%
                 </div>
+
+                
+
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
                   <div className="text-gray-500">보유 현금</div>

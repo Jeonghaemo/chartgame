@@ -16,6 +16,7 @@ type Props = {
     heartsLeft: number
     rank?: number | null
     prevRank?: number | null
+    symbol?: string
   }
 }
 
@@ -36,7 +37,13 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
         
         {/* 타이틀 */}
         <h2 className="text-xl font-bold text-center mb-4">게임 종료 결과</h2>
-
+{result.symbol && (
+          <div className="mb-3 flex items-center justify-center">
+            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-sm">
+              {result.symbol}
+            </span>
+          </div>
+        )}
         {/* 자산 & 순위 */}
         <div className="mb-4">
           <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg mb-2">
