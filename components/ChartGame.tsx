@@ -22,31 +22,6 @@ const RESERVED_TURNS = 60
 const MIN_TOTAL_CANDLES = MIN_VISIBLE + RESERVED_TURNS // 425
 const CONCURRENCY = 8
 
-// === [ADD] 내 순위/계급 표시용 유틸 & 타입 ===
-function getRankBadge(total: number) {
-  if (total >= 1_000_000_000)
-    return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700" };
-  if (total >= 500_000_000)
-    return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800" };
-  if (total >= 100_000_000)
-    return { name: "물방개", icon: "🐳", color: "bg-blue-100 text-blue-800" };
-  if (total >= 50_000_000)
-    return { name: "불장러", icon: "🚀", color: "bg-red-100 text-red-700" };
-  if (total >= 20_000_000)
-    return { name: "존버러", icon: "🐢", color: "bg-green-100 text-green-700" };
-  return { name: "주린이", icon: "🐣", color: "bg-gray-100 text-gray-700" };
-}
-type MyRank = {
-  rank: number;
-  total: number;
-  avgReturnPct?: number;
-  winRate?: number;
-  wins?: number;
-  losses?: number;
-};
-// ================================================
-
-
 // ---------- OHLC 캐시(심볼+startIndex 기준) ----------
 const LS_OHLC_KEY = 'chartgame_ohlc_cache_v1'
 type OhlcCache = Record<string, OHLC[]>
@@ -134,6 +109,24 @@ function maxBuyableShares(cash: number, lastRaw: number, feeBps: number, slipBps
   return Math.floor(cash / unitCost)
 }
 
+// === [ADD] 내 순위/계급 표시용 ===
+function getRankBadge(total: number) {
+  if (total >= 1_000_000_000) return { name: '졸업자', icon: '👑', color: 'bg-purple-100 text-purple-700' }
+  if (total >= 500_000_000)   return { name: '승리자', icon: '🏆', color: 'bg-yellow-100 text-yellow-800' }
+  if (total >= 100_000_000)   return { name: '물방개', icon: '🐳', color: 'bg-blue-100 text-blue-800' }
+  if (total >= 50_000_000)    return { name: '불장러', icon: '🚀', color: 'bg-red-100 text-red-700' }
+  if (total >= 20_000_000)    return { name: '존버러', icon: '🐢', color: 'bg-green-100 text-green-700' }
+  return { name: '주린이', icon: '🐣', color: 'bg-gray-100 text-gray-700' }
+}
+type MyRank = {
+  rank: number
+  total: number
+  avgReturnPct?: number
+  winRate?: number
+  wins?: number
+  losses?: number
+}
+
 export default function ChartGame() {
   const g = useGame()
   const router = useRouter()
@@ -146,9 +139,7 @@ export default function ChartGame() {
   const [orderType, setOrderType] = useState<null | 'buy' | 'sell'>(null)
   const [isGameEnd, setIsGameEnd] = useState(false)
   const [canPlay, setCanPlay] = useState(true)
-
-    // [ADD] 내 순위 상태
-  const [myRank, setMyRank] = useState<MyRank | null>(null);
+  const [myRank, setMyRank] = useState<MyRank | null>(null) // [ADD]
 
   const [result, setResult] = useState<null | {
     startCapital: number
@@ -161,7 +152,7 @@ export default function ChartGame() {
     heartsLeft: number
     rank: number | null
     prevRank: number | null
-    symbol?: string 
+    symbol?: string
   }>(null)
 
   const universeRef = useRef<SymbolItem[]>([])
@@ -276,6 +267,7 @@ export default function ChartGame() {
     const passed = checkedSample.filter((x): x is SymbolItem => !!x)
 
     if (passed.length > 0) {
+      // 전체 풀은 비동기로 캐싱
       setTimeout(async () => {
         const checkedAll = await runWithConcurrency(valid, CONCURRENCY, validateSymbolWithHistory)
         const passedAll = checkedAll.filter((x): x is SymbolItem => !!x)
@@ -296,31 +288,67 @@ export default function ChartGame() {
     ]
   }, [])
 
+  // === [ADD] 코드 → "이름 (코드)" 라벨 해석 (온라인 폴백 포함)
   const resolveLabel = useCallback(async (code: string) => {
-  const hit1 = universeRef.current?.find?.(s => s.symbol === code);
-  if (hit1) return `${hit1.name} (${hit1.symbol})`;
+    // 1) 메모리에서
+    const hit1 = universeRef.current?.find?.(s => s.symbol === code)
+    if (hit1) return `${hit1.name} (${hit1.symbol})`
 
-  try {
-    const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES);
-    if (raw) {
-      const cached = JSON.parse(raw) as { symbols?: SymbolItem[] };
-      const hit2 = cached?.symbols?.find?.(s => s.symbol === code);
-      if (hit2) return `${hit2.name} (${hit2.symbol})`;
-    }
-  } catch {}
+    // 2) 로컬스토리지 캐시에서
+    try {
+      const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
+      if (raw) {
+        const cached = JSON.parse(raw) as { symbols?: SymbolItem[] }
+        const hit2 = cached?.symbols?.find?.(s => s.symbol === code)
+        if (hit2) return `${hit2.name} (${hit2.symbol})`
+      }
+    } catch {}
 
-  try {
-    let uni = universeRef.current;
-    if (!uni || uni.length === 0) {
-      uni = await loadUniverseWithNames();
-      universeRef.current = uni;
-    }
-    const hit3 = uni.find(s => s.symbol === code);
-    if (hit3) return `${hit3.name} (${hit3.symbol})`;
-  } catch {}
+    // 3) 메모리 비어있으면 빠른 헬퍼로 채우기
+    try {
+      let uni = universeRef.current
+      if (!uni || uni.length === 0) {
+        uni = await loadUniverseWithNames() // 샘플일 수 있음
+        universeRef.current = uni
+      }
+      const hit3 = uni.find(s => s.symbol === code)
+      if (hit3) return `${hit3.name} (${hit3.symbol})`
+    } catch {}
 
-  return code;
-}, [loadUniverseWithNames]);
+    // 4) 온라인 최종 폴백: 지금 전체 목록을 직접 받아서 탐색
+    try {
+      const params = new URLSearchParams({
+        names: 'true',
+        excludeETF: 'true',
+        excludeREIT: 'true',
+        excludePreferred: 'true',
+        gameOptimized: 'true',
+        maxCount: '1500',
+      })
+      const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
+      if (r.ok) {
+        const j = await r.json()
+        const list = (j.symbols || []) as SymbolItem[]
+        const hit4 = list.find(s => s.symbol === code)
+        if (hit4) {
+          // 캐시에 합쳐 저장 + 메모리에도 반영
+          try {
+            const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
+            const cached = raw ? (JSON.parse(raw) as { symbols?: SymbolItem[]; ts?: number }) : { symbols: [] as SymbolItem[] }
+            const merged = [...(cached.symbols || [])]
+            if (!merged.some(s => s.symbol === hit4.symbol)) merged.push(hit4)
+            const now = Date.now()
+            localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: merged, ts: now }))
+            universeRef.current = merged
+          } catch {}
+          return `${hit4.name} (${hit4.symbol})`
+        }
+      }
+    } catch {}
+
+    // 5) 끝까지 실패하면 코드 그대로
+    return code
+  }, [loadUniverseWithNames])
 
   /**
    * 차트 로딩 + 초기화
@@ -422,6 +450,9 @@ export default function ChartGame() {
         startCash: capital,
       })
 
+      // ✅ 라벨 확정 (항상 여기서 보장)
+      setSymbolLabel(await resolveLabel(sym))
+
       // 로컬 메타/스냅 기본값 기록
       writeLocal(
         {
@@ -447,7 +478,7 @@ export default function ChartGame() {
       setChartKey(k => k + 1)
       restoringRef.current = false
     },
-    [g, setHearts, hearts, router, gameId]
+    [g, setHearts, hearts, router, gameId, resolveLabel]
   )
 
   // 차트변경(하트 비소모) — 조건: turn===0 이고, BUY한 적이 없어야 함
@@ -468,7 +499,7 @@ export default function ChartGame() {
     const chosen = pickRandom<SymbolItem>(uni)
     restoringRef.current = true
     await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
-    setSymbolLabel(`${chosen.name} (${chosen.symbol})`)
+    // (라벨은 loadAndInitBySymbol 내부에서 확정됨)
     useGame.getState().decChartChanges()
 
     const local = readLocal()
@@ -482,7 +513,6 @@ export default function ChartGame() {
   }, [loadUniverseWithNames, loadAndInitBySymbol])
 
   // --- 단축키 (A/S/D + R) + D 연타 보호 & R 조건 ---
-  // hasBought/canChangeChart는 렌더 타이밍에 기반한 값도 필요하므로 메모 값도 준비
   const hasBoughtMemo = useMemo(
     () => (g.history as Trade[]).some(t => t.side === 'BUY'),
     [g.history]
@@ -570,7 +600,7 @@ export default function ChartGame() {
             }
 
             setOhlc(ohlcArr)
-            setSymbolLabel(await resolveLabel(ginfo.symbol))
+            setSymbolLabel(await resolveLabel(ginfo.symbol)) // ✅ 이름(코드) 확정
             setGameId(ginfo.id)
             setStartCapital(ginfo.startCash)
 
@@ -664,7 +694,7 @@ export default function ChartGame() {
           }
 
           setOhlc(ohlcArr)
-          setSymbolLabel(await resolveLabel(local.meta.symbol))
+          setSymbolLabel(await resolveLabel(local.meta.symbol)) // ✅ 이름(코드) 확정
           setGameId(local.meta.id ?? null)
           setStartCapital(local.meta.startCash ?? 10_000_000)
 
@@ -709,12 +739,12 @@ export default function ChartGame() {
       }
       const chosen = pickRandom<SymbolItem>(uni)
       await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
-      setSymbolLabel(`${chosen.name} (${chosen.symbol})`)
+      // (라벨은 loadAndInitBySymbol 내부에서 확정됨)
       restoringRef.current = false
     })()
-  }, [loadUniverseWithNames, loadAndInitBySymbol, g, setHearts])
+  }, [loadUniverseWithNames, loadAndInitBySymbol, g, setHearts, resolveLabel])
 
-    // [ADD] 내 순위 불러오기 (최근 7일 기준)
+  // [ADD] 내 순위 불러오기 (최근 7일)
   useEffect(() => {
     (async () => {
       try {
@@ -789,12 +819,15 @@ export default function ChartGame() {
 
     clearLocal() // 게임 종료 시 로컬 스냅 제거
 
+    // ✅ 종료 모달용 라벨도 여기서 확실히 처리
+    const symLabel = await resolveLabel(String((g as any).symbol))
+
     setResult({
       startCapital,
       endCapital,
       profit: endCapital - startCapital,
       profitRate: finalReturnPct,
-      symbol: symbolLabel || String((g as any).symbol),
+      symbol: symLabel,
       tax: taxAndFees,
       tradeCount: g.history.length,
       turnCount: g.turn + 1,
@@ -804,7 +837,7 @@ export default function ChartGame() {
     })
     setIsGameEnd(true)
     g.end()
-  }, [gameId, startCapital, total, ret, g.history.length, g.turn, g, hearts])
+  }, [gameId, startCapital, total, ret, g.history.length, g.turn, g, hearts, resolveLabel])
 
   const fmt = (n?: number) => (n == null ? '-' : Math.round(n).toLocaleString())
 
@@ -844,6 +877,8 @@ export default function ChartGame() {
 
     await saveProgress()
   }
+
+  const rateColor = (v:number) => (v >= 0 ? 'text-green-600' : 'text-red-600')
 
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
@@ -933,43 +968,41 @@ export default function ChartGame() {
 
               <Card className="p-6">
                 <div className="text-sm text-gray-500">게임현황</div>
-                                {/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 */}
-                {myRank && (
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">순위</span>
-                      <span className="font-bold">{myRank.rank}위</span>
-                      {(() => {
-                        const badge = getRankBadge(myRank.total);
-                        return (
-                          <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
-                            {badge.icon} {badge.name}
-                          </span>
-                        );
-                      })()}
-                      {/* 평균 수익률/승률 간단 표시 (원하면 지워도 됨) */}
-                      {typeof myRank.avgReturnPct === 'number' && (
-                        <span className={`ml-2 ${myRank.avgReturnPct >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                          수익률 {myRank.avgReturnPct.toFixed(2)}%
-                        </span>
-                      )}
-                      {typeof myRank.winRate === 'number' && (
-                        <span className="ml-2 text-gray-600">
-                          · 승률 {myRank.winRate.toFixed(1)}%{(myRank.wins!=null&&myRank.losses!=null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
-                        </span>
-                      )}
-                    </div>
-                    
-                  </div>
-                )}
                 <div className="mt-2 text-3xl font-bold">{fmt(total)} 원</div>
                 <div className="text-sm text-gray-500">초기자산 {fmt(startCapital)}</div>
                 <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   수익률 {ret.toFixed(2)}%
                 </div>
 
-                
-
+                {/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 + (평균/승률) */}
+                {myRank && (
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">내 순위</span>
+                      <span className="font-bold">{myRank.rank}위</span>
+                      {(() => {
+                        const badge = getRankBadge(myRank.total)
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
+                            {badge.icon} {badge.name}
+                          </span>
+                        )
+                      })()}
+                      {typeof myRank.avgReturnPct === 'number' && (
+                        <span className={`ml-2 ${myRank.avgReturnPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          평균 {myRank.avgReturnPct.toFixed(2)}%
+                        </span>
+                      )}
+                      {typeof myRank.winRate === 'number' && (
+                        <span className="ml-2 text-gray-600">
+                          · 승률 {myRank.winRate.toFixed(1)}%
+                          {(myRank.wins!=null&&myRank.losses!=null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
+                        </span>
+                      )}
+                    </div>
+              
+                  </div>
+                )}
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
                   <div className="text-gray-500">보유 현금</div>
