@@ -98,24 +98,25 @@ export default function HomeTopGrid() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
-     {/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
+    
+{/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
 <Card className="p-4">
-  {/* 보유자산 + 하트 한 줄 */}
-  <div className="flex items-center justify-between">
-    <div className="text-xl font-bold text-slate-800">
-      {(startCapital || 10_000_000).toLocaleString()}원
-    </div>
-    <div className="flex items-center gap-2 text-lg font-semibold">
-      <Heart
-        className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
-      />
-      <span>{hearts} / {maxHearts}</span>
-      {countdown && (
-        <span className="ml-1 text-sm font-normal text-gray-500">
-          ⏳ {countdown} 후 + 1
-        </span>
-      )}
-    </div>
+  {/* 보유 자산 */}
+  <div className="text-xl font-bold text-slate-800">
+    보유 자산 {(startCapital || 10_000_000).toLocaleString()}원
+  </div>
+
+  {/* 하트 + 카운트다운 */}
+  <div className="mt-1 flex items-center gap-2 text-lg font-semibold">
+    <Heart
+      className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
+    />
+    <span>{hearts} / {maxHearts}</span>
+    {countdown && (
+      <span className="ml-1 text-sm font-normal text-gray-500">
+        ⏳ {countdown} 후 + 1
+      </span>
+    )}
   </div>
 
   {/* [ADD] 내 순위 & 계급 뱃지 & (평균/승률) */}
@@ -148,6 +149,7 @@ export default function HomeTopGrid() {
     </div>
   )}
 </Card>
+
 
 
 {/* 가운데: 게임 시작 버튼 */}
