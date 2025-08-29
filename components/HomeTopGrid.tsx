@@ -107,7 +107,7 @@ export default function HomeTopGrid() {
   </div>
 
   {/* 하트 + 카운트다운 */}
-  <div className="mt-1 flex items-center gap-2 text-lg font-semibold">
+  <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
     <Heart
       className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
     />
