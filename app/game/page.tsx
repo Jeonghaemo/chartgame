@@ -7,7 +7,7 @@ export default async function GamePage() {
     return (
       <main className="max-w-[1200px] mx-auto p-6">
         <h2 className="text-xl font-semibold">로그인이 필요합니다</h2>
-        <p className="text-slate-600 mt-2">우측 상단의 로그인 버튼을 눌러 진행한다.</p>
+        <p className="text-slate-600 mt-2">우측 상단의 로그인 버튼을 눌러 진행하세요.</p>
       </main>
     );
   }
