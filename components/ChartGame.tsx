@@ -119,6 +119,8 @@ function getRankBadge(total: number) {
   if (total >= 20_000_000)    return { name: '존버러', icon: '🐢', color: 'bg-green-100 text-green-700' }
   return { name: '주린이', icon: '🐣', color: 'bg-gray-100 text-gray-700' }
 }
+
+
 type MyRank = {
   rank: number
   total: number
@@ -126,6 +128,28 @@ type MyRank = {
   winRate?: number
   wins?: number
   losses?: number
+}
+// [ADD] 카운트다운 훅
+function useHeartCountdown(lastRefillAt?: string | Date | null, hearts?: number, maxHearts?: number) {
+  const [remain, setRemain] = useState<string>("")
+
+  useEffect(() => {
+    if (!lastRefillAt || hearts == null || maxHearts == null || hearts >= maxHearts) {
+      setRemain("")
+      return
+    }
+    const interval = setInterval(() => {
+      const last = new Date(lastRefillAt).getTime()
+      const next = last + 1000 * 60 * 60 // 1시간
+      const diff = Math.max(0, next - Date.now())
+      const mm = String(Math.floor(diff / 1000 / 60)).padStart(2, "0")
+      const ss = String(Math.floor((diff / 1000) % 60)).padStart(2, "0")
+      setRemain(`${mm}:${ss}`)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [lastRefillAt, hearts, maxHearts])
+
+  return remain
 }
 
 export default function ChartGame() {
@@ -164,6 +188,8 @@ export default function ChartGame() {
   const hearts = useUserStore(s => s.hearts) ?? 0;
   const setHearts = useUserStore(state => state.setHearts)
 const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
+const lastRefillAt = useUserStore(s => s.lastRefillAt)
+const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
   // 저장(서버+로컬)
   const saveProgress = useCallback(async () => {
     const symbol = (g as any).symbol
@@ -907,17 +933,54 @@ const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
             <aside className="space-y-4 overflow-auto">
               <AdRecharge />
 
-<Card className="p-4 text-center">
+<Card className="p-2 text-center">
   <div className="text-xl font-bold text-slate-700">
     보유 자산 {(startCapital || 10_000_000).toLocaleString()}원
   </div>
 
   {/* HeaderHearts 아이콘 스타일 그대로 */}
   <div className="mt-2 text-lg font-semibold flex items-center justify-center gap-2">
-  <Heart className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`} />
+  <Heart
+    className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
+  />
   <span>{hearts} / {maxHearts}</span>
+  {countdown && (
+    <span className="ml-2 text-sm text-gray-500">
+      ⏳ {countdown} 후 + 1
+    </span>
+  )}
 </div>
+{/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 + (평균/승률) */}
+                {myRank && (
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="ml-2 text-gray-500">순위</span>
+                      <span className="font-bold">{myRank.rank}위</span>
+                      {(() => {
+                        const badge = getRankBadge(myRank.total)
+                        return (
+                          <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
+                            {badge.icon} {badge.name}
+                          </span>
+                        )
+                      })()}
+                      {typeof myRank.avgReturnPct === 'number' && (
+                        <span className={`ml-0 ${myRank.avgReturnPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          수익률 {myRank.avgReturnPct.toFixed(2)}%
+                        </span>
+                      )}
+                      {typeof myRank.winRate === 'number' && (
+                        <span className="ml-0 text-gray-600">
+                          · 승률 {myRank.winRate.toFixed(1)}%
+                          {(myRank.wins!=null&&myRank.losses!=null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
+                        </span>
+                      )}
+                    </div>
+              
+                  </div>
+                )}
 </Card>
+
               <Card className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="text-base text-gray-600">
@@ -986,35 +1049,7 @@ const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
                   수익률 {ret.toFixed(2)}%
                 </div>
 
-                {/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 + (평균/승률) */}
-                {myRank && (
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-500">순위</span>
-                      <span className="font-bold">{myRank.rank}위</span>
-                      {(() => {
-                        const badge = getRankBadge(myRank.total)
-                        return (
-                          <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
-                            {badge.icon} {badge.name}
-                          </span>
-                        )
-                      })()}
-                      {typeof myRank.avgReturnPct === 'number' && (
-                        <span className={`ml-0 ${myRank.avgReturnPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          수익률 {myRank.avgReturnPct.toFixed(2)}%
-                        </span>
-                      )}
-                      {typeof myRank.winRate === 'number' && (
-                        <span className="ml-0 text-gray-600">
-                          · 승률 {myRank.winRate.toFixed(1)}%
-                          {(myRank.wins!=null&&myRank.losses!=null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
-                        </span>
-                      )}
-                    </div>
-              
-                  </div>
-                )}
+                
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
                   <div className="text-gray-500">보유 현금</div>

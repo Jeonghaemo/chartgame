@@ -68,56 +68,63 @@ export default function AdRecharge() {
       ? "오늘 충전 기회 소진(내일 4회)"
       : `쿨타임 진행 중: ${formatHMS(cool)}`;
 
-  return (
-    <div className="mt-4 rounded-2xl border p-4">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold">❤️ 하트 무료 충전</div>
-        <button
-          disabled={!info?.eligible}
-          onClick={handleOpen}
-          className={`rounded-lg px-3 py-1.5 text-sm ${info?.eligible ? "bg-black text-white" : "bg-gray-200 text-gray-500 cursor-not-allowed"}`}
-        >
-          {label}
-        </button>
-      </div>
+ return (
+  <div className="mt-0 rounded-2xl bg-white border p-6 text-center">
+    {/* 상단 제목 */}
+    <div className="font-semibold text-lg mb-4">❤️ 하트 무료 충전</div>
 
-      {open && (
-        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center">
-          <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
-            <div className="text-lg font-bold">광고 시청으로 하트 +1</div>
-            <div className="mt-2 text-sm text-gray-600">
-              광고를 클릭하면 새 탭에서 열립니다. 클릭이 확인되면 하트가 1개 충전됩니다.
-            </div>
+    {/* 버튼 */}
+    <button
+      disabled={!info?.eligible}
+      onClick={handleOpen}
+      className={`w-full rounded-xl px-4 py-3 text-base font-semibold transition
+        ${info?.eligible 
+          ? "bg-rose-500 text-white hover:bg-rose-500" 
+          : "bg-gray-200 text-gray-500 cursor-not-allowed"}`}
+  
+>
+  {label}
+</button>
 
-            <div className="mt-4 h-40 rounded-xl border grid place-items-center">
-              <div className="text-gray-500">
-                {info?.provider === "COUPANG" ? "쿠팡 배너" : "네이버 쇼핑 커넥트"}
-              </div>
-            </div>
 
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={handleClose} className="rounded-xl border px-4 py-2">닫기</button>
-              <button
-                onClick={handleGoAd}
-                className="rounded-xl bg-black text-white px-4 py-2 font-semibold"
-                disabled={!info?.eligible}
-              >
-                광고 보러가기
-              </button>
-              <button
-                onClick={afterClickConfirm}
-                className="rounded-xl bg-green-600 text-white px-4 py-2 font-semibold"
-              >
-                충전 확인
-              </button>
-            </div>
-
-            {!info?.eligible && info?.reason === "COOLDOWN" && (
-              <div className="mt-3 text-xs text-gray-500">쿨타임: {formatHMS(cool)}</div>
-            )}
+    {open && (
+      <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center">
+        <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
+          <div className="text-lg font-bold">광고 시청으로 하트 +1</div>
+          <div className="mt-2 text-sm text-gray-600">
+            광고를 클릭하면 새 탭에서 열립니다. 클릭이 확인되면 하트가 1개 충전됩니다.
           </div>
+
+          <div className="mt-4 h-40 rounded-xl border grid place-items-center">
+            <div className="text-gray-500">
+              {info?.provider === "COUPANG" ? "쿠팡 배너" : "네이버 쇼핑 커넥트"}
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button onClick={handleClose} className="rounded-xl border px-4 py-2">닫기</button>
+            <button
+              onClick={handleGoAd}
+              className="rounded-xl bg-black text-white px-4 py-2 font-semibold"
+              disabled={!info?.eligible}
+            >
+              광고 보러가기
+            </button>
+            <button
+              onClick={afterClickConfirm}
+              className="rounded-xl bg-green-600 text-white px-4 py-2 font-semibold"
+            >
+              충전 확인
+            </button>
+          </div>
+
+          {!info?.eligible && info?.reason === "COOLDOWN" && (
+            <div className="mt-3 text-xs text-gray-500">쿨타임: {formatHMS(cool)}</div>
+          )}
         </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </div>
+);
+
 }
