@@ -965,7 +965,7 @@ const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
                         )
                       })()}
                       {typeof myRank.avgReturnPct === 'number' && (
-                        <span className={`ml-0 ${myRank.avgReturnPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`ml-0 ${myRank.avgReturnPct >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
                           수익률 {myRank.avgReturnPct.toFixed(2)}%
                         </span>
                       )}
@@ -1045,7 +1045,7 @@ const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
                 <div className="text-sm text-gray-500">게임현황</div>
                 <div className="mt-2 text-3xl font-bold">{fmt(total)} 원</div>
                 <div className="text-sm text-gray-500">초기자산 {fmt(startCapital)}</div>
-                <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
                   수익률 {ret.toFixed(2)}%
                 </div>
 

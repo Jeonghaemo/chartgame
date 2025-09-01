@@ -133,7 +133,7 @@ export default function HomeTopGrid() {
           );
         })()}
         {typeof myRank.avgReturnPct === "number" && (
-          <span className={`${myRank.avgReturnPct >= 0 ? "text-green-600" : "text-red-600"}`}>
+          <span className={`${myRank.avgReturnPct >= 0 ? "text-red-600" : "text-blue-600"}`}>
             평균 수익률 {myRank.avgReturnPct.toFixed(2)}%
           </span>
         )}
