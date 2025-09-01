@@ -1,0 +1,16 @@
+{
+  // CSS 기본 진단을 끄고 Tailwind 확장에 맡깁니다.
+  "css.validate": false,
+  "css.lint.unknownAtRules": "ignore",
+
+  // 이 프로젝트의 CSS를 Tailwind로 인식시키기
+  "files.associations": {
+    "app/globals.css": "tailwindcss"
+  },
+
+  // Tailwind 설정 파일 경로를 명시 (파일명이 cjs면 그걸로 변경)
+  "tailwindCSS.experimental.configFile": "tailwind.config.js",
+
+  // 편의 옵션 (선택)
+  "tailwindCSS.emmetCompletions": true
+}
