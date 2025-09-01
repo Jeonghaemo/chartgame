@@ -28,7 +28,9 @@ export default function AdRecharge() {
 
   const slotRef = useRef<HTMLDivElement | null>(null);
   const visibleRef = useRef(false);
-  const activeRef = useRef(!document.hidden);
+
+  // ✅ SSR 안전: 초기값은 true로 두고 useEffect에서 실제 값 동기화
+  const activeRef = useRef<boolean>(true);
 
   const setFromMe = useUserStore((s) => s.setFromMe);
 
@@ -90,18 +92,26 @@ export default function AdRecharge() {
 
   const DAILY_LIMIT = 10;
 
-const label = info?.eligible
-  ? `하트 무료 충전 (${info.remaining}회 남음)`
-  : `오늘 충전 기회 소진(내일 ${DAILY_LIMIT}회)`;
+  const label = info?.eligible
+    ? `하트 무료 충전 (${info.remaining}회 남음)`
+    : `오늘 충전 기회 소진(내일 ${DAILY_LIMIT}회)`;
 
   // 광고 슬롯 노출 체크
   useEffect(() => {
     if (!open) return;
 
+    // ✅ document 접근은 클라이언트에서만
     const onVis = () => {
-      activeRef.current = !document.hidden;
+      if (typeof document !== "undefined") {
+        activeRef.current = !document.hidden;
+      }
     };
-    document.addEventListener("visibilitychange", onVis);
+
+    // 최초 동기화
+    if (typeof document !== "undefined") {
+      activeRef.current = !document.hidden;
+      document.addEventListener("visibilitychange", onVis);
+    }
 
     const markInteract = () => setInteracted(true);
     ["scroll", "keydown", "mousemove", "touchstart"].forEach((ev) =>
@@ -129,7 +139,9 @@ const label = info?.eligible
     }, 200);
 
     return () => {
-      document.removeEventListener("visibilitychange", onVis);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVis);
+      }
       ["scroll", "keydown", "mousemove", "touchstart"].forEach((ev) =>
         window.removeEventListener(ev, markInteract)
       );

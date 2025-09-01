@@ -93,50 +93,78 @@ function getRandomSlice(data: OHLC[], sliceDays: number = 365, gameTurns: number
   };
 }
 
+// app/api/history/route.ts (일부 발췌)
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const symbol = url.searchParams.get("symbol") ?? "005930.KS";
     const lookbackDays = Number(url.searchParams.get("days") ?? "3650");
-    const sliceDays = Number(url.searchParams.get("slice") ?? "365"); // 차트에 보여줄 일수
-    const gameTurns = Number(url.searchParams.get("turns") ?? "60"); // 게임 턴 수
+    const sliceDays    = Number(url.searchParams.get("slice") ?? "365");
+    const gameTurns    = Number(url.searchParams.get("turns") ?? "60");
 
     const period1 = Number(url.searchParams.get("period1") ?? daysAgoSec(lookbackDays));
     const period2 = Number(url.searchParams.get("period2") ?? (nowSec() + 86400));
 
     let ohlc = await fetchYahooDaily(symbol, period1, period2);
 
-    // 중복제거 및 정렬 (오래된 순)
+    // 중복제거 및 정렬
     const byTs = new Map<number, OHLC>();
     for (const r of ohlc) byTs.set(r.time, r);
     ohlc = Array.from(byTs.values()).sort((a, b) => a.time - b.time);
 
-    // 랜덤 슬라이스 생성
-    const { gameData, startIndex, totalAvailable } = getRandomSlice(ohlc, sliceDays, gameTurns);
+    const totalNeeded = sliceDays + gameTurns;
 
-    // 초기 차트용 데이터 (startIndex까지만)
-    const initialChartData = gameData.slice(0, startIndex + 1);
+    // ✅ 전달된 startIndex가 있으면 랜덤 금지 (항상 같은 윈도우)
+    const startIndexParam = url.searchParams.get("startIndex");
+    if (startIndexParam != null) {
+      // 윈도우 시작 위치는 "마지막에서 totalNeeded 만큼"로 고정 (deterministic)
+      const maxStartPoint = Math.max(0, ohlc.length - totalNeeded);
+      const fixedStart = maxStartPoint; // 항상 동일 구간
+      const gameData = ohlc.slice(fixedStart, fixedStart + totalNeeded);
 
-    return NextResponse.json(
-      { 
-        ok: true, 
-        source: "yahoo", 
-        symbol, 
-        ohlc: gameData, // 전체 게임 데이터 (365 + 60일)
-        initialChart: initialChartData, // 초기 차트 데이터 (365일)
-        startIndex, // 게임 시작 인덱스
+      // startIndex는 "보여주는 365일의 끝"을 의미하므로 sliceDays - 1로 유지
+      const startIndex = Math.min(sliceDays - 1, Math.max(0, Number(startIndexParam)));
+
+      const initialChartData = gameData.slice(0, startIndex + 1);
+
+      return NextResponse.json({
+        ok: true,
+        source: "yahoo",
+        symbol,
+        ohlc: gameData,
+        initialChart: initialChartData,
+        startIndex,            // ← 클라이언트 기대값 유지
         count: gameData.length,
         meta: {
           sliceDays,
           gameTurns,
-          totalAvailableData: totalAvailable,
-          sliceStart: gameData[0]?.time ? new Date(gameData[0].time * 1000).toISOString().split('T')[0] : null,
-          sliceEnd: gameData[gameData.length - 1]?.time ? new Date(gameData[gameData.length - 1].time * 1000).toISOString().split('T')[0] : null
-        }
+          totalAvailableData: ohlc.length,
+          sliceStart: gameData[0]?.time ? new Date(gameData[0].time * 1000).toISOString().split("T")[0] : null,
+          sliceEnd: gameData.at(-1)?.time ? new Date(gameData.at(-1)!.time * 1000).toISOString().split("T")[0] : null,
+        },
+      });
+    }
+
+    // ⬇ 기존 랜덤 로직 (새 게임일 때만)
+    const { gameData, startIndex, totalAvailable } = getRandomSlice(ohlc, sliceDays, gameTurns);
+    const initialChartData = gameData.slice(0, startIndex + 1);
+
+    return NextResponse.json({
+      ok: true,
+      source: "yahoo",
+      symbol,
+      ohlc: gameData,
+      initialChart: initialChartData,
+      startIndex,
+      count: gameData.length,
+      meta: {
+        sliceDays,
+        gameTurns,
+        totalAvailableData: totalAvailable,
+        sliceStart: gameData[0]?.time ? new Date(gameData[0].time * 1000).toISOString().split("T")[0] : null,
+        sliceEnd: gameData.at(-1)?.time ? new Date(gameData.at(-1)!.time * 1000).toISOString().split("T")[0] : null,
       },
-      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
-    );
-    
+    });
   } catch (err: any) {
     console.error("[/api/history] error:", err?.message || err);
     return NextResponse.json({ ok: false, symbol: null, ohlc: [], initialChart: [], startIndex: 0 }, { status: 200 });
