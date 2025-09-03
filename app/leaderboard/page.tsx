@@ -23,10 +23,10 @@ type LeaderboardResponse = {
 
 // 계급 뱃지 데이터
 function getRankBadge(total: number) {
+  if (total >= 5_000_000_000)
+    return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700", range: "5,000,000,000원 이상" };
   if (total >= 1_000_000_000)
-    return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700", range: "1,000,000,000원 이상" };
-  if (total >= 500_000_000)
-    return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800", range: "500,000,000원 ~ 999,999,999원" };
+    return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800", range: "1,000,000,000원 ~ 4,999,999,999원" };
   if (total >= 100_000_000)
     return { name: "물방개", icon: "🐳", color: "bg-blue-100 text-blue-800", range: "100,000,000원 ~ 499,999,999원" };
   if (total >= 50_000_000)
@@ -62,8 +62,8 @@ function TooltipBadge({ badge }: { badge: ReturnType<typeof getRankBadge> }) {
 
 // 🔹 상단 계급 레전드
 const TIERS = [
-  { min: 1_000_000_000, label: "졸업자", icon: "👑",  range: "1,000,000,000원 ~" },
-  { min:   500_000_000, label: "승리자", icon: "🏆",  range: "500,000,000원 ~" },
+  { min: 5_000_000_000, label: "졸업자", icon: "👑",  range: "5,000,000,000원 ~" },
+  { min:   1_000_000_000, label: "승리자", icon: "🏆",  range: "1,000,000,000원 ~" },
   { min:   100_000_000, label: "물방개", icon: "🐳",  range: "100,000,000원 ~" },
   { min:    50_000_000, label: "불장러", icon: "🚀",  range: "50,000,000원 ~" },
   { min:    20_000_000, label: "존버러", icon: "🐢",  range: "20,000,000원 ~" },

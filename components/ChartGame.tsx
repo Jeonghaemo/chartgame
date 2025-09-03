@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import Card from './Card'
 import CandleChart from '@/components/CandleChart'
 import { useGame } from '@/game/store/gameStore'
@@ -152,6 +152,22 @@ function useHeartCountdown(lastRefillAt?: string | Date | null, hearts?: number,
   return remain
 }
 
+// 부모 리렌더를 막기 위해 카운트다운 상태를 자식 안으로 격리
+const HeartCountdownText = memo(function HeartCountdownText({
+  lastRefillAt,
+  hearts,
+  maxHearts,
+}: {
+  lastRefillAt?: string | Date | null
+  hearts: number
+  maxHearts: number
+}) {
+  const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts)
+  if (!countdown) return null
+  return <span className="ml-2 text-sm text-gray-500">⏳ {countdown} 후 + 1</span>
+})
+
+
 export default function ChartGame() {
   const g = useGame()
   const router = useRouter()
@@ -189,7 +205,7 @@ export default function ChartGame() {
   const setHearts = useUserStore(state => state.setHearts)
 const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
 const lastRefillAt = useUserStore(s => s.lastRefillAt)
-const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
+
   // 저장(서버+로컬)
   const saveProgress = useCallback(async () => {
     const symbol = (g as any).symbol
@@ -944,11 +960,12 @@ const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
     className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
   />
   <span>{hearts} / {maxHearts}</span>
-  {countdown && (
-    <span className="ml-2 text-sm text-gray-500">
-      ⏳ {countdown} 후 + 1
-    </span>
-  )}
+  <HeartCountdownText
+  lastRefillAt={lastRefillAt}
+  hearts={hearts}
+  maxHearts={maxHearts}
+/>
+<HeartCountdownText lastRefillAt={lastRefillAt} hearts={hearts} maxHearts={maxHearts} />
 </div>
 {/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 + (평균/승률) */}
                 {myRank && (
