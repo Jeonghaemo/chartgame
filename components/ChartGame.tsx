@@ -965,7 +965,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
   hearts={hearts}
   maxHearts={maxHearts}
 />
-<HeartCountdownText lastRefillAt={lastRefillAt} hearts={hearts} maxHearts={maxHearts} />
+
 </div>
 {/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 + (평균/승률) */}
                 {myRank && (
