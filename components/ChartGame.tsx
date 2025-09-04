@@ -55,6 +55,7 @@ type LocalMeta = {
   slippageBps: number
   startCash: number
   chartChangesLeft: number
+  sliceStartTs?: number | null // [ADD] 서버가 내려준 구간 앵커(초)
 }
 type LocalSnap = {
   cursor: number
@@ -112,14 +113,13 @@ function maxBuyableShares(cash: number, lastRaw: number, feeBps: number, slipBps
 
 // === [ADD] 내 순위/계급 표시용 ===
 function getRankBadge(total: number) {
-  if (total >= 1_000_000_000) return { name: '졸업자', icon: '👑', color: 'bg-purple-100 text-purple-700' }
-  if (total >= 500_000_000)   return { name: '승리자', icon: '🏆', color: 'bg-yellow-100 text-yellow-800' }
+  if (total >= 5_000_000_000) return { name: '졸업자', icon: '👑', color: 'bg-purple-100 text-purple-700' }
+  if (total >= 1_000_000_000)   return { name: '승리자', icon: '🏆', color: 'bg-yellow-100 text-yellow-800' }
   if (total >= 100_000_000)   return { name: '물방개', icon: '🐳', color: 'bg-blue-100 text-blue-800' }
   if (total >= 50_000_000)    return { name: '불장러', icon: '🚀', color: 'bg-red-100 text-red-700' }
   if (total >= 20_000_000)    return { name: '존버러', icon: '🐢', color: 'bg-green-100 text-green-700' }
   return { name: '주린이', icon: '🐣', color: 'bg-gray-100 text-gray-700' }
 }
-
 
 type MyRank = {
   rank: number
@@ -132,7 +132,6 @@ type MyRank = {
 // [ADD] 카운트다운 훅
 function useHeartCountdown(lastRefillAt?: string | Date | null, hearts?: number, maxHearts?: number) {
   const [remain, setRemain] = useState<string>("")
-
   useEffect(() => {
     if (!lastRefillAt || hearts == null || maxHearts == null || hearts >= maxHearts) {
       setRemain("")
@@ -148,11 +147,9 @@ function useHeartCountdown(lastRefillAt?: string | Date | null, hearts?: number,
     }, 1000)
     return () => clearInterval(interval)
   }, [lastRefillAt, hearts, maxHearts])
-
   return remain
 }
 
-// 부모 리렌더를 막기 위해 카운트다운 상태를 자식 안으로 격리
 const HeartCountdownText = memo(function HeartCountdownText({
   lastRefillAt,
   hearts,
@@ -167,7 +164,6 @@ const HeartCountdownText = memo(function HeartCountdownText({
   return <span className="ml-2 text-sm text-gray-500">⏳ {countdown} 후 + 1</span>
 })
 
-
 export default function ChartGame() {
   const g = useGame()
   const router = useRouter()
@@ -180,7 +176,7 @@ export default function ChartGame() {
   const [orderType, setOrderType] = useState<null | 'buy' | 'sell'>(null)
   const [isGameEnd, setIsGameEnd] = useState(false)
   const [canPlay, setCanPlay] = useState(true)
-  const [myRank, setMyRank] = useState<MyRank | null>(null) // [ADD]
+  const [myRank, setMyRank] = useState<MyRank | null>(null)
 
   const [result, setResult] = useState<null | {
     startCapital: number
@@ -203,8 +199,8 @@ export default function ChartGame() {
 
   const hearts = useUserStore(s => s.hearts) ?? 0;
   const setHearts = useUserStore(state => state.setHearts)
-const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
-const lastRefillAt = useUserStore(s => s.lastRefillAt)
+  const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
+  const lastRefillAt = useUserStore(s => s.lastRefillAt)
 
   // 저장(서버+로컬)
   const saveProgress = useCallback(async () => {
@@ -249,6 +245,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
       slippageBps: g.slippageBps ?? 0,
       startCash: startCapital || 10_000_000,
       chartChangesLeft: useGame.getState().chartChangesLeft ?? 0,
+      sliceStartTs: readLocal()?.meta?.sliceStartTs ?? null, // [ADD] 유지
     }
     const snap: LocalSnap = {
       cursor: g.cursor,
@@ -310,7 +307,6 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
     const passed = checkedSample.filter((x): x is SymbolItem => !!x)
 
     if (passed.length > 0) {
-      // 전체 풀은 비동기로 캐싱
       setTimeout(async () => {
         const checkedAll = await runWithConcurrency(valid, CONCURRENCY, validateSymbolWithHistory)
         const passedAll = checkedAll.filter((x): x is SymbolItem => !!x)
@@ -331,13 +327,11 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
     ]
   }, [])
 
-  // === [ADD] 코드 → "이름 (코드)" 라벨 해석 (온라인 폴백 포함)
+  // === [ADD] 코드 → "이름 (코드)" 라벨 해석
   const resolveLabel = useCallback(async (code: string) => {
-    // 1) 메모리에서
     const hit1 = universeRef.current?.find?.(s => s.symbol === code)
     if (hit1) return `${hit1.name} (${hit1.symbol})`
 
-    // 2) 로컬스토리지 캐시에서
     try {
       const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
       if (raw) {
@@ -347,18 +341,16 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
       }
     } catch {}
 
-    // 3) 메모리 비어있으면 빠른 헬퍼로 채우기
     try {
       let uni = universeRef.current
       if (!uni || uni.length === 0) {
-        uni = await loadUniverseWithNames() // 샘플일 수 있음
+        uni = await loadUniverseWithNames()
         universeRef.current = uni
       }
       const hit3 = uni.find(s => s.symbol === code)
       if (hit3) return `${hit3.name} (${hit3.symbol})`
     } catch {}
 
-    // 4) 온라인 최종 폴백: 지금 전체 목록을 직접 받아서 탐색
     try {
       const params = new URLSearchParams({
         names: 'true',
@@ -374,7 +366,6 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
         const list = (j.symbols || []) as SymbolItem[]
         const hit4 = list.find(s => s.symbol === code)
         if (hit4) {
-          // 캐시에 합쳐 저장 + 메모리에도 반영
           try {
             const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
             const cached = raw ? (JSON.parse(raw) as { symbols?: SymbolItem[]; ts?: number }) : { symbols: [] as SymbolItem[] }
@@ -389,7 +380,6 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
       }
     } catch {}
 
-    // 5) 끝까지 실패하면 코드 그대로
     return code
   }, [loadUniverseWithNames])
 
@@ -445,6 +435,9 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
       )
       const response = await r.json()
       const { ohlc: ohlcResp, startIndex: startIndexResp } = response as { ohlc: OHLC[]; startIndex: number }
+      const fixedStartTs: number | null = // [ADD]
+        typeof response?.meta?.fixedStartTs === 'number' ? response.meta.fixedStartTs : null
+
       setOhlc(ohlcResp)
       writeOhlcToCache(sym, startIndexResp, ohlcResp)
       const closes = ohlcResp.map((d: any) => d.close)
@@ -493,7 +486,6 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
         startCash: capital,
       })
 
-      // ✅ 라벨 확정 (항상 여기서 보장)
       setSymbolLabel(await resolveLabel(sym))
 
       // 로컬 메타/스냅 기본값 기록
@@ -507,6 +499,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
           slippageBps: g.slippageBps ?? 0,
           startCash: capital,
           chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
+          sliceStartTs: fixedStartTs, // [ADD]
         },
         {
           cursor: startIndexResp,
@@ -524,7 +517,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
     [g, setHearts, hearts, router, gameId, resolveLabel]
   )
 
-  // 차트변경(하트 비소모) — 조건: turn===0 이고, BUY한 적이 없어야 함
+  // 차트변경(하트 비소모)
   const resetGame = useCallback(async () => {
     const state = useGame.getState()
     const hasBought = (state.history as Trade[]).some(t => t.side === 'BUY')
@@ -542,7 +535,6 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
     const chosen = pickRandom<SymbolItem>(uni)
     restoringRef.current = true
     await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
-    // (라벨은 loadAndInitBySymbol 내부에서 확정됨)
     useGame.getState().decChartChanges()
 
     const local = readLocal()
@@ -555,7 +547,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
     restoringRef.current = false
   }, [loadUniverseWithNames, loadAndInitBySymbol])
 
-  // --- 단축키 (A/S/D + R) + D 연타 보호 & R 조건 ---
+  // 단축키
   const hasBoughtMemo = useMemo(
     () => (g.history as Trade[]).some(t => t.side === 'BUY'),
     [g.history]
@@ -633,8 +625,20 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
 
             let ohlcArr = readOhlcFromCache(ginfo.symbol, ginfo.startIndex)
             if (!ohlcArr) {
+              // [ADD] 로컬에 저장된 sliceStartTs 있으면 함께 전달
+              const savedLocal = readLocal()
+              const sliceStartTsParam =
+                (savedLocal &&
+                 savedLocal.meta?.symbol === ginfo.symbol &&
+                 savedLocal.meta?.startIndex === ginfo.startIndex &&
+                 typeof savedLocal.meta.sliceStartTs === 'number')
+                  ? savedLocal.meta.sliceStartTs
+                  : undefined
+
               const hist = await fetch(
-                `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}&startIndex=${ginfo.startIndex}`,
+                `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+                `&startIndex=${ginfo.startIndex}` +
+                (typeof sliceStartTsParam === 'number' ? `&sliceStartTs=${sliceStartTsParam}` : ''),
                 { cache: 'no-store' }
               )
               const hjson = await hist.json()
@@ -643,7 +647,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
             }
 
             setOhlc(ohlcArr)
-            setSymbolLabel(await resolveLabel(ginfo.symbol)) // ✅ 이름(코드) 확정
+            setSymbolLabel(await resolveLabel(ginfo.symbol))
             setGameId(ginfo.id)
             setStartCapital(ginfo.startCash)
 
@@ -703,6 +707,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
                 slippageBps: g.slippageBps ?? 0,
                 startCash: ginfo.startCash,
                 chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
+                sliceStartTs: readLocal()?.meta?.sliceStartTs ?? null, // [ADD] 보존
               },
               {
                 cursor: useGame.getState().cursor,
@@ -728,7 +733,9 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
           let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
           if (!ohlcArr) {
             const hist = await fetch(
-              `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}&startIndex=${local.meta.startIndex}`,
+              `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+              `&startIndex=${local.meta.startIndex}` +
+              (typeof local.meta.sliceStartTs === 'number' ? `&sliceStartTs=${local.meta.sliceStartTs}` : ''), // [ADD]
               { cache: 'no-store' }
             )
             const hjson = await hist.json()
@@ -737,7 +744,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
           }
 
           setOhlc(ohlcArr)
-          setSymbolLabel(await resolveLabel(local.meta.symbol)) // ✅ 이름(코드) 확정
+          setSymbolLabel(await resolveLabel(local.meta.symbol))
           setGameId(local.meta.id ?? null)
           setStartCapital(local.meta.startCash ?? 10_000_000)
 
@@ -782,7 +789,6 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
       }
       const chosen = pickRandom<SymbolItem>(uni)
       await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
-      // (라벨은 loadAndInitBySymbol 내부에서 확정됨)
       restoringRef.current = false
     })()
   }, [loadUniverseWithNames, loadAndInitBySymbol, g, setHearts, resolveLabel])
@@ -860,9 +866,8 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
       }
     } catch {}
 
-    clearLocal() // 게임 종료 시 로컬 스냅 제거
+    clearLocal()
 
-    // ✅ 종료 모달용 라벨도 여기서 확실히 처리
     const symLabel = await resolveLabel(String((g as any).symbol))
 
     setResult({
@@ -949,25 +954,23 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
             <aside className="space-y-4 overflow-auto">
               <AdRecharge />
 
-<Card className="p-2 text-center">
-  <div className="text-xl font-bold text-slate-700">
-    보유 자산 {(startCapital || 10_000_000).toLocaleString()}원
-  </div>
+              <Card className="p-2 text-center">
+                <div className="text-xl font-bold text-slate-700">
+                  보유 자산 {(startCapital || 10_000_000).toLocaleString()}원
+                </div>
 
-  {/* HeaderHearts 아이콘 스타일 그대로 */}
-  <div className="mt-2 text-lg font-semibold flex items-center justify-center gap-2">
-  <Heart
-    className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
-  />
-  <span>{hearts} / {maxHearts}</span>
-  <HeartCountdownText
-  lastRefillAt={lastRefillAt}
-  hearts={hearts}
-  maxHearts={maxHearts}
-/>
+                <div className="mt-2 text-lg font-semibold flex items-center justify-center gap-2">
+                  <Heart
+                    className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
+                  />
+                  <span>{hearts} / {maxHearts}</span>
+                  <HeartCountdownText
+                    lastRefillAt={lastRefillAt}
+                    hearts={hearts}
+                    maxHearts={maxHearts}
+                  />
+                </div>
 
-</div>
-{/* [ADD] 내 순위 & 계급 뱃지 & 랭킹 이동 + (평균/승률) */}
                 {myRank && (
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
@@ -993,10 +996,9 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
                         </span>
                       )}
                     </div>
-              
                   </div>
                 )}
-</Card>
+              </Card>
 
               <Card className="p-6">
                 <div className="flex items-center justify-between">
@@ -1007,9 +1009,7 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
                     <button
                       onClick={resetGame}
                       disabled={!canChangeChart}
-                      className={`rounded-xl border px-3 py-2 text-sm ${
-                        canChangeChart ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
-                      }`}
+                      className={`rounded-xl border px-3 py-2 text-sm ${canChangeChart ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'}`}
                       title={
                         canChangeChart
                           ? '하트 소모 없이 차트만 변경합니다. (단축키: R)'
@@ -1065,8 +1065,6 @@ const lastRefillAt = useUserStore(s => s.lastRefillAt)
                 <div className={`mt-1 font-semibold ${ret >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
                   수익률 {ret.toFixed(2)}%
                 </div>
-
-                
 
                 <div className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
                   <div className="text-gray-500">보유 현금</div>
