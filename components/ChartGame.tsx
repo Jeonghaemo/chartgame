@@ -1,3 +1,4 @@
+// components/ChartGame.tsx
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
@@ -235,7 +236,7 @@ export default function ChartGame() {
         }),
       }).catch(() => {})
     }
-
+const prevLocal = readLocal();
     const meta: LocalMeta = {
       id: gameId ?? null,
       symbol,
@@ -245,8 +246,8 @@ export default function ChartGame() {
       slippageBps: g.slippageBps ?? 0,
       startCash: startCapital || 10_000_000,
       chartChangesLeft: useGame.getState().chartChangesLeft ?? 0,
-      sliceStartTs: readLocal()?.meta?.sliceStartTs ?? null, // [ADD] 유지
-    }
+      sliceStartTs: prevLocal?.meta?.sliceStartTs ?? undefined,
+}
     const snap: LocalSnap = {
       cursor: g.cursor,
       cash: g.cash,
@@ -389,120 +390,126 @@ export default function ChartGame() {
    * consumeHeart=false: 차트만 변경 (하트 비소모)
    */
   const loadAndInitBySymbol = useCallback(
-    async (sym: string, opts?: { consumeHeart?: boolean }) => {
-      const consumeHeart = opts?.consumeHeart !== false
-      let capital = 10_000_000
-      let currentHearts: number | undefined = hearts
+  async (sym: string, opts?: { consumeHeart?: boolean }) => {
+    const consumeHeart = opts?.consumeHeart !== false
+    let capital = 10_000_000
+    let currentHearts: number | undefined = hearts
 
-      if (consumeHeart) {
-        try {
-          const meRes = await fetch('/api/me', { cache: 'no-store' })
-          if (meRes.ok) {
-            const me = await meRes.json()
-            capital = me?.user?.capital ?? 10_000_000
-            if (typeof me?.user?.hearts === 'number') {
-              currentHearts = me.user.hearts
-              setHearts(me.user.hearts)
-              setCanPlay(me.user.hearts > 0)
-            }
+    if (consumeHeart) {
+      try {
+        const meRes = await fetch('/api/me', { cache: 'no-store' })
+        if (meRes.ok) {
+          const me = await meRes.json()
+          capital = me?.user?.capital ?? 10_000_000
+          if (typeof me?.user?.hearts === 'number') {
+            currentHearts = me.user.hearts
+            setHearts(me.user.hearts)
+            setCanPlay(me.user.hearts > 0)
           }
-        } catch {}
-        setStartCapital(capital)
-        if (!currentHearts || currentHearts <= 0) {
+        }
+      } catch {}
+      setStartCapital(capital)
+      if (!currentHearts || currentHearts <= 0) {
+        setCanPlay(false)
+        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
+        router.push('/')
+        return
+      }
+    } else {
+      try {
+        const meRes = await fetch('/api/me', { cache: 'no-store' })
+        if (meRes.ok) {
+          const me = await meRes.json()
+          capital = me?.user?.capital ?? 10_000_000
+          if (typeof me?.user?.hearts === 'number') {
+            setHearts(me.user.hearts)
+          }
+        }
+      } catch {}
+      setStartCapital(capital)
+    }
+
+    const r = await fetch(
+      `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
+      { cache: 'no-store' }
+    )
+    const response = await r.json()
+    const { ohlc: ohlcResp, startIndex: startIndexResp } = response as { ohlc: OHLC[]; startIndex: number }
+    // ✅ 데이터 유효성 가드
+if (!Array.isArray(ohlcResp) || ohlcResp.length === 0 || !Number.isFinite(startIndexResp)) {
+  console.error('History invalid (new/change):', response)
+  alert('차트 데이터를 불러오지 못했어요. 다른 종목으로 다시 시도합니다.')
+
+  // 안전하게 다른 심볼로 재시도 (하트 소모 없이)
+  let uni = universeRef.current
+  if (!uni || uni.length === 0) {
+    uni = await loadUniverseWithNames()
+    universeRef.current = uni
+  }
+  const fallback = pickRandom<SymbolItem>(uni)
+  await loadAndInitBySymbol(fallback.symbol, { consumeHeart: false })
+  return
+}
+
+    const fixedStartTs: number | null =
+      typeof response?.meta?.fixedStartTs === 'number' ? response.meta.fixedStartTs : null
+
+    setOhlc(ohlcResp)
+    writeOhlcToCache(sym, startIndexResp, ohlcResp)
+    const closes = ohlcResp.map((d: any) => d.close)
+
+    if (consumeHeart) {
+      const resp = await fetch('/api/game/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: sym,
+          startIndex: startIndexResp,
+          startCash: capital,
+          feeBps: g.feeBps ?? 5,
+          maxTurns: RESERVED_TURNS,
+          forceNew: true,
+          sliceStartTs: typeof fixedStartTs === 'number' ? fixedStartTs : null,
+        }),
+      })
+      
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => ({}))
+        if (j?.error === 'NO_HEART') {
           setCanPlay(false)
           alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
           router.push('/')
           return
         }
-      } else {
-        try {
-          const meRes = await fetch('/api/me', { cache: 'no-store' })
-          if (meRes.ok) {
-            const me = await meRes.json()
-            capital = me?.user?.capital ?? 10_000_000
-            if (typeof me?.user?.hearts === 'number') {
-              setHearts(me.user.hearts)
-            }
-          }
-        } catch {}
-        setStartCapital(capital)
+        alert('게임 시작 중 오류가 발생했습니다.')
+        return
       }
+      const data = await resp.json()
 
-      // 새 게임용 히스토리 호출
-      const r = await fetch(
-        `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
-        { cache: 'no-store' }
-      )
-      const response = await r.json()
-      const { ohlc: ohlcResp, startIndex: startIndexResp } = response as { ohlc: OHLC[]; startIndex: number }
-      const fixedStartTs: number | null = // [ADD]
-        typeof response?.meta?.fixedStartTs === 'number' ? response.meta.fixedStartTs : null
+      const newGameId = data?.gameId ?? null
+      const confirmedSymbol = data?.symbol ?? sym
+      const confirmedStartIndex = data?.startIndex ?? startIndexResp
+      const confirmedSliceStartTs =
+        typeof data?.sliceStartTs === 'number'
+          ? data.sliceStartTs
+          : (typeof fixedStartTs === 'number' ? fixedStartTs : null)
 
-      setOhlc(ohlcResp)
-      writeOhlcToCache(sym, startIndexResp, ohlcResp)
-      const closes = ohlcResp.map((d: any) => d.close)
+      clearLocal()
 
-      if (consumeHeart) {
-        const resp = await fetch('/api/game/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: sym,
-            startIndex: startIndexResp,
-            startCash: capital,
-            feeBps: g.feeBps ?? 5,
-            maxTurns: RESERVED_TURNS,
-            forceNew: true,
-          }),
-        })
-        if (!resp.ok) {
-          const j = await resp.json().catch(() => ({}))
-          if (j?.error === 'NO_HEART') {
-            setCanPlay(false)
-            alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
-            router.push('/')
-            return
-          }
-          alert('게임 시작 중 오류가 발생했습니다.')
-          return
-        }
-        const data = await resp.json()
-        setGameId(data?.gameId ?? null)
-        if (typeof data?.hearts === 'number') {
-          setHearts(data.hearts)
-          setCanPlay(data.hearts > 0)
-        }
-        useGame.setState({ chartChangesLeft: 3 })
-      }
-
-      // init
-      g.init({
-        symbol: sym,
-        prices: closes,
-        startIndex: startIndexResp,
-        maxTurns: RESERVED_TURNS,
-        feeBps: g.feeBps ?? 5,
-        slippageBps: g.slippageBps ?? 0,
-        startCash: capital,
-      })
-
-      setSymbolLabel(await resolveLabel(sym))
-
-      // 로컬 메타/스냅 기본값 기록
       writeLocal(
         {
-          id: gameId ?? null,
-          symbol: sym,
-          startIndex: startIndexResp,
+          id: newGameId,
+          symbol: confirmedSymbol,
+          startIndex: confirmedStartIndex,
           maxTurns: RESERVED_TURNS,
           feeBps: g.feeBps ?? 5,
           slippageBps: g.slippageBps ?? 0,
           startCash: capital,
-          chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
-          sliceStartTs: fixedStartTs, // [ADD]
+          chartChangesLeft: 3,
+          sliceStartTs: confirmedSliceStartTs,
         },
         {
-          cursor: startIndexResp,
+          cursor: confirmedStartIndex,
           cash: Math.floor(capital),
           shares: 0,
           turn: 0,
@@ -511,11 +518,73 @@ export default function ChartGame() {
         }
       )
 
+      setGameId(newGameId)
+      if (typeof data?.hearts === 'number') {
+        setHearts(data.hearts)
+        setCanPlay(data.hearts > 0)
+      }
+      useGame.setState({ chartChangesLeft: 3 })
+
+      g.init({
+        symbol: confirmedSymbol,
+        prices: closes,
+        startIndex: confirmedStartIndex,
+        maxTurns: RESERVED_TURNS,
+        feeBps: g.feeBps ?? 5,
+        slippageBps: g.slippageBps ?? 0,
+        startCash: capital,
+      })
+
+;(g as any).setCursor?.(confirmedStartIndex)
+
+      setSymbolLabel(await resolveLabel(confirmedSymbol))
       setChartKey(k => k + 1)
       restoringRef.current = false
-    },
-    [g, setHearts, hearts, router, gameId, resolveLabel]
-  )
+      return
+    }
+
+    g.init({
+      symbol: sym,
+      prices: closes,
+      startIndex: startIndexResp,
+      maxTurns: RESERVED_TURNS,
+      feeBps: g.feeBps ?? 5,
+      slippageBps: g.slippageBps ?? 0,
+      startCash: capital,
+    })
+
+;(g as any).setCursor?.(startIndexResp)
+
+    setSymbolLabel(await resolveLabel(sym))
+
+    writeLocal(
+      {
+        id: null,
+        symbol: sym,
+        startIndex: startIndexResp,
+        maxTurns: RESERVED_TURNS,
+        feeBps: g.feeBps ?? 5,
+        slippageBps: g.slippageBps ?? 0,
+        startCash: capital,
+        chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
+        sliceStartTs: fixedStartTs,
+      },
+      {
+        cursor: startIndexResp,
+        cash: Math.floor(capital),
+        shares: 0,
+        turn: 0,
+        avgPrice: null,
+        history: [],
+      }
+    )
+
+    setChartKey(k => k + 1)
+    restoringRef.current = false
+  },
+  [g, setHearts, hearts, router, resolveLabel]
+)
+
 
   // 차트변경(하트 비소모)
   const resetGame = useCallback(async () => {
@@ -525,8 +594,9 @@ export default function ChartGame() {
     if (!canChangeChartNow) {
       alert('차트 변경은 시작 직후(턴 0, 매수 전)에만 가능합니다.')
       return
+      
     }
-
+setGameId(null);
     let uni = universeRef.current
     if (!uni || uni.length === 0) {
       uni = await loadUniverseWithNames()
@@ -582,216 +652,245 @@ export default function ChartGame() {
 
   // ---------- 부팅: 서버 → 로컬 → 새 게임 ----------
   useEffect(() => {
-    if (bootedRef.current) return
-    bootedRef.current = true
-    restoringRef.current = true
+  if (bootedRef.current) return
+  bootedRef.current = true
+  restoringRef.current = true
 
-    ;(async () => {
-      // 내 정보
-      try {
-        const meRes = await fetch('/api/me', { cache: 'no-store' })
-        if (meRes.ok) {
-          const me = await meRes.json()
-          const currentHearts = me?.user?.hearts ?? 0
-          setHearts(currentHearts)
-          setCanPlay(currentHearts > 0)
-          setStartCapital(me?.user?.capital ?? 10_000_000)
-        }
-      } catch {}
+  ;(async () => {
+    try {
+      const meRes = await fetch('/api/me', { cache: 'no-store' })
+      if (meRes.ok) {
+        const me = await meRes.json()
+        const currentHearts = me?.user?.hearts ?? 0
+        setHearts(currentHearts)
+        setCanPlay(currentHearts > 0)
+        setStartCapital(me?.user?.capital ?? 10_000_000)
+      }
+    } catch {}
 
-      // 1) 서버 이어하기
-      try {
-        const r = await fetch('/api/game/current', { cache: 'no-store' })
-        if (r.ok) {
-          const data = await r.json()
-          if (data?.game) {
-            const ginfo = data.game as {
-              id: string
-              symbol: string
-              startCash: number
-              startIndex: number
-              maxTurns: number
-              feeBps: number
-              snapshot: null | {
-                cursor?: number
-                ts?: number
-                cash: number
-                shares: number
-                turn?: number
-                avgPrice?: number | null
-                history?: Trade[]
-              }
+    try {
+      const r = await fetch('/api/game/current', { cache: 'no-store' })
+      if (r.ok) {
+        const data = await r.json()
+        if (data?.game) {
+          const ginfo = data.game as {
+            id: string
+            symbol: string
+            startCash: number
+            startIndex: number
+            maxTurns: number
+            feeBps: number
+            snapshot: null | {
+              cursor?: number
+              ts?: number
+              cash: number
+              shares: number
+              turn?: number
+              avgPrice?: number | null
+              history?: Trade[]
             }
-
-            let ohlcArr = readOhlcFromCache(ginfo.symbol, ginfo.startIndex)
-            if (!ohlcArr) {
-              // [ADD] 로컬에 저장된 sliceStartTs 있으면 함께 전달
-              const savedLocal = readLocal()
-              const sliceStartTsParam =
-                (savedLocal &&
-                 savedLocal.meta?.symbol === ginfo.symbol &&
-                 savedLocal.meta?.startIndex === ginfo.startIndex &&
-                 typeof savedLocal.meta.sliceStartTs === 'number')
-                  ? savedLocal.meta.sliceStartTs
-                  : undefined
-
-              const hist = await fetch(
-                `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
-                `&startIndex=${ginfo.startIndex}` +
-                (typeof sliceStartTsParam === 'number' ? `&sliceStartTs=${sliceStartTsParam}` : ''),
-                { cache: 'no-store' }
-              )
-              const hjson = await hist.json()
-              ohlcArr = hjson.ohlc as OHLC[]
-              writeOhlcToCache(ginfo.symbol, ginfo.startIndex, ohlcArr)
-            }
-
-            setOhlc(ohlcArr)
-            setSymbolLabel(await resolveLabel(ginfo.symbol))
-            setGameId(ginfo.id)
-            setStartCapital(ginfo.startCash)
-
-            const closes = ohlcArr.map(d => d.close)
-            g.init({
-              symbol: ginfo.symbol,
-              prices: closes,
-              startIndex: ginfo.startIndex,
-              maxTurns: ginfo.maxTurns ?? RESERVED_TURNS,
-              feeBps: ginfo.feeBps ?? (g.feeBps ?? 5),
-              slippageBps: g.slippageBps ?? 0,
-              startCash: ginfo.startCash,
-            })
-
-            const snap = ginfo.snapshot
-            if (snap) {
-              const snapCursor =
-                (typeof snap.cursor === 'number' ? snap.cursor : undefined) ??
-                (typeof snap.ts === 'number' ? snap.ts : undefined) ??
-                ginfo.startIndex
-              ;(g as any).setCursor?.(snapCursor)
-              ;(g as any).setCash?.(snap.cash)
-              ;(g as any).setShares?.(snap.shares)
-              useGame.setState({
-                turn: typeof snap.turn === 'number' ? snap.turn : g.turn,
-                avgPrice: typeof snap.avgPrice === 'number' || snap.avgPrice === null ? snap.avgPrice : g.avgPrice,
-                history: Array.isArray(snap.history) ? snap.history : [],
-              })
-            } else {
-              const local = readLocal()
-              if (local && local.meta?.symbol === ginfo.symbol && local.meta?.startIndex === ginfo.startIndex) {
-                ;(g as any).setCursor?.(local.snap.cursor)
-                ;(g as any).setCash?.(local.snap.cash)
-                ;(g as any).setShares?.(local.snap.shares)
-                useGame.setState({
-                  turn: typeof local.snap.turn === 'number' ? local.snap.turn : g.turn,
-                  avgPrice:
-                    typeof local.snap.avgPrice === 'number' || local.snap.avgPrice === null
-                      ? local.snap.avgPrice
-                      : g.avgPrice,
-                  history: Array.isArray(local.snap.history) ? local.snap.history : [],
-                  chartChangesLeft:
-                    typeof local.meta.chartChangesLeft === 'number'
-                      ? local.meta.chartChangesLeft
-                      : useGame.getState().chartChangesLeft ?? 3,
-                })
-              }
-            }
-
-            writeLocal(
-              {
-                id: ginfo.id,
-                symbol: ginfo.symbol,
-                startIndex: ginfo.startIndex,
-                maxTurns: ginfo.maxTurns ?? RESERVED_TURNS,
-                feeBps: ginfo.feeBps ?? (g.feeBps ?? 5),
-                slippageBps: g.slippageBps ?? 0,
-                startCash: ginfo.startCash,
-                chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
-                sliceStartTs: readLocal()?.meta?.sliceStartTs ?? null, // [ADD] 보존
-              },
-              {
-                cursor: useGame.getState().cursor,
-                cash: useGame.getState().cash,
-                shares: useGame.getState().shares,
-                turn: useGame.getState().turn,
-                avgPrice: useGame.getState().avgPrice,
-                history: useGame.getState().history as Trade[],
-              }
-            )
-
-            setChartKey(k => k + 1)
-            restoringRef.current = false
-            return
           }
-        }
-      } catch {}
 
-      // 2) 로컬 이어하기
-      const local = readLocal()
-      if (local?.meta?.symbol) {
-        try {
-          let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
-          if (!ohlcArr) {
-            const hist = await fetch(
-              `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
-              `&startIndex=${local.meta.startIndex}` +
-              (typeof local.meta.sliceStartTs === 'number' ? `&sliceStartTs=${local.meta.sliceStartTs}` : ''), // [ADD]
-              { cache: 'no-store' }
-            )
-            const hjson = await hist.json()
-            ohlcArr = hjson.ohlc as OHLC[]
-            writeOhlcToCache(local.meta.symbol, local.meta.startIndex, ohlcArr)
-          }
+          let ohlcArr = readOhlcFromCache(ginfo.symbol, ginfo.startIndex)
+if (!ohlcArr) {
+  // 1차: 서버 앵커(sliceStartTs) 사용
+  const anchor = typeof (ginfo as any).sliceStartTs === 'number' ? (ginfo as any).sliceStartTs : undefined
+
+  const url1 =
+    `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+    `&startIndex=${ginfo.startIndex}` +
+    (typeof anchor === 'number' ? `&sliceStartTs=${anchor}` : '')
+
+  let arr: OHLC[] = []
+  let sidx: number | undefined
+  let j1: any = undefined
+  let j2: any = undefined
+
+  try {
+    const r1 = await fetch(url1, { cache: 'no-store' })
+    j1 = await r1.json().catch(() => ({}))
+    arr = Array.isArray(j1?.ohlc) ? (j1.ohlc as OHLC[]) : []
+    sidx = Number(j1?.startIndex)
+  } catch (e) {
+    console.error('history fetch #1 failed', e)
+  }
+
+  // 2차: 실패 시 앵커 없이 재시도(같은 startIndex 유지)
+  if (!Array.isArray(arr) || arr.length === 0 || !Number.isFinite(sidx)) {
+    const url2 =
+      `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+      `&startIndex=${ginfo.startIndex}`
+    try {
+      const r2 = await fetch(url2, { cache: 'no-store' })
+      j2 = await r2.json().catch(() => ({}))
+      arr = Array.isArray(j2?.ohlc) ? (j2.ohlc as OHLC[]) : []
+      sidx = Number(j2?.startIndex)
+    } catch (e) {
+      console.error('history fetch #2 failed', e)
+    }
+  }
+
+  // 완전히 실패면 안전 탈출 (하트 소모 없이 동일 종목으로 새 로딩)
+  if (!Array.isArray(arr) || arr.length === 0 || !Number.isFinite(sidx)) {
+    console.error('History invalid (resume):', { j1, j2 })
+    alert('이전 게임 차트를 불러오지 못했어요. 같은 종목으로 다시 시도합니다.')
+    await loadAndInitBySymbol(ginfo.symbol, { consumeHeart: false })
+    return
+  }
+
+  ohlcArr = arr
+  writeOhlcToCache(ginfo.symbol, ginfo.startIndex, ohlcArr)
+}
+
+
+
 
           setOhlc(ohlcArr)
-          setSymbolLabel(await resolveLabel(local.meta.symbol))
-          setGameId(local.meta.id ?? null)
-          setStartCapital(local.meta.startCash ?? 10_000_000)
+          setSymbolLabel(await resolveLabel(ginfo.symbol))
+          setGameId(ginfo.id)
+          setStartCapital(ginfo.startCash)
 
           const closes = ohlcArr.map(d => d.close)
           g.init({
-            symbol: local.meta.symbol,
+            symbol: ginfo.symbol,
             prices: closes,
-            startIndex: local.meta.startIndex,
-            maxTurns: local.meta.maxTurns ?? RESERVED_TURNS,
-            feeBps: local.meta.feeBps ?? (g.feeBps ?? 5),
-            slippageBps: local.meta.slippageBps ?? 0,
-            startCash: local.meta.startCash ?? 10_000_000,
+            startIndex: ginfo.startIndex,
+            maxTurns: ginfo.maxTurns ?? RESERVED_TURNS,
+            feeBps: ginfo.feeBps ?? (g.feeBps ?? 5),
+            slippageBps: g.slippageBps ?? 0,
+            startCash: ginfo.startCash,
           })
 
-          useGame.setState({
-            cursor: local.snap.cursor,
-            cash: local.snap.cash,
-            shares: local.snap.shares,
-            turn: typeof local.snap.turn === 'number' ? local.snap.turn : g.turn,
-            avgPrice:
-              typeof local.snap.avgPrice === 'number' || local.snap.avgPrice === null
-                ? local.snap.avgPrice
-                : g.avgPrice,
-            history: Array.isArray(local.snap.history) ? local.snap.history : [],
-            chartChangesLeft:
-              typeof local.meta.chartChangesLeft === 'number'
-                ? local.meta.chartChangesLeft
-                : useGame.getState().chartChangesLeft ?? 3,
-          })
+          const snap = ginfo.snapshot
+          if (snap) {
+            const snapCursor =
+              (typeof snap.cursor === 'number' ? snap.cursor : undefined) ??
+              (typeof snap.ts === 'number' ? snap.ts : undefined) ??
+              ginfo.startIndex
+            ;(g as any).setCursor?.(snapCursor)
+            ;(g as any).setCash?.(snap.cash)
+            ;(g as any).setShares?.(snap.shares)
+            useGame.setState({
+              turn: typeof snap.turn === 'number' ? snap.turn : g.turn,
+              avgPrice: typeof snap.avgPrice === 'number' || snap.avgPrice === null ? snap.avgPrice : g.avgPrice,
+              history: Array.isArray(snap.history) ? snap.history : [],
+            })
+          } else {
+            const local = readLocal()
+            if (local && local.meta?.symbol === ginfo.symbol && local.meta?.startIndex === ginfo.startIndex) {
+              ;(g as any).setCursor?.(local.snap.cursor)
+              ;(g as any).setCash?.(local.snap.cash)
+              ;(g as any).setShares?.(local.snap.shares)
+              useGame.setState({
+                turn: typeof local.snap.turn === 'number' ? local.snap.turn : g.turn,
+                avgPrice:
+                  typeof local.snap.avgPrice === 'number' || local.snap.avgPrice === null
+                    ? local.snap.avgPrice
+                    : g.avgPrice,
+                history: Array.isArray(local.snap.history) ? local.snap.history : [],
+                chartChangesLeft:
+                  typeof local.meta.chartChangesLeft === 'number'
+                    ? local.meta.chartChangesLeft
+                    : useGame.getState().chartChangesLeft ?? 3,
+              })
+            }
+          }
+
+          writeLocal(
+  {
+    id: ginfo.id,
+    symbol: ginfo.symbol,
+    startIndex: ginfo.startIndex,
+    maxTurns: ginfo.maxTurns ?? RESERVED_TURNS,
+    feeBps: ginfo.feeBps ?? (g.feeBps ?? 5),
+    slippageBps: g.slippageBps ?? 0,
+    startCash: ginfo.startCash,
+    chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
+    sliceStartTs: (ginfo as any).sliceStartTs ?? null,   // [핵심] 서버 값
+  },
+  {
+    cursor: useGame.getState().cursor,
+    cash: useGame.getState().cash,
+    shares: useGame.getState().shares,
+    turn: useGame.getState().turn,
+    avgPrice: useGame.getState().avgPrice,
+    history: useGame.getState().history as Trade[],
+  }
+)
+
 
           setChartKey(k => k + 1)
           restoringRef.current = false
           return
-        } catch {}
+        }
       }
+    } catch {}
 
-      // 3) 둘 다 없으면 새 게임
-      let uni = universeRef.current
-      if (!uni || uni.length === 0) {
-        uni = await loadUniverseWithNames()
-        universeRef.current = uni
-      }
-      const chosen = pickRandom<SymbolItem>(uni)
-      await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
-      restoringRef.current = false
-    })()
-  }, [loadUniverseWithNames, loadAndInitBySymbol, g, setHearts, resolveLabel])
+    const local = readLocal()
+    if (local?.meta?.symbol) {
+      try {
+        let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
+        if (!ohlcArr) {
+          const hist = await fetch(
+            `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+            `&startIndex=${local.meta.startIndex}` +
+            (typeof local.meta.sliceStartTs === 'number' ? `&sliceStartTs=${local.meta.sliceStartTs}` : ''),
+            { cache: 'no-store' }
+          )
+          const hjson = await hist.json()
+          ohlcArr = hjson.ohlc as OHLC[]
+          writeOhlcToCache(local.meta.symbol, local.meta.startIndex, ohlcArr)
+        }
+
+        setOhlc(ohlcArr)
+        setSymbolLabel(await resolveLabel(local.meta.symbol))
+        setGameId(local.meta.id ?? null)
+        setStartCapital(local.meta.startCash ?? 10_000_000)
+
+        const closes = ohlcArr.map(d => d.close)
+        g.init({
+          symbol: local.meta.symbol,
+          prices: closes,
+          startIndex: local.meta.startIndex,
+          maxTurns: local.meta.maxTurns ?? RESERVED_TURNS,
+          feeBps: local.meta.feeBps ?? (g.feeBps ?? 5),
+          slippageBps: local.meta.slippageBps ?? 0,
+          startCash: local.meta.startCash ?? 10_000_000,
+        })
+
+        useGame.setState({
+          cursor: local.snap.cursor,
+          cash: local.snap.cash,
+          shares: local.snap.shares,
+          turn: typeof local.snap.turn === 'number' ? local.snap.turn : g.turn,
+          avgPrice:
+            typeof local.snap.avgPrice === 'number' || local.snap.avgPrice === null
+              ? local.snap.avgPrice
+              : g.avgPrice,
+          history: Array.isArray(local.snap.history) ? local.snap.history : [],
+          chartChangesLeft:
+            typeof local.meta.chartChangesLeft === 'number'
+              ? local.meta.chartChangesLeft
+              : useGame.getState().chartChangesLeft ?? 3,
+        })
+
+        setChartKey(k => k + 1)
+        restoringRef.current = false
+        return
+      } catch {}
+    }
+
+    let uni = universeRef.current
+    if (!uni || uni.length === 0) {
+      uni = await loadUniverseWithNames()
+      universeRef.current = uni
+    }
+    const chosen = pickRandom<SymbolItem>(uni)
+    await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
+    restoringRef.current = false
+  })()
+}, [loadUniverseWithNames, loadAndInitBySymbol, g, setHearts, resolveLabel])
+
 
   // [ADD] 내 순위 불러오기 (최근 7일)
   useEffect(() => {
@@ -938,16 +1037,25 @@ export default function ChartGame() {
                 <div className="mb-2 text-sm text-gray-500">
                   종목: <span className="font-semibold">{symbolLabel || '로딩 중...'}</span>
                 </div>
-                <CandleChart
-                  key={chartKey}
-                  data={ohlc.slice(0, g.cursor + 1)}
-                  fullForMA={ohlc}
-                  height={720}
-                  sma={[5, 10, 20, 60, 120, 240]}
-                  showLegend
-                  showVolume
-                  trades={trades}
-                />
+                
+                {(() => {
+  const safeCursor = Number.isFinite(g.cursor) ? g.cursor : 0
+  const end = Math.min(ohlc.length, Math.max(0, safeCursor + 1))
+  const dataSlice = ohlc.slice(0, end)
+  return (
+    <CandleChart
+      key={chartKey}
+      data={dataSlice}
+      fullForMA={ohlc}
+      height={720}
+      sma={[5, 10, 20, 60, 120, 240]}
+      showLegend
+      showVolume
+      trades={trades}
+    />
+  )
+})()}
+
               </Card>
             </div>
 

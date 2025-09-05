@@ -46,13 +46,14 @@ type MyRank = {
   losses?: number;
 };
 
+// === [ADD] 내 순위/계급 표시용 ===
 function getRankBadge(total: number) {
-  if (total >= 1_000_000_000) return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700" };
-  if (total >= 500_000_000)   return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800" };
-  if (total >= 100_000_000)   return { name: "물방개", icon: "🐳", color: "bg-blue-100 text-blue-800" };
-  if (total >= 50_000_000)    return { name: "불장러", icon: "🚀", color: "bg-red-100 text-red-700" };
-  if (total >= 20_000_000)    return { name: "존버러", icon: "🐢", color: "bg-green-100 text-green-700" };
-  return { name: "주린이", icon: "🐣", color: "bg-gray-100 text-gray-700" };
+  if (total >= 5_000_000_000) return { name: '졸업자', icon: '👑', color: 'bg-purple-100 text-purple-700' }
+  if (total >= 1_000_000_000)   return { name: '승리자', icon: '🏆', color: 'bg-yellow-100 text-yellow-800' }
+  if (total >= 100_000_000)   return { name: '물방개', icon: '🐳', color: 'bg-blue-100 text-blue-800' }
+  if (total >= 50_000_000)    return { name: '불장러', icon: '🚀', color: 'bg-red-100 text-red-700' }
+  if (total >= 20_000_000)    return { name: '존버러', icon: '🐢', color: 'bg-green-100 text-green-700' }
+  return { name: '주린이', icon: '🐣', color: 'bg-gray-100 text-gray-700' }
 }
 
 export default function HomeTopGrid() {

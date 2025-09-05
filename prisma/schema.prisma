@@ -76,18 +76,20 @@ model VerificationToken {
 }
 
 model Game {
-  id         String    @id @default(cuid())
-  userId     String
-  code       String
-  startCash  Int
-  startIndex Int
-  endIndex   Int?
-  maxTurns   Int       @default(60)
-  feeBps     Int       @default(5)
-  status     String    @default("ACTIVE")
-  createdAt  DateTime  @default(now())
-  finishedAt DateTime?
-  returnPct  Float?
+  id           String    @id @default(cuid())
+  userId       String
+  code         String
+  symbol       String    @default("")
+  startCash    Int
+  startIndex   Int
+  sliceStartTs Int?
+  endIndex     Int?
+  maxTurns     Int       @default(60)
+  feeBps       Int       @default(5)
+  status       String    @default("ACTIVE")
+  createdAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  returnPct    Float?
 
   orders    Order[]
   snapshots BalanceSnapshot[]
