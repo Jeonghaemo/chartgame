@@ -557,27 +557,34 @@ if (!Array.isArray(ohlcResp) || ohlcResp.length === 0 || !Number.isFinite(startI
 
     setSymbolLabel(await resolveLabel(sym))
 
-    writeLocal(
-      {
-        id: null,
-        symbol: sym,
-        startIndex: startIndexResp,
-        maxTurns: RESERVED_TURNS,
-        feeBps: g.feeBps ?? 5,
-        slippageBps: g.slippageBps ?? 0,
-        startCash: capital,
-        chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
-        sliceStartTs: fixedStartTs,
-      },
-      {
-        cursor: startIndexResp,
-        cash: Math.floor(capital),
-        shares: 0,
-        turn: 0,
-        avgPrice: null,
-        history: [],
-      }
-    )
+    // ✅ 현재/로컬 값 보존
+const currentLeft =
+  useGame.getState().chartChangesLeft ??
+  readLocal()?.meta?.chartChangesLeft ??
+  3
+
+writeLocal(
+  {
+    id: null,
+    symbol: sym,
+    startIndex: startIndexResp,
+    maxTurns: RESERVED_TURNS,
+    feeBps: g.feeBps ?? 5,
+    slippageBps: g.slippageBps ?? 0,
+    startCash: capital,
+    chartChangesLeft: currentLeft,   // ← 보존값 사용
+    sliceStartTs: fixedStartTs,
+  },
+  {
+    cursor: startIndexResp,
+    cash: Math.floor(capital),
+    shares: 0,
+    turn: 0,
+    avgPrice: null,
+    history: [],
+  }
+)
+
 
     setChartKey(k => k + 1)
     restoringRef.current = false
@@ -796,7 +803,17 @@ if (!ohlcArr) {
             }
           }
 
-          writeLocal(
+          // ✅ 기존 local 값 우선 보존
+const prevLocal = readLocal()
+const preservedChartLeft =
+  typeof prevLocal?.meta?.chartChangesLeft === 'number'
+    ? prevLocal.meta.chartChangesLeft
+    : (useGame.getState().chartChangesLeft ?? 3)
+
+// 스토어에도 동일 값 주입
+useGame.setState({ chartChangesLeft: preservedChartLeft })
+
+writeLocal(
   {
     id: ginfo.id,
     symbol: ginfo.symbol,
@@ -805,8 +822,8 @@ if (!ohlcArr) {
     feeBps: ginfo.feeBps ?? (g.feeBps ?? 5),
     slippageBps: g.slippageBps ?? 0,
     startCash: ginfo.startCash,
-    chartChangesLeft: useGame.getState().chartChangesLeft ?? 3,
-    sliceStartTs: (ginfo as any).sliceStartTs ?? null,   // [핵심] 서버 값
+    chartChangesLeft: preservedChartLeft,   // ← 보존값 사용
+    sliceStartTs: (ginfo as any).sliceStartTs ?? null,
   },
   {
     cursor: useGame.getState().cursor,
@@ -817,6 +834,7 @@ if (!ohlcArr) {
     history: useGame.getState().history as Trade[],
   }
 )
+
 
 
           setChartKey(k => k + 1)
