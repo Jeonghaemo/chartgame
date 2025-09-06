@@ -5,7 +5,6 @@ import Naver from "next-auth/providers/naver";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
-// 여러 이름의 환경변수를 모두 허용 (어느 걸 써도 동작)
 function env(...keys: string[]) {
   for (const k of keys) {
     const v = process.env[k];
@@ -20,10 +19,10 @@ const NAVER_ID = env("AUTH_NAVER_ID", "NAVER_CLIENT_ID");
 const NAVER_SECRET = env("AUTH_NAVER_SECRET", "NAVER_CLIENT_SECRET");
 
 export const authConfig: NextAuthConfig = {
-  adapter: PrismaAdapter(prisma) as any, // 타입 경고 회피용 as any (실행엔 문제 없음)
-  session: { strategy: "database" },     // 스키마에 Session 모델 있으니 OK
-  secret: process.env.AUTH_SECRET,        // .env에 꼭 넣기
-  trustHost: true,                        // 로컬/프록시 환경에서 유용
+  adapter: PrismaAdapter(prisma) as any,
+  session: { strategy: "database" },
+  secret: process.env.AUTH_SECRET,
+  trustHost: true,
 
   providers: [
     Google({
@@ -35,6 +34,11 @@ export const authConfig: NextAuthConfig = {
       clientSecret: NAVER_SECRET!,
     }),
   ],
+
+  // ✅ 기본 /api/auth/signin UI 대신 /signin 사용
+  pages: {
+    signIn: "/signin",
+  },
 
   callbacks: {
     async session({ session, user }) {
