@@ -120,7 +120,7 @@ export default function LeaderboardPage() {
   const rateColor = (v:number) => (v >= 0 ? "text-red-600" : "text-blue-600");
 
   return (
-    <div className="max-w-4xl mx-auto px-8 py-6">
+    <div className="max-w-5xl mx-auto px-8 py-6">
       <h1 className="text-2xl font-bold mb-4">🏆 랭킹</h1>
 
       {/* 기간 선택 탭 */}
