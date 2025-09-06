@@ -102,11 +102,38 @@ export default function HomeTopGrid() {
     
 {/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
 <Card className="p-4">
-  {/* 보유 자산 */}
-  <div className="text-xl font-bold text-slate-800">
+ {/* 보유 자산 + 자산 초기화 버튼 한 줄 */}
+<div className="flex items-center justify-between text-xl font-bold text-slate-800">
+  <span>
     보유 자산 {(startCapital || 10_000_000).toLocaleString()}원
-  </div>
-
+  </span>
+  <button
+    onClick={async () => {
+      if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return
+      try {
+        const r = await fetch("/api/reset-capital", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        })
+        const j = await r.json()
+        if (!r.ok || !j?.ok) {
+          alert(j?.message ?? "초기화 실패")
+          return
+        }
+        alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`)
+        location.reload()
+      } catch {
+        alert("초기화 중 오류가 발생했습니다.")
+      }
+    }}
+    className="ml-3 rounded-lg border px-2 py-1 text-xs font-semibold
+               text-red-600 border-red-300 bg-red-50
+               hover:bg-red-100 hover:border-red-400
+               shadow-sm transition"
+  >
+    자산 초기화
+  </button>
+</div>
 
 
 
@@ -153,34 +180,7 @@ export default function HomeTopGrid() {
       )}
     </div>
   )}
- {/* 자산 초기화 버튼 */}
-<button
-  onClick={async () => {
-    if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return
-    try {
-      const r = await fetch("/api/reset-capital", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-      const j = await r.json()
-      if (!r.ok || !j?.ok) {
-        alert(j?.message ?? "초기화 실패")
-        return
-      }
-      alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`)
-      location.reload()
-    } catch {
-      alert("초기화 중 오류가 발생했습니다.")
-    }
-  }}
-  className="mt-3 rounded-lg border px-3 py-1.5 text-sm font-semibold
-             text-red-600 border-red-300 bg-red-50
-             hover:bg-red-100 hover:border-red-400
-             shadow-sm transition"
->
-  자산 초기화
-</button>
-
+ 
 </Card>
 
 

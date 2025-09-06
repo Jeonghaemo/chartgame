@@ -7,7 +7,7 @@ export default async function Home() {
   const session = await auth();
 
   return (
-    <main className="max-w-[1200px] mx-auto p-6">
+    <main className="max-w-[1300px] mx-auto p-6">
       <h1 className="text-2xl font-bold">50턴 차트게임</h1>
       <p className="mt-2 text-slate-600">
         차트가 미리 보이는 상태에서 50거래일 동안 매수/매도로 수익을 노려보자.
