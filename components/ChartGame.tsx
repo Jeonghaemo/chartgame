@@ -301,41 +301,29 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
       }
     }
     const params = new URLSearchParams({
-      names: 'true',
-      excludeETF: 'true',
-      excludeREIT: 'true',
-      excludePreferred: 'true',
-      gameOptimized: 'true',
-      maxCount: '1500',
-    })
-    const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
-    const response = await r.json()
-    const list = (response.symbols || []) as SymbolItem[]
-    const valid = list.filter(s => /^\d{6}\.(KS|KQ)$/.test(s.symbol))
+  names: 'true',
+  excludeETF: 'true',
+  excludeREIT: 'true',
+  excludePreferred: 'true',
+  gameOptimized: 'true',
+  maxCount: '1500', // 전수 검증을 안 하므로 1500 유지해도 가벼움
+})
+const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
+const response = await r.json()
+const list = (response.symbols || []) as SymbolItem[]
+const valid = list.filter(s => /^\d{6}\.(KS|KQ)$/.test(s.symbol))
 
-    const sample = valid.sort(() => Math.random() - 0.5).slice(0, 10)
-    const checkedSample = await runWithConcurrency(sample, CONCURRENCY, validateSymbolWithHistory)
-    const passed = checkedSample.filter((x): x is SymbolItem => !!x)
+// 그냥 캐시하고 그대로 반환 → 매번 pickRandom으로 아무거나 선택
+localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: valid, ts: Date.now() }))
+return valid.length ? valid : [
+  { symbol: '005930.KS', name: '삼성전자', market: '코스피' },
+  { symbol: '000660.KS', name: 'SK하이닉스', market: '코스피' },
+  { symbol: '035420.KS', name: 'NAVER', market: '코스피' },
+  { symbol: '035720.KS', name: '카카오', market: '코스피' },
+  { symbol: '247540.KQ', name: '에코프로비엠', market: '코스닥' },
+  { symbol: '086520.KQ', name: '에코프로', market: '코스닥' },
+]
 
-    if (passed.length > 0) {
-      setTimeout(async () => {
-        const checkedAll = await runWithConcurrency(valid, CONCURRENCY, validateSymbolWithHistory)
-        const passedAll = checkedAll.filter((x): x is SymbolItem => !!x)
-        if (passedAll.length) {
-          localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: passedAll, ts: Date.now() }))
-        }
-      }, 0)
-      return passed
-    }
-
-    return [
-      { symbol: '005930.KS', name: '삼성전자', market: '코스피' },
-      { symbol: '000660.KS', name: 'SK하이닉스', market: '코스피' },
-      { symbol: '035420.KS', name: 'NAVER', market: '코스피' },
-      { symbol: '035720.KS', name: '카카오', market: '코스피' },
-      { symbol: '247540.KQ', name: '에코프로비엠', market: '코스닥' },
-      { symbol: '086520.KQ', name: '에코프로', market: '코스닥' },
-    ]
   }, [])
 
   // 코드 → "이름 (코드)" 라벨 해석
