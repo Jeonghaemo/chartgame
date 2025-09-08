@@ -1,4 +1,4 @@
-# AlphaSquare Chart Game — Auth + Live Quotes
+# Chart Game
 
 Next.js (App Router) + Auth.js (NextAuth v5) + Prisma (SQLite) + Google/Naver OAuth + Finnhub/AlphaVantage quote API adapters.
 

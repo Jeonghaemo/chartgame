@@ -1,5 +1,5 @@
 {
-  "name": "alphasquare-chartgame",
+  "name": "chartgame",
   "private": true,
   "scripts": {
     "dev": "next dev",
