@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </form>
               ) : (
                 <form action={async () => { "use server"; await signIn(); }}>
-                  <button className="rounded-md border px-4 py-2 hover:bg-slate-50">로그인</button>
+                  <button className="rounded-md border px-2 py-1 hover:bg-slate-50">로그인</button>
                 </form>
               )}
             </div>

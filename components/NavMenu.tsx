@@ -20,7 +20,13 @@ export default function NavMenu() {
   };
 
   return (
-    <nav className="flex items-center gap-2 rounded-2xl bg-slate-100 p-2">
+    <nav
+  className="
+    flex items-center gap-1.5 rounded-2xl bg-slate-100
+    p-1.5 sm:p-2
+    text-xs sm:text-base
+  "
+>
       {menus.map((m) => {
         const active = isActive(m.href);
         return (
@@ -28,12 +34,13 @@ export default function NavMenu() {
             key={m.href}
             href={m.href}
             className={[
-              "flex items-center gap-2 px-4 py-2 rounded-xl transition font-semibold",
-              "text-base",             // 좀 더 크게
-              active
-                ? "bg-white shadow text-blue-600"
-                : "text-slate-700 hover:bg-white hover:shadow-sm hover:text-slate-900",
-            ].join(" ")}
+  "flex items-center gap-1 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition font-medium",
+  "text-xs sm:text-base",   // 모바일은 작게, PC는 원래 크기
+  active
+    ? "bg-white shadow text-blue-600"
+    : "text-slate-700 hover:bg-white hover:shadow-sm hover:text-slate-900",
+].join(" ")}
+
           >
             {m.icon}
             <span>{m.label}</span>

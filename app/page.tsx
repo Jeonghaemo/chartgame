@@ -8,7 +8,7 @@ export default async function Home() {
   return (
     <main className="max-w-[1300px] mx-auto p-8">
       {/* Hero 섹션 */}
-      <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-16 shadow-lg text-center">
+      <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-10 shadow-lg text-center">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
           🚀 주식 차트게임
         </h1>

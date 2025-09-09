@@ -20,7 +20,7 @@ export default async function GamePage({
     if (!session) {
      return (
   <main className="min-h-[80vh] flex items-start justify-center bg-gray-100 px-4 pt-20">
-    <div className="w-full max-w-5xl rounded-2xl bg-blue-600 text-white px-10 py-16 shadow-lg text-center">
+    <div className="w-full max-w-5xl rounded-2xl bg-blue-600 text-white px-8 py-10 shadow-lg text-center">
       {/* 🚀 아이콘 */}
       <div className="text-5xl mb-4">🚀</div>
 
@@ -49,7 +49,7 @@ export default async function GamePage({
           href="/game?guest=1"
           className="w-60 rounded-xl border-2 border-white bg-blue-600 px-5 py-3 text-lg font-bold text-white shadow hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-white text-center"
         >
-          게스트 모드
+          게스트 모드 시작하기
         </a>
       </div>
     </div>
