@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const preferredRegion = ['sin1']; // Neon DB가 싱가포르(ap-southeast-1)
+export const revalidate = 60;            // 60초 캐시 (ISR)
+
 type RankRow = {
   rank: number;
   userId: string;
@@ -100,10 +103,10 @@ export async function GET(req: Request) {
       };
     });
 
-    const top20 = ranked.slice(0, 20);
+    const top100 = ranked.slice(0, 100);
     const myRank = userId ? ranked.find(r => r.userId === userId) ?? null : null;
 
-    return NextResponse.json({ ok: true, period, top20, myRank });
+    return NextResponse.json({ ok: true, period, top100, myRank });
   } catch (e) {
     console.error("/api/leaderboard error", e);
     return NextResponse.json({ ok: false, error: "INTERNAL" }, { status: 500 });

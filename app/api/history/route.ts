@@ -2,6 +2,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const preferredRegion = ['sin1'];
+
 type OHLC = {
   time: number; // seconds (UTC)
   open: number;
