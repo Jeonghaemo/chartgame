@@ -1,7 +1,7 @@
 // app/api/history/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
+
 type OHLC = {
   time: number; // seconds (UTC)
   open: number;
