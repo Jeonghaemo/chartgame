@@ -179,6 +179,27 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
 
   const [ohlc, setOhlc] = useState<OHLC[]>([])
   const [chartKey, setChartKey] = useState(0)
+    // 모바일 전용 차트 높이 (PC는 기존 레이아웃 유지)
+  const [chartHeight, setChartHeight] = useState<number>(720);
+  useEffect(() => {
+    const calc = () => {
+      const w = window.innerWidth, h = window.innerHeight;
+      if (w < 1024) {
+        const target = Math.max(280, Math.min(Math.floor(h * 0.55), 620));
+        setChartHeight(target);
+      } else {
+        setChartHeight(720);
+      }
+    };
+    calc();
+    window.addEventListener('resize', calc);
+    window.addEventListener('orientationchange', calc);
+    return () => {
+      window.removeEventListener('resize', calc);
+      window.removeEventListener('orientationchange', calc);
+    };
+  }, []);
+
   const [symbolLabel, setSymbolLabel] = useState<string>('')
   const [gameId, setGameId] = useState<string | null>(null)
   const [startCapital, setStartCapital] = useState<number>(0)
@@ -1102,7 +1123,125 @@ return valid.length ? valid : [
 
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
-      <div className="h-full w-full flex justify-center items-start">
+              {/* 모바일 전용 레이아웃 */}
+        <div className="block lg:hidden h-full">
+          <div className="h-full flex flex-col">
+            {/* 상단 요약 */}
+            <div className="px-4 pt-3 pb-2">
+              <div className="grid grid-cols-3 gap-2 text-xs text-gray-500">
+                <div>
+                  <div>총 평가자산</div>
+                  <div className="text-base font-bold text-slate-800">{fmt(total)} </div>
+                </div>
+                <div>
+                  <div>총 수익금</div>
+                  <div className={`text-base font-bold ${total - (startCapital||0) >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                    {(total - (startCapital||0)).toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div>총 수익률</div>
+                  <div className={`text-base font-bold ${ret >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                    {ret.toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 차트 카드 */}
+            <div className="px-2">
+              <Card className="p-2">
+                {(() => {
+                  const end = Math.min(ohlc.length, Math.max(0, safeCursor + 1));
+                  const dataSlice = ohlc.slice(0, end);
+                  return (
+                    <CandleChart
+                      key={chartKey}
+                      data={dataSlice}
+                      fullForMA={ohlc}
+                      height={chartHeight}   // 모바일은 뷰포트 비율로
+                      sma={[5, 10, 20, 60, 120, 240]}
+                      showLegend
+                      showVolume
+                      trades={trades}
+                    />
+                  );
+                })()}
+              </Card>
+            </div>
+
+            {/* 하단 컨트롤 바 (sticky) */}
+            <div className="mt-auto">
+              <div className="sticky bottom-0 bg-white border-t shadow-[0_-2px_10px_rgba(0,0,0,0.04)] px-3 pt-2 pb-3">
+                {/* 턴/진행바 */}
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                  <div>
+                    <span className="font-semibold">{String(g.turn + 1).padStart(2, '0')}</span>/{g.maxTurns}턴 · 일
+                  </div>
+                  <div className="text-gray-500">현재가 {last != null ? fmt(last) : '-'}</div>
+                </div>
+                <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden mb-3">
+                  <div
+                    className="h-full bg-red-500"
+                    style={{ width: `${Math.min(100, Math.max(0, ((g.turn + 1) / g.maxTurns) * 100))}%` }}
+                  />
+                </div>
+
+                {/* 액션 버튼 */}
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                  <button
+                    onClick={() => setOrderType('buy')}
+                    disabled={g.status !== 'playing' || !canPlay}
+                    className="rounded-xl bg-red-600 text-white py-3 font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    매수
+                  </button>
+                  <button
+                    onClick={() => setOrderType('sell')}
+                    disabled={g.status !== 'playing' || !canPlay}
+                    className="rounded-xl bg-blue-600 text-white py-3 font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    매도
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (nextLockRef.current) return;
+                      nextLockRef.current = true;
+                      g.next();
+                      await saveProgress();
+                      setTimeout(() => { nextLockRef.current = false }, 80);
+                    }}
+                    disabled={g.status !== 'playing' || !canPlay}
+                    aria-label="다음"
+                    className="rounded-full w-14 h-14 bg-gray-900 text-white font-semibold place-self-end disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    다음
+                  </button>
+                </div>
+
+                {/* 차트 변경/게임 종료 (작게) */}
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    onClick={async () => { if (canChangeChart) await resetGame(); }}
+                    disabled={!canChangeChart}
+                    className={`rounded-lg border px-3 py-1.5 text-xs ${canChangeChart ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'}`}
+                    title={canChangeChart ? '하트 소모 없이 차트만 변경' : '턴 0, 매수 전만 변경 가능'}
+                  >
+                    차트 변경 ×{useGame.getState().chartChangesLeft ?? 0}
+                  </button>
+                  <button
+                    onClick={() => (g.status === 'playing' ? endGame() : router.push('/'))}
+                    className="rounded-lg border px-3 py-1.5 text-xs hover:bg-gray-50"
+                  >
+                    게임 종료
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      <div className="hidden lg:flex h-full w-full justify-center items-start">
         <div className="h-full w-full max-w-[1800px]">
           <div className="grid h-full w-full gap-4 grid-cols-[minmax(0,1fr)_480px] p-4">
             <div className="min-w-0">
@@ -1294,4 +1433,3 @@ return valid.length ? valid : [
     </div>
   )
 }
-
