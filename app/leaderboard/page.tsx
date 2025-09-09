@@ -120,13 +120,23 @@ export default function LeaderboardPage() {
   const rateColor = (v:number) => (v >= 0 ? "text-red-600" : "text-blue-600");
 
   return (
-    <div className="max-w-5xl mx-auto px-8 py-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-4 sm:py-6">
       <h1 className="text-2xl font-bold mb-4">🏆 랭킹</h1>
 
       {/* 기간 선택 탭 */}
       <div className="flex gap-2 mb-6">
-        <button className={`px-4 py-2 rounded-lg border ${period === 'all' ? 'bg-black text-white' : 'bg-white'}`} onClick={() => setPeriod('all')}>전체 기간</button>
-        <button className={`px-4 py-2 rounded-lg border ${period === '7d' ? 'bg-black text-white' : 'bg-white'}`} onClick={() => setPeriod('7d')}>최근 7일</button>
+        <button
+          className={`px-4 py-2 rounded-lg border ${period === 'all' ? 'bg-black text-white' : 'bg-white'}`}
+          onClick={() => setPeriod('all')}
+        >
+          전체 기간
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg border ${period === '7d' ? 'bg-black text-white' : 'bg-white'}`}
+          onClick={() => setPeriod('7d')}
+        >
+          최근 7일
+        </button>
       </div>
 
       {/* 계급 레전드 */}
@@ -135,13 +145,15 @@ export default function LeaderboardPage() {
       {/* 내 순위 */}
       {data?.myRank && (
         <div className="mb-6 p-4 border-2 border-blue-400 rounded-lg bg-blue-50 shadow-md">
-          <div className="flex items-center gap-2 text-lg font-bold text-blue-800">
-            <span>{data.myRank.rank}위</span>
+          <div className="flex items-center gap-2 text-sm sm:text-lg font-bold text-blue-800">
+            <span className="whitespace-nowrap">{data.myRank.rank}위</span>
             <TooltipBadge badge={getRankBadge(data.myRank.total)} />
-            <span className="text-gray-700 font-medium">
+            <span className="text-gray-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
               {data.myRank.nickname} · 평균 수익률{" "}
-              <span className={rateColor(data.myRank.avgReturnPct)}>{data.myRank.avgReturnPct.toFixed(2)}%</span> ·{" "}
-              최종 자산 {data.myRank.total.toLocaleString()}원 ·{" "}
+              <span className={rateColor(data.myRank.avgReturnPct)}>
+                {data.myRank.avgReturnPct.toFixed(2)}%
+              </span>{" "}
+              · 최종 자산 {data.myRank.total.toLocaleString()}원 ·{" "}
               승률 {data.myRank.winRate.toFixed(1)}% ({data.myRank.wins}승 {data.myRank.losses}패)
             </span>
           </div>
@@ -152,16 +164,16 @@ export default function LeaderboardPage() {
       {loading ? (
         <div>로딩 중...</div>
       ) : (
-        <table className="w-full border-collapse rounded-xl overflow-hidden shadow">
+        <table className="w-full border-collapse rounded-xl overflow-hidden shadow table-fixed text-xs sm:text-sm">
           <thead>
-            <tr className="bg-gray-800 text-white text-sm">
-              <th className="px-3 py-2 text-left">순위</th>
-              <th className="px-3 py-2 text-left">닉네임</th>
-              <th className="px-3 py-2 text-right">평균 수익률</th>   {/* ✅ 변경 */}
-              <th className="px-3 py-2 text-right">최종 자산</th>
-              <th className="px-3 py-2 text-center">계급</th>
-              <th className="px-3 py-2 text-right">승률</th>
-              <th className="px-3 py-2 text-right">전적</th>
+            <tr className="bg-gray-800 text-white text-xs sm:text-sm">
+              <th className="px-2 py-1 sm:px-3 sm:py-2 text-left whitespace-nowrap">순위</th>
+              <th className="px-2 py-1 sm:px-3 sm:py-2 text-left whitespace-nowrap">닉네임</th>
+              <th className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">평균 수익률</th>
+              <th className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">최종 자산</th>
+              <th className="px-2 py-1 sm:px-3 sm:py-2 text-center whitespace-nowrap">계급</th>
+              <th className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">승률</th>
+              <th className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">전적</th>
             </tr>
           </thead>
           <tbody>
@@ -178,13 +190,40 @@ export default function LeaderboardPage() {
 
                   return (
                     <tr key={row.rank} className={rowClass}>
-                      <td className={`px-3 py-2 ${rankStyle}`}>{medal && <span className="mr-1">{medal}</span>}{row.rank}</td>
-                      <td className="px-3 py-2">{row.nickname}</td>
-                      <td className={`px-3 py-2 text-right ${rateColor(row.avgReturnPct)}`}>{row.avgReturnPct.toFixed(2)}%</td>
-                      <td className="px-3 py-2 text-right">{row.total.toLocaleString()}원</td>
-                      <td className="px-3 py-2 text-center"><TooltipBadge badge={badge} /></td>
-                      <td className="px-3 py-2 text-right">{row.winRate.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-right">{row.wins}승 {row.losses}패 </td>
+                      <td className={`px-2 py-1 sm:px-3 sm:py-2 whitespace-nowrap ${rankStyle}`}>
+                        {medal && <span className="mr-1">{medal}</span>}
+                        {row.rank}
+                      </td>
+
+                      <td className="px-2 py-1 sm:px-3 sm:py-2 whitespace-nowrap">
+                        <span className="block truncate max-w-[90px] sm:max-w-none">{row.nickname}</span>
+                      </td>
+
+                      <td className={`px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap ${rateColor(row.avgReturnPct)}`}>
+                        {row.avgReturnPct.toFixed(2)}%
+                      </td>
+
+                      <td className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">
+                        <span className="sm:hidden">{row.total.toLocaleString()}</span>
+                        <span className="hidden sm:inline">{row.total.toLocaleString()}원</span>
+                      </td>
+
+                      <td className="px-2 py-1 sm:px-3 sm:py-2 text-center whitespace-nowrap">
+                        <span className="sm:hidden">{badge.icon}</span>
+                        <span className="hidden sm:inline-block">
+                          <TooltipBadge badge={badge} />
+                        </span>
+                      </td>
+
+                      <td className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">
+                        {row.winRate.toFixed(1)}%
+                      </td>
+
+                      <td className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">
+                        <span className="sm:hidden">{row.wins}승 {row.losses}패</span>
+
+                        <span className="hidden sm:inline">{row.wins}승 {row.losses}패</span>
+                      </td>
                     </tr>
                   );
                 })}
@@ -192,13 +231,36 @@ export default function LeaderboardPage() {
                 {/* 내 순위가 top20에 없을 때 */}
                 {data.myRank && !data.top20.some(r => r.rank === data.myRank!.rank) && (
                   <tr className="bg-blue-50 border-2 border-blue-300 font-bold">
-                    <td className="px-3 py-2">{data.myRank.rank}</td>
-                    <td className="px-3 py-2">{data.myRank.nickname}</td>
-                    <td className={`px-3 py-2 text-right ${rateColor(data.myRank.avgReturnPct)}`}>{data.myRank.avgReturnPct.toFixed(2)}%</td>
-                    <td className="px-3 py-2 text-right">{data.myRank.total.toLocaleString()}원</td>
-                    <td className="px-3 py-2 text-center"><TooltipBadge badge={getRankBadge(data.myRank.total)} /></td>
-                    <td className="px-3 py-2 text-right">{data.myRank.winRate.toFixed(1)}%</td>
-                    <td className="px-3 py-2 text-right">{data.myRank.wins}승 {data.myRank.losses}패</td>
+                    <td className="px-2 py-1 sm:px-3 sm:py-2 whitespace-nowrap">{data.myRank.rank}</td>
+
+                    <td className="px-2 py-1 sm:px-3 sm:py-2 whitespace-nowrap">
+                      <span className="block truncate max-w-[90px] sm:max-w-none">{data.myRank.nickname}</span>
+                    </td>
+
+                    <td className={`px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap ${rateColor(data.myRank.avgReturnPct)}`}>
+                      {data.myRank.avgReturnPct.toFixed(2)}%
+                    </td>
+
+                    <td className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">
+                      <span className="sm:hidden">{data.myRank.total.toLocaleString()}</span>
+                      <span className="hidden sm:inline">{data.myRank.total.toLocaleString()}원</span>
+                    </td>
+
+                    <td className="px-2 py-1 sm:px-3 sm:py-2 text-center whitespace-nowrap">
+                      <span className="sm:hidden">{getRankBadge(data.myRank.total).icon}</span>
+                      <span className="hidden sm:inline-block">
+                        <TooltipBadge badge={getRankBadge(data.myRank.total)} />
+                      </span>
+                    </td>
+
+                    <td className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">
+                      {data.myRank.winRate.toFixed(1)}%
+                    </td>
+
+                    <td className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">
+                      <span className="sm:hidden">{data.myRank.wins}승 {data.myRank.losses}패</span>
+                      <span className="hidden sm:inline">{data.myRank.wins}승 {data.myRank.losses}패</span>
+                    </td>
                   </tr>
                 )}
               </>

@@ -9,7 +9,7 @@ export default async function Home() {
     <main className="max-w-[1300px] mx-auto p-8">
       {/* Hero 섹션 */}
       <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-10 shadow-lg text-center">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+        <h1 className="text-4xl md:text-4xl font-extrabold tracking-tight mb-4">
           🚀 주식 차트게임
         </h1>
        <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto">
@@ -21,7 +21,7 @@ export default async function Home() {
       </section>
 
       {/* 추가 정보 영역 */}
-      <section className="mt-10">
+      <section className="mt-4">
         <HomeTopGrid />
       </section>
     </main>
