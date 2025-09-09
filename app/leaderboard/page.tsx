@@ -164,7 +164,9 @@ export default function LeaderboardPage() {
       {loading ? (
         <div>로딩 중...</div>
       ) : (
-        <table className="w-full border-collapse rounded-xl overflow-hidden shadow table-fixed text-xs sm:text-sm">
+        <div className="overflow-x-auto sm:overflow-visible -mx-4 sm:mx-0">
+  <table className="min-w-[920px] w-full border-collapse rounded-xl overflow-hidden shadow table-fixed text-xs sm:text-sm">
+
           <thead>
             <tr className="bg-gray-800 text-white text-xs sm:text-sm">
               <th className="px-2 py-1 sm:px-3 sm:py-2 text-left whitespace-nowrap">순위</th>
@@ -271,6 +273,7 @@ export default function LeaderboardPage() {
             )}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

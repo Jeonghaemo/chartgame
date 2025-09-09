@@ -6,7 +6,7 @@ export default async function Home() {
   const session = await auth();
 
   return (
-    <main className="max-w-[1300px] mx-auto p-8">
+    <main className="max-w-[1300px] mx-auto px-8 pt-4 pb-8">
       {/* Hero 섹션 */}
       <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-10 shadow-lg text-center">
         <h1 className="text-4xl md:text-4xl font-extrabold tracking-tight mb-4">
