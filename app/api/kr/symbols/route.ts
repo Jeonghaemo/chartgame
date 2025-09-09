@@ -1,6 +1,7 @@
 // app/api/kr/symbols/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import iconv from 'iconv-lite'
+export const dynamic = 'force-dynamic';
 
 type MarketId = 'STK' | 'KSQ' // KOSPI / KOSDAQ (KRX 표기)
 
