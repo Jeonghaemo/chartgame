@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-export const runtime = 'nodejs';
-export const preferredRegion = ['sin1']; // Neon DB가 싱가포르(ap-southeast-1)
-export const revalidate = 60;            // 60초 캐시 (ISR)
-
+export const dynamic = 'force-dynamic';
 type RankRow = {
   rank: number;
   userId: string;
