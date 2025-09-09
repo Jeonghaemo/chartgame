@@ -100,10 +100,10 @@ export async function GET(req: Request) {
       };
     });
 
-    const top100 = ranked.slice(0, 100);
+    const top20 = ranked.slice(0, 20);
     const myRank = userId ? ranked.find(r => r.userId === userId) ?? null : null;
 
-    return NextResponse.json({ ok: true, period, top100, myRank });
+    return NextResponse.json({ ok: true, period, top20, myRank });
   } catch (e) {
     console.error("/api/leaderboard error", e);
     return NextResponse.json({ ok: false, error: "INTERNAL" }, { status: 500 });
