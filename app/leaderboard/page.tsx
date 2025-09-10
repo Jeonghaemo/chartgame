@@ -165,7 +165,7 @@ export default function LeaderboardPage() {
         <div>로딩 중...</div>
       ) : (
         <div className="overflow-x-auto sm:overflow-visible -mx-4 sm:mx-0">
-  <table className="min-w-[920px] w-full border-collapse rounded-xl overflow-hidden shadow table-fixed text-xs sm:text-sm">
+  <table className="w-full border-collapse rounded-xl overflow-hidden shadow table-fixed text-xs sm:text-sm">
 
           <thead>
             <tr className="bg-gray-800 text-white text-xs sm:text-sm">
@@ -198,7 +198,7 @@ export default function LeaderboardPage() {
                       </td>
 
                       <td className="px-2 py-1 sm:px-3 sm:py-2 whitespace-nowrap">
-                        <span className="block truncate max-w-[90px] sm:max-w-none">{row.nickname}</span>
+                        <span className="block sm:max-w-none">{row.nickname}</span>
                       </td>
 
                       <td className={`px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap ${rateColor(row.avgReturnPct)}`}>
