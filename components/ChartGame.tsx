@@ -23,6 +23,7 @@ const MIN_VISIBLE = 365
 const RESERVED_TURNS = 60
 const MIN_TOTAL_CANDLES = MIN_VISIBLE + RESERVED_TURNS // 425
 const CONCURRENCY = 8
+const NEXT_LOCK_MS = 30;
 
 // ---------- OHLC 캐시(심볼+startIndex 기준) ----------
 const LS_OHLC_KEY = 'chartgame_ohlc_cache_v1'
@@ -673,12 +674,12 @@ return valid.length ? valid : [
       if (k === 'a') setOrderType('buy')
       if (k === 's') setOrderType('sell')
       if (k === 'd') {
-        if (nextLockRef.current) return
-        nextLockRef.current = true
-        g.next()
-        void saveProgress()
-        setTimeout(() => (nextLockRef.current = false), 80)
-      }
+  if (nextLockRef.current) return;
+  nextLockRef.current = true;
+  g.next();
+  void saveProgress();
+  setTimeout(() => (nextLockRef.current = false), NEXT_LOCK_MS);
+}
       if (k === 'r') {
         if (canChangeChart) void resetGame()
       }
@@ -1209,7 +1210,7 @@ return valid.length ? valid : [
                       nextLockRef.current = true;
                       g.next();
                       await saveProgress();
-                      setTimeout(() => { nextLockRef.current = false }, 80);
+                      setTimeout(() => { nextLockRef.current = false }, NEXT_LOCK_MS);
                     }}
                     disabled={g.status !== 'playing' || !canPlay}
                     aria-label="다음"
@@ -1367,7 +1368,7 @@ return valid.length ? valid : [
                       nextLockRef.current = true
                       g.next()
                       await saveProgress()
-                      setTimeout(() => { nextLockRef.current = false }, 80)
+                      setTimeout(() => { nextLockRef.current = false }, NEXT_LOCK_MS)
                     }}
                     disabled={g.status !== 'playing' || !canPlay}
                     className="col-span-1 rounded-xl bg-gray-900 text-white py-3 font-semibold hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
