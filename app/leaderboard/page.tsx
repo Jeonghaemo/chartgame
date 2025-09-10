@@ -150,7 +150,7 @@ export default function LeaderboardPage() {
       <table className="w-full border-collapse rounded-xl overflow-hidden shadow text-xs sm:text-sm">
         <thead>
           <tr className="bg-gray-800 text-white text-xs sm:text-sm">
-            <th className="px-2 py-1 sm:px-3 sm:py-2 text-left whitespace-nowrap">순위</th>
+            <th className="px-2 py-1 sm:px-3 sm:py-2 text-left whitespace-nowrap">내 순위</th>
             <th className="px-2 py-1 sm:px-3 sm:py-2 text-left whitespace-nowrap">닉네임</th>
             <th className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">평균 수익률</th>
             <th className="px-2 py-1 sm:px-3 sm:py-2 text-right whitespace-nowrap">최종 자산</th>
