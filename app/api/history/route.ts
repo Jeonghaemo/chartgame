@@ -194,7 +194,8 @@ export async function GET(req: NextRequest) {
       );
       const initialChartData = gameData.slice(0, startIndex + 1);
 
-      return NextResponse.json({
+      {
+  const res = NextResponse.json({
         ok: true,
         source: "yahoo",
         symbol,
@@ -216,6 +217,10 @@ export async function GET(req: NextRequest) {
             : null,
         },
       });
+       // CDN 캐시 1시간 + SWR 24시간
+  res.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+  return res
+}
     }
 
     // 4) 새 게임(랜덤) 분기
@@ -227,7 +232,8 @@ export async function GET(req: NextRequest) {
     } = getRandomSlice(ohlc, sliceDays, gameTurns);
     const initialChartData = gameData.slice(0, startIndex + 1);
 
-    return NextResponse.json({
+    {
+  const res = NextResponse.json({
       ok: true,
       source: "yahoo",
       symbol,
@@ -249,11 +255,16 @@ export async function GET(req: NextRequest) {
           : null,
       },
     });
+     // CDN 캐시 1시간 + SWR 24시간
+  res.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400')
+  return res
+}
   } catch (err: any) {
     console.error("[/api/history] error:", err?.message || err);
     return NextResponse.json(
-      { ok: false, symbol: null, ohlc: [], initialChart: [], startIndex: 0 },
-      { status: 200 }
-    );
+  { ok: false, symbol: null, ohlc: [], initialChart: [], startIndex: 0 },
+  { status: 200, headers: { 'Cache-Control': 'no-store' } }
+);
+
   }
 }

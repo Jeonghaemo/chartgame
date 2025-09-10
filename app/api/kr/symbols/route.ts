@@ -259,12 +259,18 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      return NextResponse.json({
-        symbols: includeNames ? result : (result as string[]),
-        cached: true,
-        count: Array.isArray(result) ? result.length : 0,
-        filters: { excludeETF, excludeREIT, excludePreferred, gameOptimized, excludeListedWithinDays }
-      })
+      {
+  const res = NextResponse.json({
+    symbols: includeNames ? result : (result as string[]),
+    cached: true,
+    count: Array.isArray(result) ? result.length : 0,
+    filters: { excludeETF, excludeREIT, excludePreferred, gameOptimized, excludeListedWithinDays }
+  })
+  // CDN 캐시 12시간 + SWR 24시간
+  res.headers.set('Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=86400')
+  return res
+}
+
     }
 
     console.log('KRX 데이터 새로 수집 중...')
@@ -328,18 +334,24 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      symbols: result,
-      cached: false,
-      count: Array.isArray(result) ? result.length : 0,
-      meta: {
-        kospi: stk.length,
-        kosdaq: ksq.length,
-        total: symbols.length,
-        filtered: Array.isArray(result) ? result.length : symbols.length,
-      },
-      filters: { excludeETF, excludeREIT, excludePreferred, gameOptimized, excludeListedWithinDays },
-    })
+    {
+  const res = NextResponse.json({
+    symbols: result,
+    cached: false,
+    count: Array.isArray(result) ? result.length : 0,
+    meta: {
+      kospi: stk.length,
+      kosdaq: ksq.length,
+      total: symbols.length,
+      filtered: Array.isArray(result) ? result.length : symbols.length,
+    },
+    filters: { excludeETF, excludeREIT, excludePreferred, gameOptimized, excludeListedWithinDays },
+  })
+  // CDN 캐시 12시간 + SWR 24시간
+  res.headers.set('Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=86400')
+  return res
+}
+
   } catch (err) {
     console.error('[KRX symbols] error:', err)
 
@@ -351,14 +363,15 @@ export async function GET(req: NextRequest) {
     ]
 
     return NextResponse.json(
-      {
-        symbols: fallbackSymbols,
-        cached: false,
-        count: fallbackSymbols.length,
-        error: err instanceof Error ? err.message : 'Unknown error',
-        fallback: true
-      },
-      { status: 200 }
-    )
+  {
+    symbols: fallbackSymbols,
+    cached: false,
+    count: fallbackSymbols.length,
+    error: err instanceof Error ? err.message : 'Unknown error',
+    fallback: true
+  },
+  { status: 200, headers: { 'Cache-Control': 'no-store' } } // 에러는 캐시 X
+)
+
   }
 }

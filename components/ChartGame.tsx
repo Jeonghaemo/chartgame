@@ -3,7 +3,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react'
 import Card from './Card'
-import CandleChart from '@/components/CandleChart'
+import dynamic from 'next/dynamic'
+const CandleChart = dynamic(() => import('@/components/CandleChart'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full rounded-xl bg-slate-100 animate-pulse" style={{ height: 320 }} />
+  ),
+})
+
 import { useGame } from '@/game/store/gameStore'
 import { valuation, pnlPct } from '@/game/store/helpers'
 import AdRecharge from '@/components/AdRecharge'
