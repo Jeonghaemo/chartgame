@@ -142,11 +142,23 @@ export default function LeaderboardPage() {
       {/* 계급 레전드 */}
       <TierLegend />
 
-      {/* 내 순위: 표와 동일한 레이아웃/스크롤/여백 */}
+     
+{/* 내 순위: 헤더 + 데이터 1줄 */}
 {data?.myRank && (
   <div className="mb-4">
     <div className="overflow-x-auto px-1 sm:px-0">
       <table className="w-full border-collapse rounded-xl shadow-md text-sm sm:text-base">
+        <thead>
+          <tr className="bg-blue-600 text-white">
+            <th className="px-3 py-2 text-left whitespace-nowrap">순위</th>
+            <th className="px-3 py-2 text-left whitespace-nowrap">닉네임</th>
+            <th className="px-3 py-2 text-right whitespace-nowrap">평균 수익률</th>
+            <th className="px-3 py-2 text-right whitespace-nowrap">최종 자산</th>
+            <th className="px-3 py-2 text-center whitespace-nowrap">계급</th>
+            <th className="px-3 py-2 text-right whitespace-nowrap">승률</th>
+            <th className="px-3 py-2 text-right whitespace-nowrap">전적</th>
+          </tr>
+        </thead>
         <tbody>
           <tr className="bg-blue-50 border-2 border-blue-300 font-semibold">
             <td className="px-3 py-2 whitespace-nowrap font-bold">{data.myRank.rank}</td>
@@ -176,6 +188,7 @@ export default function LeaderboardPage() {
     </div>
   </div>
 )}
+
 
 
       {/* 랭킹표 */}
