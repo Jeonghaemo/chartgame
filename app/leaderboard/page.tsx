@@ -195,7 +195,10 @@ export default function LeaderboardPage() {
 
 
       {/* 랭킹표 */}
+      <h2 className="text-lg sm:text-xl font-bold mb-2 text-center">전체 순위</h2>
+
       {loading ? (
+        
         <div>로딩 중...</div>
       ) : (
         <div className="overflow-x-auto sm:overflow-visible px-1 sm:px-0">
