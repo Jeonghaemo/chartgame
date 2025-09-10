@@ -330,7 +330,7 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
   gameOptimized: 'true',
   maxCount: '1500', // 전수 검증을 안 하므로 1500 유지해도 가벼움
 })
-const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
+const r = await fetch(`/api/kr/symbols?${params}`, { next: { revalidate: 60 * 60 * 12 } }) // 12시간
 const response = await r.json()
 const list = (response.symbols || []) as SymbolItem[]
 const valid = list.filter(s => /^\d{6}\.(KS|KQ)$/.test(s.symbol))
@@ -381,7 +381,7 @@ return valid.length ? valid : [
         gameOptimized: 'true',
         maxCount: '1500',
       })
-      const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
+      const r = await fetch(`/api/kr/symbols?${params}`, { next: { revalidate: 60 * 60 * 12 } }) // 12시간
       if (r.ok) {
         const j = await r.json()
         const list = (j.symbols || []) as SymbolItem[]
@@ -459,10 +459,10 @@ return valid.length ? valid : [
     }
 
 
-      const r = await fetch(
-        `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
-        { cache: 'no-store' }
-      )
+       const r = await fetch(
+   `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
+   { next: { revalidate: 60 * 60 } } // 1시간
+)
       const response = await r.json()
       const { ohlc: ohlcResp, startIndex: startIndexResp } = response as { ohlc: OHLC[]; startIndex: number }
 
@@ -792,7 +792,7 @@ return valid.length ? valid : [
               let j2: any = undefined
 
               try {
-                const r1 = await fetch(url1, { cache: 'no-store' })
+                const r1 = await fetch(url1, { next: { revalidate: 60 * 60 } })
                 j1 = await r1.json().catch(() => ({}))
                 arr = Array.isArray(j1?.ohlc) ? (j1.ohlc as OHLC[]) : []
                 sidx = Number(j1?.startIndex)
@@ -806,7 +806,7 @@ return valid.length ? valid : [
                   `/api/history?symbol=${encodeURIComponent(ginfo.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
                   `&startIndex=${ginfo.startIndex}`
                 try {
-                  const r2 = await fetch(url2, { cache: 'no-store' })
+                  const r2 = await fetch(url2, { next: { revalidate: 60 * 60 } })
                   j2 = await r2.json().catch(() => ({}))
                   arr = Array.isArray(j2?.ohlc) ? (j2.ohlc as OHLC[]) : []
                   sidx = Number(j2?.startIndex)
@@ -926,7 +926,7 @@ return valid.length ? valid : [
               `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
               `&startIndex=${local.meta.startIndex}` +
               (typeof local.meta.sliceStartTs === 'number' ? `&sliceStartTs=${local.meta.sliceStartTs}` : ''),
-              { cache: 'no-store' }
+              { next: { revalidate: 60 * 60 } }
             )
             const hjson = await hist.json()
             ohlcArr = hjson.ohlc as OHLC[]
