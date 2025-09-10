@@ -24,12 +24,8 @@ export default function AdRecharge() {
   const [slotVisibleMaxPct, setSlotVisibleMaxPct] = useState(0);
   const [confirmEnabled, setConfirmEnabled] = useState(false);
 
-  const [sessionId, setSessionId] = useState<string | null>(null);
-
   const slotRef = useRef<HTMLDivElement | null>(null);
   const visibleRef = useRef(false);
-
-  // ✅ SSR 안전: 초기값은 true로 두고 useEffect에서 실제 값 동기화
   const activeRef = useRef<boolean>(true);
 
   const setFromMe = useUserStore((s) => s.setFromMe);
@@ -48,19 +44,8 @@ export default function AdRecharge() {
     load();
   }, []);
 
-  const handleOpen = async () => {
+  const handleOpen = () => {
     setOpen(true);
-
-    try {
-      const r = await fetch("/api/ads/session/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: info?.provider ?? null }),
-      });
-      const j = await r.json();
-      if (r.ok && j?.sessionId) setSessionId(j.sessionId);
-    } catch (_) {}
-
     setViewableMs(0);
     setInteracted(false);
     setSlotVisibleMaxPct(0);
@@ -69,20 +54,10 @@ export default function AdRecharge() {
 
   const handleClose = () => setOpen(false);
 
-  const handleGoAd = () => {
-    if (!info?.eligible || !info.provider) return;
-    const url = `/api/ads/redirect?provider=${info.provider.toLowerCase()}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   const handleConfirm = async () => {
     if (!confirmEnabled) return;
 
-    const r = await fetch("/api/ads/session/complete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, viewableMs, interacted, slotVisibleMaxPct }),
-    });
+    const r = await fetch("/api/ads/complete", { method: "POST" });
     if (r.ok) {
       await load();
       await setFromMe();
@@ -100,14 +75,12 @@ export default function AdRecharge() {
   useEffect(() => {
     if (!open) return;
 
-    // ✅ document 접근은 클라이언트에서만
     const onVis = () => {
       if (typeof document !== "undefined") {
         activeRef.current = !document.hidden;
       }
     };
 
-    // 최초 동기화
     if (typeof document !== "undefined") {
       activeRef.current = !document.hidden;
       document.addEventListener("visibilitychange", onVis);
@@ -156,6 +129,39 @@ export default function AdRecharge() {
 
   const progress = Math.min(100, Math.round((viewableMs / MIN_VIEWABLE_MS) * 100));
 
+  // ✅ 쿠팡 위젯 스크립트 삽입
+  useEffect(() => {
+    if (!(open && info?.provider === "COUPANG")) return;
+
+    const exist = document.querySelector('script[src="https://ads-partners.coupang.com/g.js"]');
+    const ensureWidget = () => {
+      const w: any = window as any;
+      if (w.PartnersCoupang?.G) {
+        const host = document.getElementById("coupang-banner");
+        if (host && host.childNodes.length === 0) {
+          new w.PartnersCoupang.G({
+            id: 903800,
+            template: "carousel",
+            trackingCode: "AF8851731",
+            width: "250",
+            height: "250",
+            tsource: "",
+          });
+        }
+      }
+    };
+
+    if (!exist) {
+      const script = document.createElement("script");
+      script.src = "https://ads-partners.coupang.com/g.js";
+      script.async = true;
+      script.onload = ensureWidget;
+      document.body.appendChild(script);
+    } else {
+      ensureWidget();
+    }
+  }, [open, info]);
+
   return (
     <div className="mt-0 rounded-2xl bg-white border p-6 text-center">
       <div className="font-semibold text-lg mb-4">❤️ 하트 무료 충전</div>
@@ -171,22 +177,27 @@ export default function AdRecharge() {
 
       {open && (
         <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center">
-          <div className="w-[420px] rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-[420px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-xl">
             <div className="text-lg font-bold">무료 충전</div>
             <div className="mt-2 text-sm text-gray-600">
               이 화면에는 제휴/광고 콘텐츠가 포함될 수 있습니다. 클릭은 자유입니다.
             </div>
 
+            {/* 광고 슬롯 */}
             <div
               ref={slotRef}
               id="ad-slot"
-              className="mt-4 h-40 rounded-xl border grid place-items-center"
+              className="mt-4 rounded-xl border p-3 flex items-center justify-center"
+              style={{ minHeight: 260 }}
             >
-              <div className="text-gray-500">
-                {info?.provider === "COUPANG" ? "쿠팡 제휴 배너" : "네이버 제휴 배너"}
-              </div>
+              {info?.provider === "COUPANG" ? (
+                <div id="coupang-banner" className="w-[250px] h-[250px]" />
+              ) : (
+                <div className="text-gray-500">네이버 제휴 배너</div>
+              )}
             </div>
 
+            {/* 진행 바 */}
             <div className="mt-4">
               <div className="h-2 w-full rounded bg-gray-100 overflow-hidden">
                 <div className="h-2 bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
@@ -196,24 +207,20 @@ export default function AdRecharge() {
               </div>
             </div>
 
-            <div className="mt-4 flex justify-between items-center">
-              <button onClick={handleGoAd} className="rounded-xl border px-4 py-2">
-                광고 자세히 보기
+            {/* 버튼 */}
+            <div className="mt-4 flex justify-end items-center gap-2">
+              <button onClick={handleClose} className="rounded-xl border px-4 py-2">
+                닫기
               </button>
-              <div className="flex gap-2">
-                <button onClick={handleClose} className="rounded-xl border px-4 py-2">
-                  닫기
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  className={`rounded-xl px-4 py-2 font-semibold ${
-                    confirmEnabled ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
-                  }`}
-                  disabled={!confirmEnabled}
-                >
-                  충전 확인
-                </button>
-              </div>
+              <button
+                onClick={handleConfirm}
+                className={`rounded-xl px-4 py-2 font-semibold ${
+                  confirmEnabled ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
+                }`}
+                disabled={!confirmEnabled}
+              >
+                충전 확인
+              </button>
             </div>
           </div>
         </div>
