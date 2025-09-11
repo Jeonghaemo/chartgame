@@ -24,18 +24,6 @@ type NextInfo = {
 
 const MIN_VIEWABLE_MS = 10_000; // 10초 노출 조건
 
-const DISPLAY_NAME: Record<NonNullable<NextInfo["provider"]>, string> = {
-  COUPANG: "쿠팡",
-  NAVER: "네이버",
-  SKYSCANNER: "스카이스캐너",
-  AGODA: "아고다",
-  ALIEXPRESS: "알리익스프레스",
-  TRIPDOTCOM: "트립닷컴",
-  AMAZON: "아마존",
-  KLOOK: "클룩",
-  OLIVEYOUNG: "올리브영",
-};
-
 export default function AdRecharge() {
   const [info, setInfo] = useState<NextInfo | null>(null);
   const [open, setOpen] = useState(false);
@@ -96,7 +84,6 @@ export default function AdRecharge() {
   };
 
   const DAILY_LIMIT = 10;
-
   const label = info?.eligible
     ? `하트 무료 충전 (${info.remaining}회 남음)`
     : `오늘 충전 기회 소진(내일 ${DAILY_LIMIT}회)`;
@@ -157,24 +144,6 @@ export default function AdRecharge() {
 
   const progress = Math.min(100, Math.round((viewableMs / MIN_VIEWABLE_MS) * 100));
 
-  // 공용 링크 버튼 (네이버 또는 /api/ads/redirect로 보냄)
-  const LinkButton = () => {
-    const p = info?.provider!;
-    const href = `/api/ads/redirect?provider=${p.toLowerCase()}`;
-    const label = `${DISPLAY_NAME[p]} 제휴 링크 열기`;
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => setInteracted(true)}
-        className="inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-      >
-        {label}
-      </a>
-    );
-  };
-
   return (
     <div className="mt-0 rounded-2xl bg-white border p-6 text-center">
       <div className="font-semibold text-lg mb-4">❤️ 하트 무료 충전</div>
@@ -204,49 +173,36 @@ export default function AdRecharge() {
               style={{ minHeight: 260 }}
             >
               {info?.provider === "COUPANG" ? (
-  // 쿠팡 iframe 코드 (변경 없음)
-  <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
-    <iframe
-      title="Coupang Carousel"
-      src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
-      width="250"
-      height="250"
-      frameBorder="0"
-      scrolling="no"
-      referrerPolicy="unsafe-url"
-      style={{ display: "block" }}
-    />
-  </div>
-) : info?.provider === "NAVER" ? (
-  // 네이버 링크 바로 적용
-  <div className="flex items-center justify-center">
-    <a
-      href="https://naver.me/xLsEEb1q"
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => setInteracted(true)}
-      className="inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-    >
-      네이버 제휴 광고 보기
-    </a>
-  </div>
-) : info?.provider ? (
-  // 나머지 프로바이더 (링크 미발급 → 네이버 링크로 대신)
-  <div className="flex items-center justify-center">
-    <a
-      href="https://naver.me/xLsEEb1q"
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => setInteracted(true)}
-      className="inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50"
-    >
-      {DISPLAY_NAME[info.provider]} 제휴 링크 보기
-    </a>
-  </div>
-) : (
-  <div className="text-gray-500">제휴 배너</div>
-)}
-
+                // ✅ 쿠팡: 250x250 iframe
+                <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
+                  <iframe
+                    title="Coupang Carousel"
+                    src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
+                    width="250"
+                    height="250"
+                    frameBorder="0"
+                    scrolling="no"
+                    referrerPolicy="unsafe-url"
+                    style={{ display: "block" }}
+                  />
+                </div>
+              ) : info?.provider ? (
+                // ✅ 나머지 9개(네이버 포함): 네이버 링크 iframe
+                <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
+                  <iframe
+                    title={`${info.provider} Ad`}
+                    src="https://naver.me/xLsEEb1q"
+                    width="250"
+                    height="250"
+                    frameBorder="0"
+                    scrolling="auto"
+                    referrerPolicy="unsafe-url"
+                    style={{ display: "block" }}
+                  />
+                </div>
+              ) : (
+                <div className="text-gray-500">제휴 배너</div>
+              )}
             </div>
 
             {/* 진행 바 */}
