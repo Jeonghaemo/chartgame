@@ -1,7 +1,19 @@
 // app/api/ads/redirect/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { providerToUrl } from "@/lib/ads";
+import { providerToUrl, Provider } from "@/lib/ads";
+
+const ALLOWED: Set<Provider> = new Set([
+  "COUPANG",
+  "NAVER",
+  "SKYSCANNER",
+  "AGODA",
+  "ALIEXPRESS",
+  "TRIPDOTCOM",
+  "AMAZON",
+  "KLOOK",
+  "OLIVEYOUNG",
+]);
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -10,17 +22,17 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const provider = (url.searchParams.get("provider") || "").toUpperCase();
+  const provider = (url.searchParams.get("provider") || "").toUpperCase() as Provider;
 
-  if (provider !== "COUPANG" && provider !== "NAVER") {
+  if (!ALLOWED.has(provider)) {
     return NextResponse.json({ ok: false, error: "BAD_PROVIDER" }, { status: 400 });
   }
 
-  const target = providerToUrl(provider as "COUPANG" | "NAVER");
+  const target = providerToUrl(provider);
   if (!target) {
     return NextResponse.json({ ok: false, error: "MISSING_AFF_URL" }, { status: 500 });
   }
 
-  // 👉 여기서는 하트 충전이나 DB 기록 없이 단순 이동만
+  // 광고 이동만 (보상 없음)
   return NextResponse.redirect(target, { status: 302 });
 }

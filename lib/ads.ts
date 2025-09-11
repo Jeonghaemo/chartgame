@@ -10,9 +10,32 @@ dayjs.extend(tz);
 const ZONE = "Asia/Seoul";
 const MAX_PER_DAY = 10; // 일일 한도 10회
 
-export type Provider = "COUPANG" | "NAVER";
+export type Provider =
+  | "COUPANG"
+  | "NAVER"
+  | "SKYSCANNER"
+  | "AGODA"
+  | "ALIEXPRESS"
+  | "TRIPDOTCOM"
+  | "AMAZON"
+  | "KLOOK"
+  | "OLIVEYOUNG";
 
-/** 상태 조회 응답 타입 (분기 안전) */
+// 고정 순환 (1~10회차)
+export const PROVIDER_SEQ: Provider[] = [
+  "COUPANG",
+  "NAVER",
+  "SKYSCANNER",
+  "AGODA",
+  "ALIEXPRESS",
+  "TRIPDOTCOM",
+  "AMAZON",
+  "KLOOK",
+  "OLIVEYOUNG",
+  "COUPANG",
+] as const;
+
+/** 상태 조회 응답 타입 */
 export type AdStatus =
   | {
       eligible: false;
@@ -28,23 +51,14 @@ export type AdStatus =
       dayKey: string; // YYYY-MM-DD
     };
 
-/** 간단 로테이션: 1,3,5,... -> COUPANG / 2,4,6,... -> NAVER */
-function pickProviderByCount(countToday: number): Provider {
-  const nextIndex = countToday + 1; // 1..MAX_PER_DAY
-  return nextIndex % 2 === 1 ? "COUPANG" : "NAVER";
-}
-
-/** 오늘 남은 횟수/다음 제휴사 상태 조회 (쿨타임 없음) */
 export async function getAdStatus(userId: string): Promise<AdStatus> {
   const now = dayjs().tz(ZONE);
   const dayKey = now.format("YYYY-MM-DD");
 
-  // 금일 시청/보상 기록 수 (adWatch 기준)
   const countToday = await prisma.adWatch.count({
     where: { userId, dayKey },
   });
 
-  // 한도 소진
   if (countToday >= MAX_PER_DAY) {
     return {
       eligible: false,
@@ -54,8 +68,8 @@ export async function getAdStatus(userId: string): Promise<AdStatus> {
     };
   }
 
-  const nextIndex = countToday + 1; // 1..MAX_PER_DAY
-  const provider = pickProviderByCount(countToday);
+  const nextIndex = countToday + 1; // 1..10
+  const provider = PROVIDER_SEQ[(nextIndex - 1) % PROVIDER_SEQ.length];
 
   return {
     eligible: true,
@@ -66,10 +80,22 @@ export async function getAdStatus(userId: string): Promise<AdStatus> {
   };
 }
 
-/** 제휴사별 이동 URL (미설정 시 null 반환) */
+// 각 프로바이더용 URL (미발급은 빈 값 -> NAVER로 대체)
 export function providerToUrl(p: Provider): string | null {
-  const coupang = process.env.COUPANG_AFF_URL || "";
   const naver = process.env.NAVER_CONNECT_URL || "";
-  if (p === "COUPANG") return coupang || null;
-  return naver || null;
+  const map: Record<Provider, string> = {
+    COUPANG: process.env.COUPANG_AFF_URL || "",   // 쿠팡 발급 URL
+    NAVER: naver,                                  // 네이버 발급 URL
+    SKYSCANNER: "",                                // 미발급 → NAVER로 대체
+    AGODA: "",
+    ALIEXPRESS: "",
+    TRIPDOTCOM: "",
+    AMAZON: "",
+    KLOOK: "",
+    OLIVEYOUNG: "",
+  };
+  const raw = map[p];
+  const fallback = naver || "";
+  const url = raw || fallback;
+  return url || null;
 }

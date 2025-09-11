@@ -10,10 +10,31 @@ type NextInfo = {
   reason?: "DAILY_LIMIT";
   remaining?: number;
   nextIndex?: number;
-  provider?: "COUPANG" | "NAVER";
+  provider?:
+    | "COUPANG"
+    | "NAVER"
+    | "SKYSCANNER"
+    | "AGODA"
+    | "ALIEXPRESS"
+    | "TRIPDOTCOM"
+    | "AMAZON"
+    | "KLOOK"
+    | "OLIVEYOUNG";
 };
 
 const MIN_VIEWABLE_MS = 10_000; // 10초 노출 조건
+
+const DISPLAY_NAME: Record<NonNullable<NextInfo["provider"]>, string> = {
+  COUPANG: "쿠팡",
+  NAVER: "네이버",
+  SKYSCANNER: "스카이스캐너",
+  AGODA: "아고다",
+  ALIEXPRESS: "알리익스프레스",
+  TRIPDOTCOM: "트립닷컴",
+  AMAZON: "아마존",
+  KLOOK: "클룩",
+  OLIVEYOUNG: "올리브영",
+};
 
 export default function AdRecharge() {
   const [info, setInfo] = useState<NextInfo | null>(null);
@@ -55,27 +76,24 @@ export default function AdRecharge() {
   const handleClose = () => setOpen(false);
 
   const handleConfirm = async () => {
-  if (!confirmEnabled) return;
+    if (!confirmEnabled) return;
 
-  // provider를 서버에 전달해야 adWatch 기록 가능 → remaining 감소 반영
-  const r = await fetch("/api/ads/complete", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      provider: info?.provider ?? null,
-      viewableMs,
-      interacted,
-      slotVisibleMaxPct,
-    }),
-  });
-
-  if (r.ok) {
-    await load();      // /api/ads/next 다시 불러서 remaining 갱신
-    await setFromMe(); // 하트 수 동기화
-    setOpen(false);    // 모달 닫기(컨테이너 클린업 동작)
-  }
-};
-
+    const r = await fetch("/api/ads/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: info?.provider ?? null,
+        viewableMs,
+        interacted,
+        slotVisibleMaxPct,
+      }),
+    });
+    if (r.ok) {
+      await load();      // remaining 갱신
+      await setFromMe(); // 하트 수 갱신
+      setOpen(false);
+    }
+  };
 
   const DAILY_LIMIT = 10;
 
@@ -83,14 +101,12 @@ export default function AdRecharge() {
     ? `하트 무료 충전 (${info.remaining}회 남음)`
     : `오늘 충전 기회 소진(내일 ${DAILY_LIMIT}회)`;
 
-  // 광고 슬롯 노출 체크
+  // 노출 체크
   useEffect(() => {
     if (!open) return;
 
     const onVis = () => {
-      if (typeof document !== "undefined") {
-        activeRef.current = !document.hidden;
-      }
+      if (typeof document !== "undefined") activeRef.current = !document.hidden;
     };
 
     if (typeof document !== "undefined") {
@@ -141,72 +157,23 @@ export default function AdRecharge() {
 
   const progress = Math.min(100, Math.round((viewableMs / MIN_VIEWABLE_MS) * 100));
 
-  // ✅ 쿠팡 위젯 스크립트 삽입 (컨테이너 내부 고정 + 노이즈 노드 정리 + 잔상 제거)
-useEffect(() => {
-  const isCoupang = open && info?.provider === "COUPANG";
-  const mount = document.getElementById("coupang-mount"); // 실제 렌더 위치(250x250)
-
-  if (isCoupang && mount) {
-    // 깨끗한 상태로 시작
-    mount.innerHTML = "";
-
-    // g.js
-    const s1 = document.createElement("script");
-    s1.src = "https://ads-partners.coupang.com/g.js";
-    s1.async = true;
-
-    // 위젯 생성 스크립트
-    const s2 = document.createElement("script");
-    s2.innerHTML = `
-      try {
-        new PartnersCoupang.G({
-          id: 903800,
-          template: "carousel",
-          trackingCode: "AF8851731",
-          width: "250",
-          height: "250",
-          tsource: ""
-        });
-      } catch (e) { /* noop */ }
-    `;
-
-    // 컨테이너 내부에만 삽입
-    mount.appendChild(s1);
-    mount.appendChild(s2);
-
-    // 위젯이 간혹 텍스트 노드/불필요 엘리먼트를 앞뒤에 생성하는 경우가 있어 정리
-    const tidy = () => {
-      // mount 안에서 iframe 외 노드는 제거
-      const iframes = Array.from(mount.querySelectorAll("iframe"));
-      // iframe이 생성되었다면 나머지 자식은 모두 제거
-      if (iframes.length > 0) {
-        Array.from(mount.childNodes).forEach((node) => {
-          if (node.nodeName !== "IFRAME" && node.nodeName !== "SCRIPT") {
-            mount.removeChild(node);
-          }
-        });
-      }
-    };
-
-    // 위젯 로딩 비동기 → 약간의 지연 후 정리 시도
-    const t1 = setTimeout(tidy, 300);
-    const t2 = setTimeout(tidy, 800);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      // 모달 닫히면 컨테이너 비우기(잔상/중복 방지)
-      mount.innerHTML = "";
-    };
-  }
-
-  // 기본 정리
-  return () => {
-    if (mount) mount.innerHTML = "";
+  // 공용 링크 버튼 (네이버 또는 /api/ads/redirect로 보냄)
+  const LinkButton = () => {
+    const p = info?.provider!;
+    const href = `/api/ads/redirect?provider=${p.toLowerCase()}`;
+    const label = `${DISPLAY_NAME[p]} 제휴 링크 열기`;
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => setInteracted(true)}
+        className="inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+      >
+        {label}
+      </a>
+    );
   };
-}, [open, info]);
-
-
 
   return (
     <div className="mt-0 rounded-2xl bg-white border p-6 text-center">
@@ -237,26 +204,23 @@ useEffect(() => {
               style={{ minHeight: 260 }}
             >
               {info?.provider === "COUPANG" ? (
-  <div className="flex items-center justify-center">
-    <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
-      <iframe
-        src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
-        width="250"
-        height="250"
-        frameBorder="0"
-        scrolling="no"
-        referrerPolicy="unsafe-url"
-        // React에서는 속성 이름을 camelCase로!
-        // frameborder → frameBorder, referrerpolicy → referrerPolicy
-      />
-    </div>
-  </div>
-) : (
-  <div className="text-gray-500">네이버 제휴 배너</div>
-)}
-
-
-
+                <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
+                  <iframe
+                    title="Coupang Carousel"
+                    src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
+                    width="250"
+                    height="250"
+                    frameBorder="0"
+                    scrolling="no"
+                    referrerPolicy="unsafe-url"
+                    style={{ display: "block" }}
+                  />
+                </div>
+              ) : info?.provider ? (
+                <LinkButton />
+              ) : (
+                <div className="text-gray-500">제휴 배너</div>
+              )}
             </div>
 
             {/* 진행 바 */}
