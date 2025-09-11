@@ -204,23 +204,49 @@ export default function AdRecharge() {
               style={{ minHeight: 260 }}
             >
               {info?.provider === "COUPANG" ? (
-                <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
-                  <iframe
-                    title="Coupang Carousel"
-                    src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
-                    width="250"
-                    height="250"
-                    frameBorder="0"
-                    scrolling="no"
-                    referrerPolicy="unsafe-url"
-                    style={{ display: "block" }}
-                  />
-                </div>
-              ) : info?.provider ? (
-                <LinkButton />
-              ) : (
-                <div className="text-gray-500">제휴 배너</div>
-              )}
+  // 쿠팡 iframe 코드 (변경 없음)
+  <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
+    <iframe
+      title="Coupang Carousel"
+      src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
+      width="250"
+      height="250"
+      frameBorder="0"
+      scrolling="no"
+      referrerPolicy="unsafe-url"
+      style={{ display: "block" }}
+    />
+  </div>
+) : info?.provider === "NAVER" ? (
+  // 네이버 링크 바로 적용
+  <div className="flex items-center justify-center">
+    <a
+      href="https://naver.me/xLsEEb1q"
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => setInteracted(true)}
+      className="inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+    >
+      네이버 제휴 광고 보기
+    </a>
+  </div>
+) : info?.provider ? (
+  // 나머지 프로바이더 (링크 미발급 → 네이버 링크로 대신)
+  <div className="flex items-center justify-center">
+    <a
+      href="https://naver.me/xLsEEb1q"
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => setInteracted(true)}
+      className="inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+    >
+      {DISPLAY_NAME[info.provider]} 제휴 링크 보기
+    </a>
+  </div>
+) : (
+  <div className="text-gray-500">제휴 배너</div>
+)}
+
             </div>
 
             {/* 진행 바 */}
