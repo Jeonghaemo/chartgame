@@ -237,17 +237,24 @@ useEffect(() => {
               style={{ minHeight: 260 }}
             >
               {info?.provider === "COUPANG" ? (
-  <div id="coupang-slot" className="flex items-center justify-center">
-    <div
-      className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white"
-      // 모서리 라운드 + 그림자 + 오버플로우 차단
-    >
-      <div id="coupang-mount" className="w-[250px] h-[250px]" />
+  <div className="flex items-center justify-center">
+    <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
+      <iframe
+        src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
+        width="250"
+        height="250"
+        frameBorder="0"
+        scrolling="no"
+        referrerPolicy="unsafe-url"
+        // React에서는 속성 이름을 camelCase로!
+        // frameborder → frameBorder, referrerpolicy → referrerPolicy
+      />
     </div>
   </div>
 ) : (
   <div className="text-gray-500">네이버 제휴 배너</div>
 )}
+
 
 
             </div>
