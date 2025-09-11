@@ -169,11 +169,11 @@ export default function AdRecharge() {
 <div
   ref={slotRef}
   id="ad-slot"
-  className="mt-4 flex items-center justify-center"
-  style={{ minHeight: 180 }}
+  className="mt-4 rounded-xl border p-3 flex items-center justify-center"
+  style={{ minHeight: 160 }}
 >
   {info?.provider === "COUPANG" ? (
-    // 쿠팡: 250x250 배너
+    // ✅ 쿠팡: 250x250 공식 배너 iframe
     <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
       <iframe
         title="Coupang Carousel"
@@ -187,29 +187,32 @@ export default function AdRecharge() {
       />
     </div>
   ) : (
-    // 네이버 포함 나머지 9개: 카드 + 썸네일 이미지
+    // ✅ 네이버 및 나머지 8개: 카드 스타일 링크
     <a
       href="https://naver.me/xLsEEb1q"
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => setInteracted(true)}
-      className="w-full max-w-[360px] rounded-2xl border shadow hover:shadow-md transition bg-white overflow-hidden"
+      className="w-full max-w-[320px] rounded-2xl border shadow hover:shadow-md transition bg-white overflow-hidden text-left"
     >
-      <div className="w-full h-[160px] bg-gray-100">
+      <div className="flex items-center gap-3 p-3">
         <img
-          src={"https://s.wordpress.com/mshots/v1/" + encodeURIComponent("https://naver.me/xLsEEb1q") + "?w=720"}
-          alt="네이버 링크 미리보기"
-          className="w-full h-full object-cover"
+          src="https://www.google.com/s2/favicons?domain=naver.me&sz=64"
+          alt="naver.me"
+          width={40}
+          height={40}
+          className="rounded"
           loading="lazy"
         />
-      </div>
-      <div className="p-3">
-        <div className="font-semibold truncate">네이버 제휴 링크 열기</div>
-        <div className="text-xs text-gray-500 truncate">https://naver.me/xLsEEb1q</div>
+        <div className="min-w-0">
+          <div className="font-semibold truncate">네이버 제휴 링크 열기</div>
+          <div className="text-xs text-gray-500 truncate">https://naver.me/xLsEEb1q</div>
+        </div>
       </div>
     </a>
   )}
 </div>
+
 
 
 
