@@ -55,15 +55,27 @@ export default function AdRecharge() {
   const handleClose = () => setOpen(false);
 
   const handleConfirm = async () => {
-    if (!confirmEnabled) return;
+  if (!confirmEnabled) return;
 
-    const r = await fetch("/api/ads/complete", { method: "POST" });
-    if (r.ok) {
-      await load();
-      await setFromMe();
-      setOpen(false);
-    }
-  };
+  // provider를 서버에 전달해야 adWatch 기록 가능 → remaining 감소 반영
+  const r = await fetch("/api/ads/complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      provider: info?.provider ?? null,
+      viewableMs,
+      interacted,
+      slotVisibleMaxPct,
+    }),
+  });
+
+  if (r.ok) {
+    await load();      // /api/ads/next 다시 불러서 remaining 갱신
+    await setFromMe(); // 하트 수 동기화
+    setOpen(false);    // 모달 닫기(컨테이너 클린업 동작)
+  }
+};
+
 
   const DAILY_LIMIT = 10;
 
@@ -130,37 +142,46 @@ export default function AdRecharge() {
   const progress = Math.min(100, Math.round((viewableMs / MIN_VIEWABLE_MS) * 100));
 
   // ✅ 쿠팡 위젯 스크립트 삽입
-  useEffect(() => {
-    if (!(open && info?.provider === "COUPANG")) return;
+useEffect(() => {
+  const isCoupang = open && info?.provider === "COUPANG";
+  const host = document.getElementById("coupang-slot");
 
-    const exist = document.querySelector('script[src="https://ads-partners.coupang.com/g.js"]');
-    const ensureWidget = () => {
-      const w: any = window as any;
-      if (w.PartnersCoupang?.G) {
-        const host = document.getElementById("coupang-banner");
-        if (host && host.childNodes.length === 0) {
-          new w.PartnersCoupang.G({
-            id: 903800,
-            template: "carousel",
-            trackingCode: "AF8851731",
-            width: "250",
-            height: "250",
-            tsource: "",
-          });
-        }
-      }
-    };
+  // 모달 열려있고, 제공사가 쿠팡이며, 컨테이너가 있을 때만 삽입
+  if (isCoupang && host) {
+    // 깨끗한 상태로 시작
+    host.innerHTML = "";
 
-    if (!exist) {
-      const script = document.createElement("script");
-      script.src = "https://ads-partners.coupang.com/g.js";
-      script.async = true;
-      script.onload = ensureWidget;
-      document.body.appendChild(script);
-    } else {
-      ensureWidget();
-    }
-  }, [open, info]);
+    // 1) g.js
+    const s1 = document.createElement("script");
+    s1.src = "https://ads-partners.coupang.com/g.js";
+    s1.async = true;
+
+    // 2) 위젯 생성 스크립트
+    const s2 = document.createElement("script");
+    s2.innerHTML = `
+      try {
+        new PartnersCoupang.G({
+          id: 903800,
+          template: "carousel",
+          trackingCode: "AF8851731",
+          width: "250",
+          height: "250",
+          tsource: ""
+        });
+      } catch (e) { console && console.warn && console.warn("Coupang widget error", e); }
+    `;
+
+    host.appendChild(s1);
+    host.appendChild(s2);
+  }
+
+  // 정리: 모달 닫히거나 provider 바뀌면 컨테이너 비우기
+  return () => {
+    const box = document.getElementById("coupang-slot");
+    if (box) box.innerHTML = "";
+  };
+}, [open, info]);
+
 
   return (
     <div className="mt-0 rounded-2xl bg-white border p-6 text-center">
@@ -191,10 +212,11 @@ export default function AdRecharge() {
               style={{ minHeight: 260 }}
             >
               {info?.provider === "COUPANG" ? (
-                <div id="coupang-banner" className="w-[250px] h-[250px]" />
-              ) : (
-                <div className="text-gray-500">네이버 제휴 배너</div>
-              )}
+  <div id="coupang-slot" className="w-[250px] h-[250px]" />
+) : (
+  <div className="text-gray-500">네이버 제휴 배너</div>
+)}
+
             </div>
 
             {/* 진행 바 */}
