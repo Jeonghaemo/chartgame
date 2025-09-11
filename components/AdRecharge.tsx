@@ -166,44 +166,40 @@ export default function AdRecharge() {
             </div>
 
             {/* 광고 슬롯 */}
-            <div
-              ref={slotRef}
-              id="ad-slot"
-              className="mt-4 rounded-xl border p-3 flex items-center justify-center"
-              style={{ minHeight: 260 }}
-            >
-              {info?.provider === "COUPANG" ? (
-                // ✅ 쿠팡: 250x250 iframe
-                <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
-                  <iframe
-                    title="Coupang Carousel"
-                    src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
-                    width="250"
-                    height="250"
-                    frameBorder="0"
-                    scrolling="no"
-                    referrerPolicy="unsafe-url"
-                    style={{ display: "block" }}
-                  />
-                </div>
-              ) : info?.provider ? (
-                // ✅ 나머지 9개(네이버 포함): 네이버 링크 iframe
-                <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
-                  <iframe
-                    title={`${info.provider} Ad`}
-                    src="https://naver.me/xLsEEb1q"
-                    width="250"
-                    height="250"
-                    frameBorder="0"
-                    scrolling="auto"
-                    referrerPolicy="unsafe-url"
-                    style={{ display: "block" }}
-                  />
-                </div>
-              ) : (
-                <div className="text-gray-500">제휴 배너</div>
-              )}
-            </div>
+<div
+  ref={slotRef}
+  id="ad-slot"
+  className="mt-4 rounded-xl border p-3 flex items-center justify-center"
+  style={{ minHeight: 120 }}  // 링크만 쓸 거라 높이 살짝 줄임
+>
+  {info?.provider === "COUPANG" ? (
+    // 쿠팡: 250x250 배너 iframe
+    <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
+      <iframe
+        title="Coupang Carousel"
+        src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
+        width="250"
+        height="250"
+        frameBorder="0"
+        scrolling="no"
+        referrerPolicy="unsafe-url"
+        style={{ display: "block" }}
+      />
+    </div>
+  ) : (
+    // 네이버 포함 나머지 9개 전부: 순수 링크 텍스트
+    <a
+      href="https://naver.me/xLsEEb1q"
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => setInteracted(true)}
+      className="text-blue-600 underline break-all"
+    >
+      https://naver.me/xLsEEb1q
+    </a>
+  )}
+</div>
+
 
             {/* 진행 바 */}
             <div className="mt-4">
