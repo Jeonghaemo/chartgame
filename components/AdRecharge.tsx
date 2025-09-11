@@ -141,22 +141,21 @@ export default function AdRecharge() {
 
   const progress = Math.min(100, Math.round((viewableMs / MIN_VIEWABLE_MS) * 100));
 
-  // ✅ 쿠팡 위젯 스크립트 삽입
+  // ✅ 쿠팡 위젯 스크립트 삽입 (컨테이너 내부 고정 + 노이즈 노드 정리 + 잔상 제거)
 useEffect(() => {
   const isCoupang = open && info?.provider === "COUPANG";
-  const host = document.getElementById("coupang-slot");
+  const mount = document.getElementById("coupang-mount"); // 실제 렌더 위치(250x250)
 
-  // 모달 열려있고, 제공사가 쿠팡이며, 컨테이너가 있을 때만 삽입
-  if (isCoupang && host) {
+  if (isCoupang && mount) {
     // 깨끗한 상태로 시작
-    host.innerHTML = "";
+    mount.innerHTML = "";
 
-    // 1) g.js
+    // g.js
     const s1 = document.createElement("script");
     s1.src = "https://ads-partners.coupang.com/g.js";
     s1.async = true;
 
-    // 2) 위젯 생성 스크립트
+    // 위젯 생성 스크립트
     const s2 = document.createElement("script");
     s2.innerHTML = `
       try {
@@ -168,19 +167,45 @@ useEffect(() => {
           height: "250",
           tsource: ""
         });
-      } catch (e) { console && console.warn && console.warn("Coupang widget error", e); }
+      } catch (e) { /* noop */ }
     `;
 
-    host.appendChild(s1);
-    host.appendChild(s2);
+    // 컨테이너 내부에만 삽입
+    mount.appendChild(s1);
+    mount.appendChild(s2);
+
+    // 위젯이 간혹 텍스트 노드/불필요 엘리먼트를 앞뒤에 생성하는 경우가 있어 정리
+    const tidy = () => {
+      // mount 안에서 iframe 외 노드는 제거
+      const iframes = Array.from(mount.querySelectorAll("iframe"));
+      // iframe이 생성되었다면 나머지 자식은 모두 제거
+      if (iframes.length > 0) {
+        Array.from(mount.childNodes).forEach((node) => {
+          if (node.nodeName !== "IFRAME" && node.nodeName !== "SCRIPT") {
+            mount.removeChild(node);
+          }
+        });
+      }
+    };
+
+    // 위젯 로딩 비동기 → 약간의 지연 후 정리 시도
+    const t1 = setTimeout(tidy, 300);
+    const t2 = setTimeout(tidy, 800);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      // 모달 닫히면 컨테이너 비우기(잔상/중복 방지)
+      mount.innerHTML = "";
+    };
   }
 
-  // 정리: 모달 닫히거나 provider 바뀌면 컨테이너 비우기
+  // 기본 정리
   return () => {
-    const box = document.getElementById("coupang-slot");
-    if (box) box.innerHTML = "";
+    if (mount) mount.innerHTML = "";
   };
 }, [open, info]);
+
 
 
   return (
@@ -212,10 +237,18 @@ useEffect(() => {
               style={{ minHeight: 260 }}
             >
               {info?.provider === "COUPANG" ? (
-  <div id="coupang-slot" className="w-[250px] h-[250px]" />
+  <div id="coupang-slot" className="flex items-center justify-center">
+    <div
+      className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white"
+      // 모서리 라운드 + 그림자 + 오버플로우 차단
+    >
+      <div id="coupang-mount" className="w-[250px] h-[250px]" />
+    </div>
+  </div>
 ) : (
   <div className="text-gray-500">네이버 제휴 배너</div>
 )}
+
 
             </div>
 
