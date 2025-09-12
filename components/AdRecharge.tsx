@@ -232,9 +232,9 @@ export default function AdRecharge() {
             onPointerDown={() => setInteracted(true)}
             onTouchStart={() => setInteracted(true)}
           >
-            <div className="text-lg font-bold">무료 충전</div>
+            <div className="text-lg font-bold">하트 무료 충전</div>
             <div className="mt-2 text-sm text-gray-600">
-              이 화면에는 제휴/광고 콘텐츠가 포함될 수 있습니다. 클릭은 자유입니다.
+              제휴/광고 콘텐츠가 포함될 수 있습니다.
             </div>
 
             {/* 광고 슬롯 */}
@@ -300,7 +300,7 @@ export default function AdRecharge() {
                 />
               </div>
               <div className="mt-2 text-xs text-gray-500">
-                노출 {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 충족 시 [충전 확인] 활성화
+                 {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 후 [하트 충전 확인] 활성화
               </div>
             </div>
 
@@ -316,7 +316,7 @@ export default function AdRecharge() {
                 }`}
                 disabled={!confirmEnabled}
               >
-                충전 확인
+                하트 충전 확인
               </button>
             </div>
           </div>
