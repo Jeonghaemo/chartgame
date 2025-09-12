@@ -187,14 +187,14 @@ export default function AdRecharge() {
                   />
                 </div>
               ) : (
-                // ✅ 네이버 및 나머지 8개: 이미지 썸네일 카드
+                // ✅ 네이버 및 나머지 8개: 이미지 썸네일 카드 (컴팩트 텍스트)
                 <a
                   href="https://naver.me/xLsEEb1q"
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setInteracted(true)}
-                   className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white"
->
+                  className="rounded-2xl shadow w-[250px] overflow-hidden bg-white text-left"
+                >
                   {/* 이미지 영역 */}
                   <div className="w-full h-[160px] bg-gray-100">
                     <img
@@ -204,10 +204,14 @@ export default function AdRecharge() {
                       loading="lazy"
                     />
                   </div>
-                  {/* 텍스트 영역 */}
-                  <div className="p-3 text-left">
-                    <div className="font-semibold truncate">네이버 제휴 링크 열기</div>
-                    <div className="text-xs text-gray-500 truncate">https://naver.me/xLsEEb1q</div>
+                  {/* 텍스트 영역 (컴팩트) */}
+                  <div className="px-2 py-1">
+                    <div className="text-sm font-semibold leading-snug truncate">
+                      세로 수직 트리플 대형모니터암 주식모니터
+                    </div>
+                    <div className="text-[10px] text-gray-500 leading-tight truncate">
+                      https://naver.me/xLsEEb1q
+                    </div>
                   </div>
                 </a>
               )}
