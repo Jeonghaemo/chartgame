@@ -33,9 +33,14 @@ export default function AdRecharge() {
   const [slotVisibleMaxPct, setSlotVisibleMaxPct] = useState(0);
   const [confirmEnabled, setConfirmEnabled] = useState(false);
 
+  // 진행바 스무딩용
+  const [progressSmooth, setProgressSmooth] = useState(0);
+  const rafRef = useRef<number>(0);
+
   const slotRef = useRef<HTMLDivElement | null>(null);
   const visibleRef = useRef(false);
   const activeRef = useRef<boolean>(true);
+  const modalOpenRef = useRef<boolean>(false);
 
   const setFromMe = useUserStore((s) => s.setFromMe);
 
@@ -55,13 +60,18 @@ export default function AdRecharge() {
 
   const handleOpen = () => {
     setOpen(true);
+    modalOpenRef.current = true;
     setViewableMs(0);
     setInteracted(false);
     setSlotVisibleMaxPct(0);
     setConfirmEnabled(false);
+    setProgressSmooth(0);
   };
 
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    modalOpenRef.current = false;
+    setOpen(false);
+  };
 
   const handleConfirm = async () => {
     if (!confirmEnabled) return;
@@ -77,9 +87,10 @@ export default function AdRecharge() {
       }),
     });
     if (r.ok) {
-      await load();      // remaining 갱신
+      await load(); // remaining 갱신
       await setFromMe(); // 하트 수 갱신
       setOpen(false);
+      modalOpenRef.current = false;
     }
   };
 
@@ -88,7 +99,7 @@ export default function AdRecharge() {
     ? `하트 무료 충전 (${info.remaining}회 남음)`
     : `오늘 충전 기회 소진(내일 ${DAILY_LIMIT}회)`;
 
-  // 노출 체크
+  // 노출 체크 (가시성 완화 + 보조 판정 + 모바일 제스처 전역 감지)
   useEffect(() => {
     if (!open) return;
 
@@ -102,9 +113,35 @@ export default function AdRecharge() {
     }
 
     const markInteract = () => setInteracted(true);
-    ["scroll", "keydown", "mousemove", "touchstart"].forEach((ev) =>
+    // 모바일에서 확실히 잡히도록 pointerdown 포함
+    ["scroll", "keydown", "mousemove", "touchstart", "pointerdown"].forEach((ev) =>
       window.addEventListener(ev, markInteract, { once: true, passive: true })
     );
+
+    // 보조 가시성 판정 (getBoundingClientRect 교차 비율)
+    const isVisByRect = (el: HTMLElement | null) => {
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      const vw = window.innerWidth || document.documentElement.clientWidth;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const interW = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+      const interH = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+      const interArea = interW * interH;
+      const elArea = Math.max(1, r.width * r.height);
+      const ratio = interArea / elArea; // 0~1
+      return ratio >= 0.25; // 완화(기존 0.5)
+    };
+
+    // iOS 주소창/툴바 변동으로 인한 순간적 false 완화
+    let resizeTimer: number | null = null;
+    const onResize = () => {
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        // resize 직후 한두틱은 가시성 느슨하게
+        visibleRef.current = true;
+      }, 250);
+    };
+    window.addEventListener("resize", onResize, { passive: true });
 
     let io: IntersectionObserver | null = null;
     if (slotRef.current) {
@@ -112,16 +149,20 @@ export default function AdRecharge() {
         (entries) => {
           const e = entries[0];
           const ratio = e?.intersectionRatio ?? 0;
-          visibleRef.current = !!(e?.isIntersecting && ratio >= 0.5);
+          visibleRef.current = !!(e?.isIntersecting && ratio >= 0.25);
           setSlotVisibleMaxPct((p) => Math.max(p, ratio));
         },
-        { threshold: [0.0, 0.25, 0.5, 0.75, 1.0] }
+        { threshold: [0.0, 0.1, 0.25, 0.5, 0.75, 1.0] }
       );
       io.observe(slotRef.current);
     }
 
     const id = setInterval(() => {
-      if (visibleRef.current && activeRef.current) {
+      // 교차출현 false여도 실제 교차율 25% 이상이면 인정
+      const rectVis = isVisByRect(slotRef.current!);
+      const visible = visibleRef.current || rectVis;
+
+      if (visible && activeRef.current && modalOpenRef.current) {
         setViewableMs((ms) => ms + 200);
       }
     }, 200);
@@ -130,19 +171,42 @@ export default function AdRecharge() {
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", onVis);
       }
-      ["scroll", "keydown", "mousemove", "touchstart"].forEach((ev) =>
+      ["scroll", "keydown", "mousemove", "touchstart", "pointerdown"].forEach((ev) =>
         window.removeEventListener(ev, markInteract)
       );
+      window.removeEventListener("resize", onResize);
+      if (resizeTimer) window.clearTimeout(resizeTimer);
       if (io && slotRef.current) io.unobserve(slotRef.current);
       clearInterval(id);
     };
   }, [open]);
 
+    // 모든 제휴사: 노출 시간만으로 활성화
   useEffect(() => {
-    setConfirmEnabled(viewableMs >= MIN_VIEWABLE_MS && interacted);
-  }, [viewableMs, interacted]);
+    setConfirmEnabled(viewableMs >= MIN_VIEWABLE_MS);
+  }, [viewableMs]);
 
-  const progress = Math.min(100, Math.round((viewableMs / MIN_VIEWABLE_MS) * 100));
+  // 진행바 스무딩 (requestAnimationFrame)
+  useEffect(() => {
+    const target = Math.min(100, (viewableMs / MIN_VIEWABLE_MS) * 100);
+    cancelAnimationFrame(rafRef.current);
+
+    const animate = () => {
+      setProgressSmooth((curr) => {
+        const diff = target - curr;
+        // 부드러운 지수형 보간
+        const step = Math.sign(diff) * Math.max(0.5, Math.abs(diff) * 0.15);
+        const next = Math.abs(diff) < 0.5 ? target : curr + step;
+        if (next !== target) rafRef.current = requestAnimationFrame(animate);
+        return next;
+      });
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [viewableMs]);
+
+  const progress = Math.min(100, Math.round(progressSmooth));
 
   return (
     <div className="mt-0 rounded-2xl bg-white border p-6 text-center">
@@ -158,8 +222,16 @@ export default function AdRecharge() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center">
-          <div className="w-[420px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-xl">
+        <div
+          className="fixed inset-0 bg-black/40 z-50 grid place-items-center"
+          onPointerDown={() => setInteracted(true)}
+          onTouchStart={() => setInteracted(true)}
+        >
+          <div
+            className="w-[420px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-xl"
+            onPointerDown={() => setInteracted(true)}
+            onTouchStart={() => setInteracted(true)}
+          >
             <div className="text-lg font-bold">무료 충전</div>
             <div className="mt-2 text-sm text-gray-600">
               이 화면에는 제휴/광고 콘텐츠가 포함될 수 있습니다. 클릭은 자유입니다.
@@ -171,6 +243,8 @@ export default function AdRecharge() {
               id="ad-slot"
               className="mt-4 flex items-center justify-center"
               style={{ minHeight: 180 }}
+              onPointerDown={() => setInteracted(true)}
+              onTouchStart={() => setInteracted(true)}
             >
               {info?.provider === "COUPANG" ? (
                 // ✅ 쿠팡: 250x250 공식 배너 iframe
@@ -207,7 +281,7 @@ export default function AdRecharge() {
                   {/* 텍스트 영역 (컴팩트) */}
                   <div className="px-2 py-1">
                     <div className="text-sm font-semibold leading-snug truncate">
-                      세로 수직 트리플 대형모니터암 주식모니터
+                      세로 수직 트리플 주식모니터 대형모니터암
                     </div>
                     <div className="text-[10px] text-gray-500 leading-tight truncate">
                       https://naver.me/xLsEEb1q
@@ -220,7 +294,10 @@ export default function AdRecharge() {
             {/* 진행 바 */}
             <div className="mt-4">
               <div className="h-2 w-full rounded bg-gray-100 overflow-hidden">
-                <div className="h-2 bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+                <div
+                  className="h-2 bg-emerald-500 transition-[width] duration-300 will-change-[width]"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
               <div className="mt-2 text-xs text-gray-500">
                 노출 {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 충족 시 [충전 확인] 활성화

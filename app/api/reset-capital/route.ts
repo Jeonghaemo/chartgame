@@ -40,7 +40,7 @@ export async function POST() {
     }
 
     // ── 조건: 자본 3,000,000 미만일 때만
-    const eligible = (me.capital ?? 0) < 3_000_000
+    const eligible = (me.capital ?? 0) < 10_000_000
     if (!eligible) {
       return NextResponse.json({
         ok: false,
