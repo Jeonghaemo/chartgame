@@ -19,39 +19,39 @@ export default async function GamePage({
     const session = await auth();
     if (!session) {
      return (
-  <main className="min-h-[80vh] flex items-start justify-center bg-gray-100 px-4 pt-20">
-    <div className="w-full max-w-5xl rounded-2xl bg-blue-600 text-white px-8 py-10 shadow-lg text-center">
-      {/* 🚀 아이콘 */}
-      <div className="text-5xl mb-4">🚀</div>
+  <main className="min-h-[80vh] flex items-start justify-center bg-gray-100 px-4 pt-4">
+  <div className="w-full max-w-5xl rounded-2xl bg-blue-600 text-white px-8 py-6 shadow-lg text-center">
+    {/* 메인 타이틀 (🚀 + 제목 한 줄) */}
+    <div className="flex items-center justify-center gap-3 mb-4">
+      <span className="text-4xl">🚀</span>
+      <h1 className="text-4xl md:text-4xl font-extrabold text-white tracking-tight">
+        주식 차트게임
+      </h1>
+    </div>
 
-      
- {/* 메인 타이틀 */}
-<h1 className="text-4xl md:text-4xl font-extrabold mb-6 text-white tracking-tight">
-  주식 차트게임
-</h1>
+    {/* 본문 문구 */}
+    <p className="text-xl md:text-2xl leading-snug text-blue-50 max-w-3xl mx-auto font-medium space-y-2">
+      <span className="block">
+        <span className="font-extrabold text-white">실제 과거 차트</span>로 즐기는 <strong>실전 감각 모의 투자 게임!</strong>
+      </span>
 
-<p className="text-xl md:text-2xl leading-relaxed text-blue-50 max-w-3xl mx-auto font-medium space-y-3">
-  <span className="block">
-    <span className="font-extrabold text-white">실제 과거 차트</span>로 즐기는 <strong>실전 감각 모의 투자 게임!</strong>
-  </span>
+      <span className="block">
+        <strong className="text-yellow-300">로그인</strong>하면 자산이 이어지고 랭킹 점수
+        <span className="underline decoration-yellow-300 decoration-2"> 실시간 반영!</span>
+      </span>
 
-  <span className="block">
-    <strong className="text-yellow-300">로그인</strong>하면 자산이 이어지고 랭킹 점수 
-    <span className="underline decoration-yellow-300 decoration-2"> 실시간 반영!</span>
-  </span>
+      <span className="block">
+        게임하면서 <span className="text-green-200 font-semibold">주식 차트 공부</span> 하자!
+      </span>
 
-  <span className="block">
-    게임하면서 <span className="text-green-200 font-semibold">주식 차트 공부</span> 하자!
-  </span>
+      <span className="block">
+        나의 계급은 과연 🐣 <span className="font-semibold">주린이</span>? 아니면 👑 <span className="font-semibold">졸업자</span>?
+      </span>
 
-  <span className="block">
-    나의 계급은 과연 🐣 <span className="font-semibold">주린이</span>? 아니면 👑 <span className="font-semibold">졸업자</span>?
-  </span>
-<br />
-  <span className="block mt-5 text-2xl font-bold text-yellow-300 animate-bounce">
-    🚀 지금 바로 시작해 나만의 기록을 세워보세요!
-  </span>
-</p>
+      <span className="block mt-4 text-2xl font-bold text-yellow-300 animate-bounce">
+        지금 바로 시작해 나만의 기록을 세워보세요!
+      </span>
+    </p>
 
 
 
