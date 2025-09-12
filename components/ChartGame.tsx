@@ -491,19 +491,21 @@ return valid.length ? valid : [
 
       if (consumeHeart) {
         // ★ 게스트는 여기 안 들어옴
-        const resp = await fetch('/api/game/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: sym,
-            startIndex: startIndexResp,
-            startCash: capital,
-            feeBps: g.feeBps ?? 5,
-            maxTurns: RESERVED_TURNS,
-            forceNew: true,
-            sliceStartTs: typeof fixedStartTs === 'number' ? fixedStartTs : null,
-          }),
-        })
+       const resp = await fetch('/api/game/start', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    code: sym,
+    startIndex: startIndexResp,
+    startCash: capital,
+    feeBps: g.feeBps ?? 5,
+    maxTurns: RESERVED_TURNS,
+    // forceNew 제거: 기존 미완료 게임이 있으면 "그걸 반환"만 하도록 (서버 정책에 따름)
+    sliceStartTs: typeof fixedStartTs === 'number' ? fixedStartTs : null,
+  }),
+})
+
+
         
         if (!resp.ok) {
   const j = await resp.json().catch(() => ({}))
