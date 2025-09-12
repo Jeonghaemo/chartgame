@@ -17,8 +17,9 @@ export default function SignInPage() {
         {/* Google 버튼 */}
         <button
           onClick={() => {
-  // middleware가 자동으로 open-in-browser로 보냄
-  window.location.href = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/game")}`;
+  const signinUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/game")}`;
+  // 구글은 항상 핸드오프 페이지를 먼저 거침
+  window.location.href = `/open-in-browser?to=${encodeURIComponent(signinUrl)}`;
 }}
 
           className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800

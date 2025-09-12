@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 export default function OpenInBrowserPage({ searchParams }: { searchParams?: Record<string,string|undefined> }) {
   const to = useMemo(() => searchParams?.to || "/", [searchParams?.to]);
 
-  // 최종 이동할 URL (절대 경로로)
+  // 최종 이동할 절대 URL
   const fullUrl = useMemo(() => {
     if (typeof window === "undefined") return to;
     const origin = window.location.origin;
@@ -17,14 +17,14 @@ export default function OpenInBrowserPage({ searchParams }: { searchParams?: Rec
     const isAndroid = ua.includes("android");
     const isIOS = /iphone|ipad|ipod/.test(ua);
 
-    // 인앱 여부 간단 감지 (카톡, 인스타, 페북, 네이버, 기본 WebView 등)
+    // 인앱(WebView) 추정: 대표 패턴들
     const inApp =
-      ua.includes("kakaotalk") || ua.includes("instagram") || ua.includes("fbav") ||
-      ua.includes("fban") || ua.includes("naver(inapp") || ua.includes("naverapp") ||
-      ua.includes("line/") || ua.includes("; wv") || ua.includes(" version/") ||
-      ua.includes("twitter") || ua.includes("snapchat");
+      ua.includes("kakaotalk") || ua.includes("instagram") || ua.includes("fbav") || ua.includes("fban") ||
+      ua.includes("naver(inapp") || ua.includes("naverapp") || ua.includes("line/") ||
+      ua.includes("; wv") || ua.includes(" version/") || ua.includes("twitter") || ua.includes("snapchat");
 
     if (inApp) {
+      // 외부 브라우저 열기 시도
       if (isAndroid) {
         const hostPath = fullUrl.replace(/^https?:\/\//, "");
         window.location.href = `intent://${hostPath}#Intent;scheme=https;package=com.android.chrome;end`;
@@ -32,11 +32,12 @@ export default function OpenInBrowserPage({ searchParams }: { searchParams?: Rec
         const noProto = fullUrl.replace(/^https?:\/\//, "");
         const scheme = fullUrl.startsWith("https://") ? "googlechromes://" : "googlechrome://";
         window.location.href = `${scheme}${noProto}`;
+        // iOS는 실패할 수도 있어 아래 안내 UI가 남아있게 둠
       } else {
         window.open(fullUrl, "_blank", "noopener,noreferrer");
       }
     } else {
-      // 인앱이 아니면 바로 목적지로 이동
+      // 일반 브라우저면 바로 통과
       window.location.replace(fullUrl);
     }
   }, [fullUrl]);
@@ -51,12 +52,12 @@ export default function OpenInBrowserPage({ searchParams }: { searchParams?: Rec
           앱 내부에서는 Google 로그인이 제한될 수 있어요. 브라우저에서 다시 열어 진행해 주세요.
         </p>
         <div className="mt-4 flex justify-center gap-2">
-          <button
-            onClick={() => (window.location.href = fullUrl)}
+          <a
+            href={fullUrl}
             className="rounded-md px-4 py-2 bg-black text-white"
           >
             계속하기
-          </button>
+          </a>
           <button
             onClick={async () => {
               try {
