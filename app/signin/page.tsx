@@ -16,7 +16,11 @@ export default function SignInPage() {
 
         {/* Google 버튼 */}
         <button
-          onClick={() => signIn("google", { callbackUrl: "/game" })}
+          onClick={() => {
+  // middleware가 자동으로 open-in-browser로 보냄
+  window.location.href = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/game")}`;
+}}
+
           className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800
                      hover:bg-gray-50 transition-colors text-sm"
         >
