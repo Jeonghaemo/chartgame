@@ -189,39 +189,27 @@ export default function AdRecharge() {
   ) : (
     // ✅ 네이버 및 나머지 8개: 카드 스타일 링크
     <a
-  href="https://naver.me/xLsEEb1q"
-  target="_blank"
-  rel="noopener noreferrer"
-  onClick={() => setInteracted(true)}
-  className="w-full max-w-[360px] rounded-2xl border shadow hover:shadow-md transition bg-white overflow-hidden"
->
-  {/* 썸네일 영역 */}
-  <div className="w-full h-[160px] bg-gray-100">
-    <img
-      src={"https://s.wordpress.com/mshots/v1/" + encodeURIComponent("https://naver.me/xLsEEb1q") + "?w=720"}
-      alt="네이버 링크 미리보기"
-      className="w-full h-full object-cover"
-      loading="lazy"
-      onError={(e) => {
-        // 1차 실패 → thum.io로 폴백
-        const img = e.currentTarget as HTMLImageElement;
-        const thum = "https://image.thum.io/get/width/720/https://naver.me/xLsEEb1q";
-        if (img.src !== thum) {
-          img.src = thum;
-        } else {
-          // 2차 실패 → 파비콘으로 최종 폴백
-          img.src = "https://www.google.com/s2/favicons?domain=naver.me&sz=128";
-        }
-      }}
-    />
-  </div>
-
-  {/* 텍스트 영역 */}
-  <div className="p-3">
-    <div className="font-semibold truncate">네이버 제휴 링크 열기</div>
-    <div className="text-xs text-gray-500 truncate">https://naver.me/xLsEEb1q</div>
-  </div>
-</a>
+      href="https://naver.me/xLsEEb1q"
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => setInteracted(true)}
+      className="w-full max-w-[320px] rounded-2xl border shadow hover:shadow-md transition bg-white overflow-hidden text-left"
+    >
+      <div className="flex items-center gap-3 p-3">
+        <img
+          src="https://www.google.com/s2/favicons?domain=naver.me&sz=64"
+          alt="naver.me"
+          width={40}
+          height={40}
+          className="rounded"
+          loading="lazy"
+        />
+        <div className="min-w-0">
+          <div className="font-semibold truncate">네이버 제휴 링크 열기</div>
+          <div className="text-xs text-gray-500 truncate">https://naver.me/xLsEEb1q</div>
+        </div>
+      </div>
+    </a>
   )}
 </div>
 
