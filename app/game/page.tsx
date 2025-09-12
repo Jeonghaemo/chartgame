@@ -24,17 +24,36 @@ export default async function GamePage({
       {/* 🚀 아이콘 */}
       <div className="text-5xl mb-4">🚀</div>
 
-      {/* 메인 타이틀 */}
-      <h1 className="text-3xl md:text-4xl font-bold mb-4">
-        주식 차트게임
-      </h1>
+      
+ {/* 메인 타이틀 */}
+<h1 className="text-4xl md:text-4xl font-extrabold mb-6 text-white tracking-tight">
+  주식 차트게임
+</h1>
 
-      {/* 서브 텍스트 */}
-      <p className="text-lg text-blue-100 mb-4">
-        실제 과거 차트로 펼쳐지는 모의 투자 게임! <br />
-        최고의 투자자는 누구일까? <br />
-        나의 계급은 과연 🐣 주린이? 아니면 👑 졸업자?
-      </p>
+<p className="text-xl md:text-2xl leading-relaxed text-blue-50 max-w-3xl mx-auto font-medium space-y-3">
+  <span className="block">
+    <span className="font-extrabold text-white">실제 과거 차트</span>로 즐기는 <strong>실전 감각 모의 투자 게임!</strong>
+  </span>
+
+  <span className="block">
+    <strong className="text-yellow-300">로그인</strong>하면 자산이 이어지고 랭킹 점수 
+    <span className="underline decoration-yellow-300 decoration-2"> 실시간 반영!</span>
+  </span>
+
+  <span className="block">
+    게임하면서 <span className="text-green-200 font-semibold">주식 차트 공부</span> 하자!
+  </span>
+
+  <span className="block">
+    나의 계급은 과연 🐣 <span className="font-semibold">주린이</span>? 아니면 👑 <span className="font-semibold">졸업자</span>?
+  </span>
+<br />
+  <span className="block mt-5 text-2xl font-bold text-yellow-300 animate-bounce">
+    🚀 지금 바로 시작해 나만의 기록을 세워보세요!
+  </span>
+</p>
+
+
 
       {/* 버튼 영역 */}
       <div className="flex flex-col items-center gap-4 mt-6">
