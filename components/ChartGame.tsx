@@ -206,7 +206,7 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
   const [startCapital, setStartCapital] = useState<number>(0)
   const [orderType, setOrderType] = useState<null | 'buy' | 'sell'>(null)
   const [isGameEnd, setIsGameEnd] = useState(false)
-  const [canPlay, setCanPlay] = useState(true)
+  const [canStart, setCanStart] = useState(true)
   const [myRank, setMyRank] = useState<MyRank | null>(null)
 
   const [result, setResult] = useState<null | {
@@ -428,7 +428,7 @@ return valid.length ? valid : [
             if (typeof me?.user?.hearts === 'number') {
               currentHearts = me.user.hearts
               setHearts(me.user.hearts)
-              setCanPlay(me.user.hearts > 0)
+              setCanStart(me.user.hearts > 0)
             }
           }
         } catch {}
@@ -436,8 +436,8 @@ return valid.length ? valid : [
       setStartCapital(capital)
       // 게스트일 땐 절대 “하트부족” 알림/리다이렉트 X
       if (!guestMode && (!currentHearts || currentHearts <= 0)) {
-        setCanPlay(false)
-        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
+        setCanStart(true)
+        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 버튼을 이용하세요!')
         router.push('/')
         return
       }
@@ -508,8 +508,8 @@ return valid.length ? valid : [
         if (!resp.ok) {
   const j = await resp.json().catch(() => ({}))
   if (!guestMode && j?.error === 'NO_HEART') {
-    setCanPlay(false)
-    alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 🎁 광고 보고 지금 바로 무료 충전하세요!')
+    setCanStart(false)
+    alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 버튼을 이용하세요!')
     router.push('/')
     return
   }
@@ -551,11 +551,11 @@ return valid.length ? valid : [
           }
         )
 
-        setGameId(newGameId)
         if (typeof data?.hearts === 'number') {
-          setHearts(data.hearts)
-          setCanPlay(data.hearts > 0)
-        }
+  setHearts(data.hearts)
+  setCanStart(data.hearts > 0)
+}
+
         useGame.setState({ chartChangesLeft: 3 })
 
         g.init({
@@ -665,7 +665,7 @@ return valid.length ? valid : [
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (!canPlay || g.status !== 'playing') return
+      if (g.status !== 'playing') return
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target as HTMLElement)?.isContentEditable) return
       if ((e as any).repeat) return
@@ -686,7 +686,7 @@ return valid.length ? valid : [
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [g, canPlay, saveProgress, resetGame, canChangeChart])
+  }, [g, saveProgress, resetGame, canChangeChart])
 
   // ---------- 부팅: 서버 → 로컬 → 새 게임 ----------
   useEffect(() => {
@@ -698,7 +698,7 @@ return valid.length ? valid : [
     // 1) 로컬 플래그가 게스트면 즉시 게스트 부팅
     if (guestMode) {
       try {
-        setCanPlay(true)
+        setCanStart(true)
         setStartCapital(10_000_000)
         let uni = universeRef.current
         if (!uni || uni.length === 0) {
@@ -718,7 +718,7 @@ return valid.length ? valid : [
       const meRes = await fetch('/api/me', { cache: 'no-store' })
       if (!meRes.ok) {
         setGuestMode(true)
-        setCanPlay(true)
+        setCanStart(true)
         setStartCapital(10_000_000)
         let uni = universeRef.current
         if (!uni || uni.length === 0) {
@@ -733,11 +733,11 @@ return valid.length ? valid : [
       const me = await meRes.json()
       const currentHearts = me?.user?.hearts ?? 0
       setHearts(currentHearts)
-      setCanPlay(currentHearts > 0)
+      setCanStart(currentHearts > 0)
       setStartCapital(me?.user?.capital ?? 10_000_000)
     } catch {
       setGuestMode(true)
-      setCanPlay(true)
+      setCanStart(true)
       setStartCapital(10_000_000)
       let uni = universeRef.current
       if (!uni || uni.length === 0) {
@@ -1105,7 +1105,7 @@ return valid.length ? valid : [
   }, [ohlc, safeCursor, g.history])
 
   const handleOrderSubmit = async (qty: number) => {
-    if (!canPlay || g.status !== 'playing') return
+    if (g.status !== 'playing') return
     const currentOhlc = ohlc[safeCursor]
     const tradeTime =
       typeof currentOhlc.time === 'number'
@@ -1192,14 +1192,14 @@ return valid.length ? valid : [
                 <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
                   <button
                     onClick={() => setOrderType('buy')}
-                    disabled={g.status !== 'playing' || !canPlay}
+                    disabled={g.status !== 'playing'}
                     className="rounded-xl bg-red-600 text-white py-3 font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     매수
                   </button>
                   <button
                     onClick={() => setOrderType('sell')}
-                    disabled={g.status !== 'playing' || !canPlay}
+                    disabled={g.status !== 'playing'}
                     className="rounded-xl bg-blue-600 text-white py-3 font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     매도
@@ -1212,7 +1212,7 @@ return valid.length ? valid : [
                       await saveProgress();
                       setTimeout(() => { nextLockRef.current = false }, NEXT_LOCK_MS);
                     }}
-                    disabled={g.status !== 'playing' || !canPlay}
+                    disabled={g.status !== 'playing'}
                     aria-label="다음"
                     className="rounded-full w-14 h-14 bg-gray-900 text-white font-semibold place-self-end disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -1350,14 +1350,14 @@ return valid.length ? valid : [
                 <div className="mt-4 grid grid-cols-3 gap-3">
                   <button
                     onClick={() => setOrderType('buy')}
-                    disabled={g.status !== 'playing' || !canPlay}
+                    disabled={g.status !== 'playing'}
                     className="col-span-1 rounded-xl bg-red-600 text-white py-3 font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     매수 (A)
                   </button>
                   <button
                     onClick={() => setOrderType('sell')}
-                    disabled={g.status !== 'playing' || !canPlay}
+                    disabled={g.status !== 'playing'}
                     className="col-span-1 rounded-xl bg-blue-600 text-white py-3 font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     매도 (S)
@@ -1370,7 +1370,7 @@ return valid.length ? valid : [
                       await saveProgress()
                       setTimeout(() => { nextLockRef.current = false }, NEXT_LOCK_MS)
                     }}
-                    disabled={g.status !== 'playing' || !canPlay}
+                    disabled={g.status !== 'playing'}
                     className="col-span-1 rounded-xl bg-gray-900 text-white py-3 font-semibold hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     다음 (D)
