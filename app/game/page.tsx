@@ -23,8 +23,8 @@ export default async function GamePage({
   <div className="w-full max-w-5xl rounded-2xl bg-blue-600 text-white px-8 py-6 shadow-lg text-center">
     {/* 메인 타이틀 (🚀 + 제목 한 줄) */}
     <div className="flex items-center justify-center gap-3 mb-4">
-      <span className="text-4xl">🚀</span>
-      <h1 className="text-4xl md:text-4xl font-extrabold text-white tracking-tight">
+      <span className="text-3xl">🚀</span>
+      <h1 className="text-3xl md:text-3xl font-extrabold text-white tracking-tight">
         주식 차트게임
       </h1>
     </div>
@@ -41,7 +41,7 @@ export default async function GamePage({
       </span>
 
       <span className="block">
-        게임하면서 <span className="text-green-200 font-semibold">주식 차트 공부</span> 하자!
+        게임하면서 <span className="text-green-200 font-semibold">주식 차트 공부</span> 까지!
       </span>
 
       <span className="block">

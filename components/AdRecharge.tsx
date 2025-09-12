@@ -165,57 +165,53 @@ export default function AdRecharge() {
               이 화면에는 제휴/광고 콘텐츠가 포함될 수 있습니다. 클릭은 자유입니다.
             </div>
 
-{/* 광고 슬롯 */}
-<div
-  ref={slotRef}
-  id="ad-slot"
-  className="mt-4 rounded-xl border p-3 flex items-center justify-center"
-  style={{ minHeight: 160 }}
+            {/* 광고 슬롯 */}
+            <div
+              ref={slotRef}
+              id="ad-slot"
+              className="mt-4 flex items-center justify-center"
+              style={{ minHeight: 180 }}
+            >
+              {info?.provider === "COUPANG" ? (
+                // ✅ 쿠팡: 250x250 공식 배너 iframe
+                <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
+                  <iframe
+                    title="Coupang Carousel"
+                    src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
+                    width="250"
+                    height="250"
+                    frameBorder="0"
+                    scrolling="no"
+                    referrerPolicy="unsafe-url"
+                    style={{ display: "block" }}
+                  />
+                </div>
+              ) : (
+                // ✅ 네이버 및 나머지 8개: 이미지 썸네일 카드
+                <a
+                  href="https://naver.me/xLsEEb1q"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setInteracted(true)}
+                   className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white"
 >
-  {info?.provider === "COUPANG" ? (
-    // ✅ 쿠팡: 250x250 공식 배너 iframe
-    <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
-      <iframe
-        title="Coupang Carousel"
-        src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
-        width="250"
-        height="250"
-        frameBorder="0"
-        scrolling="no"
-        referrerPolicy="unsafe-url"
-        style={{ display: "block" }}
-      />
-    </div>
-  ) : (
-    // ✅ 네이버 및 나머지 8개: 카드 스타일 링크
-    <a
-      href="https://naver.me/xLsEEb1q"
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => setInteracted(true)}
-      className="w-full max-w-[320px] rounded-2xl border shadow hover:shadow-md transition bg-white overflow-hidden text-left"
-    >
-      <div className="flex items-center gap-3 p-3">
-        <img
-          src="https://www.google.com/s2/favicons?domain=naver.me&sz=64"
-          alt="naver.me"
-          width={40}
-          height={40}
-          className="rounded"
-          loading="lazy"
-        />
-        <div className="min-w-0">
-          <div className="font-semibold truncate">네이버 제휴 링크 열기</div>
-          <div className="text-xs text-gray-500 truncate">https://naver.me/xLsEEb1q</div>
-        </div>
-      </div>
-    </a>
-  )}
-</div>
-
-
-
-
+                  {/* 이미지 영역 */}
+                  <div className="w-full h-[160px] bg-gray-100">
+                    <img
+                      src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
+                      alt="네이버 제휴 광고 이미지"
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  {/* 텍스트 영역 */}
+                  <div className="p-3 text-left">
+                    <div className="font-semibold truncate">네이버 제휴 링크 열기</div>
+                    <div className="text-xs text-gray-500 truncate">https://naver.me/xLsEEb1q</div>
+                  </div>
+                </a>
+              )}
+            </div>
 
             {/* 진행 바 */}
             <div className="mt-4">
