@@ -414,22 +414,6 @@ return valid.length ? valid : [
     // 게스트면 무조건 하트 비소모
     const consumeHeart = guestMode ? false : (opts?.consumeHeart !== false)
 
-    // ✅ 새 게임을 하트 없이 시작하려는 시도 차단 (게스트가 아니고, 활성 게임도 없을 때)
-    if (!consumeHeart) {
-      const hasActive =
-        !!gameId || g.status === 'playing' || !!(readLocal()?.meta?.id)
-      const isExplicitGuest = (() => { try { return localStorage.getItem('guestMode') === '1' } catch { return false } })()
-
-      if (!isExplicitGuest && !hasActive) {
-        // 하트 0개인데 무료로 새 게임이 열리는 걸 방지
-        setCanStart(false)
-        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 버튼을 이용하세요!')
-        router.push('/')
-        return
-      }
-    }
-
-
     let capital = 10_000_000
     let currentHearts: number | undefined = hearts
 
@@ -487,16 +471,15 @@ return valid.length ? valid : [
         console.error('History invalid (new/change):', response)
         alert('차트 데이터를 불러오지 못했어요. 다른 종목으로 다시 시도합니다.')
 
-let uni = universeRef.current
-if (!uni || uni.length === 0) {
-  uni = await loadUniverseWithNames()
-  universeRef.current = uni
-}
-const fallback = pickRandom<SymbolItem>(uni)
-// ✅ 기존의 소모 여부를 그대로 유지해서 재시도 (무료 시작 우회 금지)
-await loadAndInitBySymbol(fallback.symbol, { consumeHeart })
-return
-
+        // 안전하게 다른 심볼로 재시도 (하트 소모 없이)
+        let uni = universeRef.current
+        if (!uni || uni.length === 0) {
+          uni = await loadUniverseWithNames()
+          universeRef.current = uni
+        }
+        const fallback = pickRandom<SymbolItem>(uni)
+        await loadAndInitBySymbol(fallback.symbol, { consumeHeart: false })
+        return
       }
 
       const fixedStartTs: number | null =
