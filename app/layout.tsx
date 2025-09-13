@@ -11,6 +11,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="ko">
+      <head>
+        <meta name="agd-partner-manual-verification" />
+      </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
         {/* 헤더 높이도 살짝 키움 */}
         <header className="h-20 border-b bg-white flex items-center">
