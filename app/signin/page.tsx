@@ -1,27 +1,20 @@
 "use client";
 
-import { useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { isInAppBrowser } from "@/lib/utils/inApp";
-
-const EXISTING_LOGIN_PATH = "/login"; // ← 여기를 네 "기존 로그인 화면" 경로로 바꿔줘
+import { isInAppBrowser, openExternally } from "@/lib/utils/inApp";
 
 export default function SignInPage() {
-  const router = useRouter();
-  const inApp = useMemo(() => isInAppBrowser(), []);
+  const inApp = isInAppBrowser();
 
   const handleGoogle = () => {
     if (inApp) {
-      // 인앱이면 구글 시도하지 않고 "기존 로그인 화면"으로만 이동
-      router.push(`${EXISTING_LOGIN_PATH}?from=google_inapp`);
+      // 인앱이면 외부 브라우저로 이 절대 주소를 띄움 (너가 준 주소 그대로)
+      openExternally("https://www.chartgame.co.kr/signin");
       return;
     }
-    // 일반 브라우저는 구글 OAuth 진행
+    // 일반 브라우저에서는 기존처럼 진행
     signIn("google", { callbackUrl: "/game" });
   };
-
-  const handleNaver = () => signIn("naver", { callbackUrl: "/game" });
 
   return (
     <main className="min-h-screen flex justify-center items-start bg-gray-100 pt-16">
@@ -32,7 +25,7 @@ export default function SignInPage() {
           <p className="text-xs text-gray-500 mt-0.5 leading-tight">회원가입 없이 시작하세요.</p>
         </div>
 
-        {/* Google 버튼 (인앱이면 기존 로그인 화면으로 라우팅) */}
+        {/* Google 버튼 (인앱이면 외부 브라우저로 /signin 띄움) */}
         <button
           onClick={handleGoogle}
           className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors text-sm"
@@ -51,9 +44,9 @@ export default function SignInPage() {
 
         <div className="h-2" />
 
-        {/* Naver 버튼 (인앱에서도 OK) */}
+        {/* Naver 버튼(그대로) */}
         <button
-          onClick={handleNaver}
+          onClick={() => signIn("naver", { callbackUrl: "/game" })}
           className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors text-sm"
         >
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#03C75A] font-extrabold tracking-wider text-sm">
