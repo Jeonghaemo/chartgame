@@ -25,6 +25,10 @@ const MIN_TOTAL_CANDLES = MIN_VISIBLE + RESERVED_TURNS // 425
 const CONCURRENCY = 8
 const NEXT_LOCK_MS = 30;
 
+// 종목명 공개 정책
+const HIDE_SYMBOL_DURING_PLAY = true;       // 플레이 중에는 종목명 숨김
+const REVEAL_SYMBOL_AFTER_FINISH = true;    // 결과 모달에서는 종목명 공개
+
 // ---------- OHLC 캐시(심볼+startIndex 기준) ----------
 const LS_OHLC_KEY = 'chartgame_ohlc_cache_v1'
 type OhlcCache = Record<string, OHLC[]>
@@ -1065,13 +1069,14 @@ return valid.length ? valid : [
     clearLocal()
 
     const symLabel = await resolveLabel(String((g as any).symbol))
+    const finalSymbolLabel = REVEAL_SYMBOL_AFTER_FINISH ? symLabel : '비공개';
 
     setResult({
       startCapital,
       endCapital,
       profit: endCapital - startCapital,
       profitRate: finalReturnPct,
-      symbol: symLabel,
+      symbol: finalSymbolLabel,
       tax: taxAndFees,
       tradeCount: g.history.length,
       turnCount: g.turn + 1,
@@ -1250,8 +1255,11 @@ return valid.length ? valid : [
             <div className="min-w-0">
               <Card className="p-3 h-full">
                 <div className="mb-2 text-sm text-gray-500">
-                  종목: <span className="font-semibold">{symbolLabel || '로딩 중...'}</span>
-                </div>
+  종목: <span className="font-semibold">
+    {HIDE_SYMBOL_DURING_PLAY ? '비공개' : (symbolLabel || '로딩 중...')}
+  </span>
+</div>
+
                 
                 {(() => {
                   const end = Math.min(ohlc.length, Math.max(0, safeCursor + 1))
