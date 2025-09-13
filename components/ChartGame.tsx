@@ -441,7 +441,7 @@ return valid.length ? valid : [
       // 게스트일 땐 절대 “하트부족” 알림/리다이렉트 X
       if (!guestMode && (!currentHearts || currentHearts <= 0)) {
         setCanStart(true)
-        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 버튼을 이용하세요!')
+        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
         router.push('/')
         return
       }
@@ -515,7 +515,7 @@ return valid.length ? valid : [
   const j = await resp.json().catch(() => ({}))
   if (!guestMode && j?.error === 'NO_HEART') {
     setCanStart(false)
-    alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 버튼을 이용하세요!')
+    alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
     router.push('/')
     return
   }
