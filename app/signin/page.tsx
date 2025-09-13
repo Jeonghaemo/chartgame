@@ -1,24 +1,27 @@
-// app/signin/page.tsx
 "use client";
 
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { isInAppBrowser, openExternally } from "@/lib/utils/inApp";
+import { isInAppBrowser } from "@/lib/utils/inApp";
+
+const EXISTING_LOGIN_PATH = "/login"; // ← 여기를 네 "기존 로그인 화면" 경로로 바꿔줘
 
 export default function SignInPage() {
-  // "use client" 컴포넌트라 클라이언트에서만 렌더 → 바로 감지해도 OK
-  const inApp = isInAppBrowser();
+  const router = useRouter();
+  const inApp = useMemo(() => isInAppBrowser(), []);
 
   const handleGoogle = () => {
-    const target = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/game")}`;
     if (inApp) {
-      // 인앱(WebView) → 외부 브라우저(크롬/사파리)로 같은 URL 열기
-      const abs = typeof window !== "undefined" ? `${window.location.origin}${target}` : target;
-      openExternally(abs);
+      // 인앱이면 구글 시도하지 않고 "기존 로그인 화면"으로만 이동
+      router.push(`${EXISTING_LOGIN_PATH}?from=google_inapp`);
       return;
     }
-    // 일반 브라우저 → NextAuth로 바로 진행
+    // 일반 브라우저는 구글 OAuth 진행
     signIn("google", { callbackUrl: "/game" });
   };
+
+  const handleNaver = () => signIn("naver", { callbackUrl: "/game" });
 
   return (
     <main className="min-h-screen flex justify-center items-start bg-gray-100 pt-16">
@@ -29,15 +32,14 @@ export default function SignInPage() {
           <p className="text-xs text-gray-500 mt-0.5 leading-tight">회원가입 없이 시작하세요.</p>
         </div>
 
-        {/* Google 버튼 */}
+        {/* Google 버튼 (인앱이면 기존 로그인 화면으로 라우팅) */}
         <button
           onClick={handleGoogle}
           className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors text-sm"
         >
-          {/* 아이콘: 왼쪽 고정 */}
-          <span className="absolute left-3 top-1/2 -translate-y-1/2">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2" aria-hidden>
             {/* Google G 아이콘 */}
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="18" height="18" aria-hidden>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="18" height="18">
               <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.1 29.5 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.8 5 29.7 3 24 3 12.9 3 4 11.9 4 23s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.2-.4-3.5z"/>
               <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.7 19 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34.8 5 29.7 3 24 3 16 3 9 7.5 6.3 14.7z"/>
               <path fill="#4CAF50" d="M24 43c5.4 0 10.4-2.1 14.1-5.9l-6.5-5.3C29.5 35 26.9 36 24 36c-5.4 0-9.9-3.5-11.6-8.3l-6.6 5.1C8.5 38.8 15.7 43 24 43z"/>
@@ -51,7 +53,7 @@ export default function SignInPage() {
 
         {/* Naver 버튼 (인앱에서도 OK) */}
         <button
-          onClick={() => signIn("naver", { callbackUrl: "/game" })}
+          onClick={handleNaver}
           className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors text-sm"
         >
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#03C75A] font-extrabold tracking-wider text-sm">
@@ -60,14 +62,7 @@ export default function SignInPage() {
           <span className="block font-medium text-center">네이버 로그인</span>
         </button>
 
-        {/* 인앱 안내 (선택) */}
-        {inApp && (
-          <p className="mt-2 text-[11px] text-amber-700">
-            앱 내 브라우저에서는 Google 로그인이 제한될 수 있어요. 버튼을 누르면 브라우저로 이동합니다.
-          </p>
-        )}
-
-        {/* 게스트 체험 링크 */}
+        {/* 게스트 체험 */}
         <div className="mt-4 text-center">
           <a
             href="/game?guest=1"
