@@ -24,6 +24,26 @@ type NextInfo = {
 
 const MIN_VIEWABLE_MS = 10_000; // 10초 노출 조건
 
+// --- 외부 제휴 링크/코드 (요청 주신 값들) ---
+const NAVER_CONNECT_URL = "https://naver.me/xLsEEb1q";
+
+const TRIPDOTCOM_IFRAME_SRC =
+  "https://kr.trip.com/partners/ad/S5341905?Allianceid=6019189&SID=258928293&trip_sub1=";
+
+const AMAZON_GOLDBOX_URL =
+  "https://www.amazon.com/gp/goldbox?&linkCode=ll2&tag=chartgame-20&linkId=2e86e5213961c5061465be177ca532e4&language=en_US&ref_=as_li_ss_tl";
+
+// 클룩 위젯 파라미터
+const KLOOK_WIDGET = {
+  wid: "99172",
+  height: "340px",
+  adid: "1123728",
+  lang: "ko",
+  prod: "search_vertical",
+  currency: "KRW",
+  scriptSrc: "https://affiliate.klook.com/widget/fetch-iframe-init.js",
+};
+
 export default function AdRecharge() {
   const [info, setInfo] = useState<NextInfo | null>(null);
   const [open, setOpen] = useState(false);
@@ -113,7 +133,6 @@ export default function AdRecharge() {
     }
 
     const markInteract = () => setInteracted(true);
-    // 모바일에서 확실히 잡히도록 pointerdown 포함
     ["scroll", "keydown", "mousemove", "touchstart", "pointerdown"].forEach((ev) =>
       window.addEventListener(ev, markInteract, { once: true, passive: true })
     );
@@ -129,7 +148,7 @@ export default function AdRecharge() {
       const interArea = interW * interH;
       const elArea = Math.max(1, r.width * r.height);
       const ratio = interArea / elArea; // 0~1
-      return ratio >= 0.25; // 완화(기존 0.5)
+      return ratio >= 0.25; // 완화
     };
 
     // iOS 주소창/툴바 변동으로 인한 순간적 false 완화
@@ -137,7 +156,6 @@ export default function AdRecharge() {
     const onResize = () => {
       if (resizeTimer) window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
-        // resize 직후 한두틱은 가시성 느슨하게
         visibleRef.current = true;
       }, 250);
     };
@@ -158,7 +176,6 @@ export default function AdRecharge() {
     }
 
     const id = setInterval(() => {
-      // 교차출현 false여도 실제 교차율 25% 이상이면 인정
       const rectVis = isVisByRect(slotRef.current!);
       const visible = visibleRef.current || rectVis;
 
@@ -181,7 +198,22 @@ export default function AdRecharge() {
     };
   }, [open]);
 
-    // 모든 제휴사: 노출 시간만으로 활성화
+  // 클룩 위젯 스크립트 로더 (필요 시 1회 삽입)
+  useEffect(() => {
+    if (!open) return;
+    if (info?.provider !== "KLOOK") return;
+
+    const SCRIPT_ID = "klook-widget-loader";
+    if (!document.getElementById(SCRIPT_ID)) {
+      const s = document.createElement("script");
+      s.id = SCRIPT_ID;
+      s.async = true;
+      s.src = KLOOK_WIDGET.scriptSrc;
+      document.body.appendChild(s);
+    }
+  }, [open, info?.provider]);
+
+  // 모든 제휴사: 노출 시간만으로 활성화
   useEffect(() => {
     setConfirmEnabled(viewableMs >= MIN_VIEWABLE_MS);
   }, [viewableMs]);
@@ -194,7 +226,6 @@ export default function AdRecharge() {
     const animate = () => {
       setProgressSmooth((curr) => {
         const diff = target - curr;
-        // 부드러운 지수형 보간
         const step = Math.sign(diff) * Math.max(0.5, Math.abs(diff) * 0.15);
         const next = Math.abs(diff) < 0.5 ? target : curr + step;
         if (next !== target) rafRef.current = requestAnimationFrame(animate);
@@ -233,9 +264,7 @@ export default function AdRecharge() {
             onTouchStart={() => setInteracted(true)}
           >
             <div className="text-lg font-bold">하트 무료 충전</div>
-            <div className="mt-2 text-sm text-gray-600">
-              제휴/광고 콘텐츠가 포함될 수 있습니다.
-            </div>
+            <div className="mt-2 text-sm text-gray-600">제휴/광고 콘텐츠가 포함될 수 있습니다.</div>
 
             {/* 광고 슬롯 */}
             <div
@@ -246,8 +275,8 @@ export default function AdRecharge() {
               onPointerDown={() => setInteracted(true)}
               onTouchStart={() => setInteracted(true)}
             >
-              {info?.provider === "COUPANG" ? (
-                // ✅ 쿠팡: 250x250 공식 배너 iframe
+              {info?.provider === "COUPANG" && (
+                // 1) 쿠팡: 250x250 공식 배너 iframe
                 <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
                   <iframe
                     title="Coupang Carousel"
@@ -260,16 +289,17 @@ export default function AdRecharge() {
                     style={{ display: "block" }}
                   />
                 </div>
-              ) : (
-                // ✅ 네이버 및 나머지 8개: 이미지 썸네일 카드 (컴팩트 텍스트)
+              )}
+
+              {info?.provider === "NAVER" && (
+                // 2) 네이버 커넥트: 카드 스타일 링크
                 <a
-                  href="https://naver.me/xLsEEb1q"
+                  href={NAVER_CONNECT_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setInteracted(true)}
                   className="rounded-2xl shadow w-[250px] overflow-hidden bg-white text-left"
                 >
-                  {/* 이미지 영역 */}
                   <div className="w-full h-[160px] bg-gray-100">
                     <img
                       src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
@@ -278,14 +308,80 @@ export default function AdRecharge() {
                       loading="lazy"
                     />
                   </div>
-                  {/* 텍스트 영역 (컴팩트) */}
                   <div className="px-2 py-1">
                     <div className="text-sm font-semibold leading-snug truncate">
                       세로 수직 트리플 주식모니터 대형모니터암
                     </div>
-                    <div className="text-[10px] text-gray-500 leading-tight truncate">
-                      https://naver.me/xLsEEb1q
-                    </div>
+                    <div className="text-[10px] text-gray-500 leading-tight truncate">{NAVER_CONNECT_URL}</div>
+                  </div>
+                </a>
+              )}
+
+              {info?.provider === "TRIPDOTCOM" && (
+                // 3) 트립닷컴: 제공된 iframe (border prop 제거, frameBorder 문자열)
+                <div className="rounded-2xl overflow-hidden shadow" style={{ width: 320, height: 320 }}>
+                  <iframe
+                    title="Trip.com Affiliate"
+                    src={TRIPDOTCOM_IFRAME_SRC}
+                    style={{ width: "320px", height: "320px", border: "none", display: "block" }}
+                    frameBorder="0"
+                    scrolling="no"
+                    id="S5341905"
+                  />
+                </div>
+              )}
+
+              {info?.provider === "KLOOK" && (
+                // 4) 클룩: 위젯 ins + 로더 스크립트
+                <div className="rounded-2xl overflow-hidden shadow" style={{ width: 320 }}>
+                  <ins
+                    className="klk-aff-widget"
+                    data-wid={KLOOK_WIDGET.wid}
+                    data-height={KLOOK_WIDGET.height}
+                    data-adid={KLOOK_WIDGET.adid}
+                    data-lang={KLOOK_WIDGET.lang}
+                    data-prod={KLOOK_WIDGET.prod}
+                    data-currency={KLOOK_WIDGET.currency}
+                  >
+                    <a href="//www.klook.com/?aid=">Klook.com</a>
+                  </ins>
+                </div>
+              )}
+
+              {info?.provider === "AMAZON" && (
+                // 5) 아마존: 이미지 없이 버튼형 링크
+                <a
+                  href={AMAZON_GOLDBOX_URL}
+                  target="_blank"
+                  rel="nofollow sponsored noopener noreferrer"
+                  onClick={() => setInteracted(true)}
+                  className="inline-flex items-center justify-center rounded-xl border px-4 py-3 font-semibold hover:bg-gray-50"
+                  aria-label="Amazon 오늘의 특가 보기"
+                >
+                  🔥 Amazon 오늘의 특가 보기
+                </a>
+              )}
+
+              {/* 안전망: provider가 비어있으면 네이버 카드 노출 */}
+              {!info?.provider && (
+                <a
+                  href={NAVER_CONNECT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setInteracted(true)}
+                  className="rounded-2xl shadow w-[250px] overflow-hidden bg-white text-left"
+                >
+                  <div className="w-full h-[160px] bg-gray-100">
+                    <img
+                      src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
+                      alt="네이버 제휴 광고 이미지"
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="px-2 py-1">
+                    <div className="text-sm font-semibold leading-snug truncate">네이버 제휴 링크</div>
+                    <div className="text-[10px] text-gray-500 leading-tight truncate">{NAVER_CONNECT_URL}</div>
                   </div>
                 </a>
               )}
@@ -300,7 +396,7 @@ export default function AdRecharge() {
                 />
               </div>
               <div className="mt-2 text-xs text-gray-500">
-                 {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 후 [하트 충전 확인] 활성화
+                {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 후 [하트 충전 확인] 활성화
               </div>
             </div>
 
