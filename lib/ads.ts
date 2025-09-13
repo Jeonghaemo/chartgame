@@ -8,7 +8,7 @@ dayjs.extend(utc);
 dayjs.extend(tz);
 
 const ZONE = "Asia/Seoul";
-const MAX_PER_DAY = 10; // 일일 한도 10회
+const MAX_PER_DAY = 5; // 일일 한도 5회
 
 export type Provider =
   | "COUPANG"

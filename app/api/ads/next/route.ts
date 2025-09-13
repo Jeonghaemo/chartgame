@@ -5,7 +5,7 @@ import { getAdStatus } from "@/lib/ads";
 
 const ORDER = ["COUPANG", "NAVER", "TRIPDOTCOM", "KLOOK", "COUPANG_DEAL"] as const;
 type Provider = (typeof ORDER)[number];
-const DAILY_LIMIT = 10;
+const DAILY_LIMIT = 5;
 
 export async function GET() {
   const session = await auth();
