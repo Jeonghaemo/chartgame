@@ -1,7 +1,10 @@
+// components/AdRecharge.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useUserStore } from "@/lib/store/user";
+
+type Provider = "COUPANG" | "NAVER" | "TRIPDOTCOM" | "KLOOK" | "COUPANG_DEAL";
 
 type NextInfo = {
   ok: boolean;
@@ -9,12 +12,7 @@ type NextInfo = {
   reason?: "DAILY_LIMIT";
   remaining?: number;
   nextIndex?: number;
-  provider?:
-    | "COUPANG"
-    | "NAVER"
-    | "TRIPDOTCOM"
-    | "KLOOK"
-    | "COUPANG_DEAL";
+  provider?: string; // 서버 값은 string으로 받고 내부에서 정규화
 };
 
 const MIN_VIEWABLE_MS = 10_000; // 10초 노출 조건
@@ -29,7 +27,6 @@ const COUPANG_DEAL_IMG =
 
 const KLOOK_WIDGET = {
   wid: "99172",
-  height: "340px",
   adid: "1123728",
   lang: "ko",
   prod: "search_vertical",
@@ -38,8 +35,8 @@ const KLOOK_WIDGET = {
 };
 
 // 크기 계산 상수
-const DEFAULT_SLOT = 320;   // 데스크톱 기본
-const MIN_SLOT = 250;       // 너무 작아지지 않도록
+const DEFAULT_SLOT = 320; // 데스크톱 기본
+const MIN_SLOT = 250; // 너무 작아지지 않도록(쿠팡 위젯 호환)
 const VIEWPORT_RATIO_W = 0.8;
 const VIEWPORT_RATIO_H = 0.6;
 
@@ -51,6 +48,14 @@ function calcSlotSize() {
   const maxByH = Math.floor(vh * VIEWPORT_RATIO_H);
   const cap = Math.min(DEFAULT_SLOT, maxByW, maxByH);
   return Math.max(MIN_SLOT, cap);
+}
+
+// 서버 provider 문자열 정규화
+function normProvider(p?: string | null): Provider | null {
+  if (!p) return null;
+  const v = p.toUpperCase().trim();
+  const allow: Provider[] = ["COUPANG", "NAVER", "TRIPDOTCOM", "KLOOK", "COUPANG_DEAL"];
+  return (allow as string[]).includes(v) ? (v as Provider) : null;
 }
 
 export default function AdRecharge() {
@@ -69,6 +74,19 @@ export default function AdRecharge() {
   const visibleRef = useRef(false);
   const activeRef = useRef<boolean>(true);
   const modalOpenRef = useRef<boolean>(false);
+
+  // KLOOK 재초기화를 위해 키/재로더 준비
+  const [klookKey, setKlookKey] = useState(0);
+  function reloadKlookScript() {
+    const ID = "klook-widget-loader";
+    const old = document.getElementById(ID);
+    if (old) old.remove();
+    const s = document.createElement("script");
+    s.id = ID;
+    s.async = true;
+    s.src = KLOOK_WIDGET.scriptSrc;
+    document.body.appendChild(s);
+  }
 
   const setFromMe = useUserStore((s) => s.setFromMe);
 
@@ -103,7 +121,7 @@ export default function AdRecharge() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        provider: info?.provider ?? null,
+        provider: normProvider(info?.provider),
         viewableMs,
         interacted,
         slotVisibleMaxPct,
@@ -117,7 +135,7 @@ export default function AdRecharge() {
     }
   };
 
-  const DAILY_LIMIT = 5; // ✅ 10회 → 5회로 변경
+  const DAILY_LIMIT = 5; // 5회 제한
   const label = info?.eligible
     ? `하트 무료 충전 (${info.remaining}회 남음)`
     : `오늘 충전 기회 소진(내일 ${DAILY_LIMIT}회)`;
@@ -190,18 +208,15 @@ export default function AdRecharge() {
     };
   }, [open]);
 
+  // KLOOK 위젯: ins 새로 렌더 + 스크립트 재삽입
+  const provider = normProvider(info?.provider);
   useEffect(() => {
-    if (open && info?.provider === "KLOOK") {
-      const id = "klook-widget-loader";
-      if (!document.getElementById(id)) {
-        const s = document.createElement("script");
-        s.id = id;
-        s.async = true;
-        s.src = KLOOK_WIDGET.scriptSrc;
-        document.body.appendChild(s);
-      }
-    }
-  }, [open, info?.provider]);
+    if (!open) return;
+    if (provider !== "KLOOK") return;
+    setKlookKey((k) => k + 1);
+    const t = setTimeout(reloadKlookScript, 0);
+    return () => clearTimeout(t);
+  }, [open, provider]);
 
   useEffect(() => {
     setConfirmEnabled(viewableMs >= MIN_VIEWABLE_MS);
@@ -224,7 +239,6 @@ export default function AdRecharge() {
   }, [viewableMs]);
 
   const progress = Math.min(100, Math.round(progressSmooth));
-  const provider = info?.provider;
 
   return (
     <div className="rounded-2xl bg-white border p-6 text-center">
@@ -240,10 +254,20 @@ export default function AdRecharge() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center">
-          <div className="w-[420px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-xl">
+        <div
+          className="fixed inset-0 bg-black/40 z-50 grid place-items-center"
+          onPointerDown={() => setInteracted(true)}
+          onTouchStart={() => setInteracted(true)}
+        >
+          <div
+            className="w-[420px] max-w-[92vw] rounded-2xl bg-white p-6 shadow-xl"
+            onPointerDown={() => setInteracted(true)}
+            onTouchStart={() => setInteracted(true)}
+          >
             <div className="text-lg font-bold">하트 무료 충전</div>
-            <div className="mt-2 text-sm text-gray-600">제휴/광고 콘텐츠가 포함될 수 있습니다.</div>
+            <div className="mt-2 text-sm text-gray-600">
+              제휴/광고 콘텐츠가 포함될 수 있습니다.
+            </div>
 
             {/* 광고 슬롯 */}
             <div
@@ -252,7 +276,10 @@ export default function AdRecharge() {
               style={{ minHeight: slotSize }}
             >
               {provider === "COUPANG" && (
-                <div className="rounded-2xl shadow overflow-hidden bg-white" style={{ width: slotSize, height: slotSize }}>
+                <div
+                  className="rounded-2xl shadow overflow-hidden bg-white"
+                  style={{ width: slotSize, height: slotSize }}
+                >
                   <iframe
                     title="Coupang Carousel"
                     src={`https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=${slotSize}&height=${slotSize}&tsource=`}
@@ -276,7 +303,8 @@ export default function AdRecharge() {
                   style={{ width: slotSize, height: slotSize }}
                   onClick={() => setInteracted(true)}
                 >
-                  <div className="w-full h-full bg-white grid place-items-center p-2">
+                  {/* 이미지 + 텍스트 (이전 스타일 유지) */}
+                  <div className="w-full h-[70%] bg-white grid place-items-center p-2">
                     <img
                       src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
                       alt="네이버 제휴 광고 이미지"
@@ -284,11 +312,22 @@ export default function AdRecharge() {
                       loading="lazy"
                     />
                   </div>
+                  <div className="w-full h-[30%] px-2 py-1">
+                    <div className="text-sm font-semibold leading-snug truncate">
+                      세로 수직 트리플 주식모니터 대형모니터암
+                    </div>
+                    <div className="text-[10px] text-gray-500 leading-tight truncate">
+                      {NAVER_CONNECT_URL}
+                    </div>
+                  </div>
                 </a>
               )}
 
               {provider === "TRIPDOTCOM" && (
-                <div className="rounded-2xl shadow overflow-hidden bg-white" style={{ width: slotSize, height: slotSize }}>
+                <div
+                  className="rounded-2xl shadow overflow-hidden bg-white"
+                  style={{ width: slotSize, height: slotSize }}
+                >
                   <iframe
                     title="Trip.com Affiliate"
                     src={TRIPDOTCOM_IFRAME_SRC}
@@ -303,7 +342,11 @@ export default function AdRecharge() {
               )}
 
               {provider === "KLOOK" && (
-                <div key="klook-key" className="rounded-2xl overflow-hidden shadow bg-white" style={{ width: slotSize, height: slotSize }}>
+                <div
+                  key={klookKey}
+                  className="rounded-2xl overflow-hidden shadow bg-white"
+                  style={{ width: slotSize, height: slotSize }}
+                >
                   <ins
                     className="klk-aff-widget"
                     data-wid={KLOOK_WIDGET.wid}
@@ -349,7 +392,9 @@ export default function AdRecharge() {
               <div className="h-2 w-full rounded bg-gray-100 overflow-hidden">
                 <div className="h-2 bg-emerald-500 transition-[width]" style={{ width: `${progress}%` }} />
               </div>
-              <div className="mt-2 text-xs text-gray-500">{Math.ceil(MIN_VIEWABLE_MS / 1000)}초 후 활성화</div>
+              <div className="mt-2 text-xs text-gray-500">
+                {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 후 [하트 충전 확인] 활성화
+              </div>
             </div>
 
             {/* 버튼 */}
