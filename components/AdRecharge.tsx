@@ -4,12 +4,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useUserStore } from "@/lib/store/user";
 
+type Provider =
+  | "COUPANG"
+  | "NAVER"
+  | "TRIPDOTCOM"
+  | "KLOOK"
+  | "COUPANG_DEAL";
+
 type NextInfo = {
   ok: boolean;
   eligible: boolean;
   remaining?: number;
   nextIndex?: number;
-  provider?: "COUPANG" | "NAVER" | "TRIPDOTCOM" | "KLOOK" | "COUPANG_DEAL";
+  provider?: string; // ← 서버가 뭘 보내든 받기 (정규화해서 사용)
 };
 
 const MIN_VIEWABLE_MS = 10_000; // 10초 노출 조건
@@ -32,6 +39,20 @@ const KLOOK_WIDGET = {
   scriptSrc: "https://affiliate.klook.com/widget/fetch-iframe-init.js",
 };
 
+// 서버에서 오는 값을 대문자/트림해서 안전하게 표준화
+function normProvider(p?: string | null): Provider | null {
+  if (!p) return null;
+  const v = p.toUpperCase().trim();
+  const set = new Set<Provider>([
+    "COUPANG",
+    "NAVER",
+    "TRIPDOTCOM",
+    "KLOOK",
+    "COUPANG_DEAL",
+  ]);
+  return set.has(v as Provider) ? (v as Provider) : null;
+}
+
 export default function AdRecharge() {
   const [info, setInfo] = useState<NextInfo | null>(null);
   const [open, setOpen] = useState(false);
@@ -45,6 +66,9 @@ export default function AdRecharge() {
   const visibleRef = useRef(false);
   const activeRef = useRef(true);
   const modalOpenRef = useRef(false);
+
+  // KLOOK 재초기화를 위한 강제 리렌더 키
+  const [klookKey, setKlookKey] = useState(0);
 
   const setFromMe = useUserStore((s) => s.setFromMe);
 
@@ -80,7 +104,7 @@ export default function AdRecharge() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        provider: info?.provider ?? null,
+        provider: normProvider(info?.provider),
         viewableMs,
         interacted,
         slotVisibleMaxPct,
@@ -154,19 +178,27 @@ export default function AdRecharge() {
     };
   }, [open]);
 
-  // KLOOK 스크립트 로드
+  // KLOOK 위젯 재초기화: ins 렌더 후 스크립트 다시 로드
+  function reloadKlookScript() {
+    const ID = "klook-widget-loader";
+    const old = document.getElementById(ID);
+    if (old) old.remove();
+    const s = document.createElement("script");
+    s.id = ID;
+    s.async = true;
+    s.src = KLOOK_WIDGET.scriptSrc;
+    document.body.appendChild(s);
+  }
+
+  const provider = normProvider(info?.provider);
+
   useEffect(() => {
-    if (open && info?.provider === "KLOOK") {
-      const id = "klook-widget-loader";
-      if (!document.getElementById(id)) {
-        const s = document.createElement("script");
-        s.id = id;
-        s.async = true;
-        s.src = KLOOK_WIDGET.scriptSrc;
-        document.body.appendChild(s);
-      }
-    }
-  }, [open, info?.provider]);
+    if (!open) return;
+    if (provider !== "KLOOK") return;
+    setKlookKey((k) => k + 1); // ins를 새로 렌더
+    const t = setTimeout(reloadKlookScript, 0); // 스크립트 재실행
+    return () => clearTimeout(t);
+  }, [open, provider]);
 
   useEffect(() => {
     setConfirmEnabled(viewableMs >= MIN_VIEWABLE_MS);
@@ -211,14 +243,14 @@ export default function AdRecharge() {
 
             {/* 광고 슬롯 */}
             <div ref={slotRef} className="mt-4 flex items-center justify-center" style={{ minHeight: 180 }}>
-              {info?.provider === "COUPANG" && (
+              {provider === "COUPANG" && (
                 <div className="rounded-2xl shadow w-[250px] h-[250px] overflow-hidden bg-white">
                   <iframe
                     title="Coupang Carousel"
                     src="https://ads-partners.coupang.com/widgets.html?id=903800&template=carousel&trackingCode=AF8851731&subId=&width=250&height=250&tsource="
                     width="250"
                     height="250"
-                    frameBorder="0"
+                    frameBorder={0}
                     scrolling="no"
                     referrerPolicy="unsafe-url"
                     style={{ display: "block" }}
@@ -226,7 +258,7 @@ export default function AdRecharge() {
                 </div>
               )}
 
-              {info?.provider === "NAVER" && (
+              {provider === "NAVER" && (
                 <a
                   href={NAVER_CONNECT_URL}
                   target="_blank"
@@ -238,6 +270,7 @@ export default function AdRecharge() {
                       src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
                       alt="네이버 제휴 광고 이미지"
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   </div>
                   <div className="px-2 py-1">
@@ -251,31 +284,33 @@ export default function AdRecharge() {
                 </a>
               )}
 
-              {info?.provider === "TRIPDOTCOM" && (
+              {provider === "TRIPDOTCOM" && (
                 <iframe
                   title="Trip.com Affiliate"
                   src={TRIPDOTCOM_IFRAME_SRC}
                   style={{ width: "320px", height: "320px", border: "none", display: "block" }}
-                  frameBorder="0"
+                  frameBorder={0}
                   scrolling="no"
                 />
               )}
 
-              {info?.provider === "KLOOK" && (
-                <ins
-                  className="klk-aff-widget"
-                  data-wid={KLOOK_WIDGET.wid}
-                  data-height={KLOOK_WIDGET.height}
-                  data-adid={KLOOK_WIDGET.adid}
-                  data-lang={KLOOK_WIDGET.lang}
-                  data-prod={KLOOK_WIDGET.prod}
-                  data-currency={KLOOK_WIDGET.currency}
-                >
-                  <a href="//www.klook.com/?aid=">Klook.com</a>
-                </ins>
+              {provider === "KLOOK" && (
+                <div key={klookKey} className="rounded-2xl overflow-hidden shadow" style={{ width: 320 }}>
+                  <ins
+                    className="klk-aff-widget"
+                    data-wid={KLOOK_WIDGET.wid}
+                    data-height={KLOOK_WIDGET.height}
+                    data-adid={KLOOK_WIDGET.adid}
+                    data-lang={KLOOK_WIDGET.lang}
+                    data-prod={KLOOK_WIDGET.prod}
+                    data-currency={KLOOK_WIDGET.currency}
+                  >
+                    <a href="//www.klook.com/?aid=">Klook.com</a>
+                  </ins>
+                </div>
               )}
 
-              {info?.provider === "COUPANG_DEAL" && (
+              {provider === "COUPANG_DEAL" && (
                 <a
                   href={COUPANG_DEAL_URL}
                   target="_blank"
@@ -291,6 +326,13 @@ export default function AdRecharge() {
                     loading="lazy"
                   />
                 </a>
+              )}
+
+              {/* 디버그 안전망: 예상 외 provider면 텍스트 노출 */}
+              {!provider && (
+                <div className="text-xs text-gray-500">
+                  지원하지 않는 provider 값입니다. 서버값: {String(info?.provider ?? "null")}
+                </div>
               )}
             </div>
 
