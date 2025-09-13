@@ -1,29 +1,38 @@
+// app/signin/page.tsx
 "use client";
 
 import { signIn } from "next-auth/react";
+import { isInAppBrowser, openExternally } from "@/lib/utils/inApp";
 
 export default function SignInPage() {
+  // "use client" 컴포넌트라 클라이언트에서만 렌더 → 바로 감지해도 OK
+  const inApp = isInAppBrowser();
+
+  const handleGoogle = () => {
+    const target = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/game")}`;
+    if (inApp) {
+      // 인앱(WebView) → 외부 브라우저(크롬/사파리)로 같은 URL 열기
+      const abs = typeof window !== "undefined" ? `${window.location.origin}${target}` : target;
+      openExternally(abs);
+      return;
+    }
+    // 일반 브라우저 → NextAuth로 바로 진행
+    signIn("google", { callbackUrl: "/game" });
+  };
+
   return (
     <main className="min-h-screen flex justify-center items-start bg-gray-100 pt-16">
       <div className="w-[360px] rounded-xl bg-white px-5 py-4 shadow-md">
         {/* 헤더 */}
         <div className="text-center mb-4">
           <h1 className="text-lg font-bold leading-tight">로그인</h1>
-          <p className="text-xs text-gray-500 mt-0.5 leading-tight">
-            회원가입 없이 시작하세요.
-          </p>
+          <p className="text-xs text-gray-500 mt-0.5 leading-tight">회원가입 없이 시작하세요.</p>
         </div>
 
         {/* Google 버튼 */}
         <button
-          onClick={() => {
-  const signinUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/game")}`;
-  // 구글은 항상 핸드오프 페이지를 먼저 거침
-  window.location.href = `/open-in-browser?to=${encodeURIComponent(signinUrl)}`;
-}}
-
-          className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800
-                     hover:bg-gray-50 transition-colors text-sm"
+          onClick={handleGoogle}
+          className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors text-sm"
         >
           {/* 아이콘: 왼쪽 고정 */}
           <span className="absolute left-3 top-1/2 -translate-y-1/2">
@@ -40,28 +49,33 @@ export default function SignInPage() {
 
         <div className="h-2" />
 
-        {/* Naver 버튼 */}
+        {/* Naver 버튼 (인앱에서도 OK) */}
         <button
           onClick={() => signIn("naver", { callbackUrl: "/game" })}
-          className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800
-                     hover:bg-gray-50 transition-colors text-sm"
+          className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors text-sm"
         >
-          {/* 왼쪽 네이버 워드마크 */}
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#03C75A] font-extrabold tracking-wider text-sm">
             NAVER
           </span>
           <span className="block font-medium text-center">네이버 로그인</span>
         </button>
 
+        {/* 인앱 안내 (선택) */}
+        {inApp && (
+          <p className="mt-2 text-[11px] text-amber-700">
+            앱 내 브라우저에서는 Google 로그인이 제한될 수 있어요. 버튼을 누르면 브라우저로 이동합니다.
+          </p>
+        )}
+
         {/* 게스트 체험 링크 */}
         <div className="mt-4 text-center">
-  <a
-    href="/game?guest=1"
-    className="inline-block text-sm md:text-base font-bold text-red-500 hover:text-red-600 hover:underline transition-colors"
-  >
-    🕹 게스트로 체험하기
-  </a>
-</div>
+          <a
+            href="/game?guest=1"
+            className="inline-block text-sm md:text-base font-bold text-red-500 hover:text-red-600 hover:underline transition-colors"
+          >
+            🕹 게스트로 체험하기
+          </a>
+        </div>
       </div>
     </main>
   );
