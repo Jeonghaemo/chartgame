@@ -24,16 +24,14 @@ type NextInfo = {
 
 const MIN_VIEWABLE_MS = 10_000; // 10초 노출 조건
 
-// --- 외부 제휴 링크/코드 (요청 주신 값들) ---
+// --- 외부 제휴 링크/코드 ---
 const NAVER_CONNECT_URL = "https://naver.me/xLsEEb1q";
-
 const TRIPDOTCOM_IFRAME_SRC =
   "https://kr.trip.com/partners/ad/S5341905?Allianceid=6019189&SID=258928293&trip_sub1=";
-
 const AMAZON_GOLDBOX_URL =
   "https://www.amazon.com/gp/goldbox?&linkCode=ll2&tag=chartgame-20&linkId=2e86e5213961c5061465be177ca532e4&language=en_US&ref_=as_li_ss_tl";
+const ALIEXPRESS_URL = "https://s.click.aliexpress.com/e/_olvtkjz";
 
-// 클룩 위젯 파라미터
 const KLOOK_WIDGET = {
   wid: "99172",
   height: "340px",
@@ -47,7 +45,6 @@ const KLOOK_WIDGET = {
 export default function AdRecharge() {
   const [info, setInfo] = useState<NextInfo | null>(null);
   const [open, setOpen] = useState(false);
-
   const [viewableMs, setViewableMs] = useState(0);
   const [interacted, setInteracted] = useState(false);
   const [slotVisibleMaxPct, setSlotVisibleMaxPct] = useState(0);
@@ -124,13 +121,9 @@ export default function AdRecharge() {
     if (!open) return;
 
     const onVis = () => {
-      if (typeof document !== "undefined") activeRef.current = !document.hidden;
-    };
-
-    if (typeof document !== "undefined") {
       activeRef.current = !document.hidden;
-      document.addEventListener("visibilitychange", onVis);
-    }
+    };
+    document.addEventListener("visibilitychange", onVis);
 
     const markInteract = () => setInteracted(true);
     ["scroll", "keydown", "mousemove", "touchstart", "pointerdown"].forEach((ev) =>
@@ -141,25 +134,13 @@ export default function AdRecharge() {
     const isVisByRect = (el: HTMLElement | null) => {
       if (!el) return false;
       const r = el.getBoundingClientRect();
-      const vw = window.innerWidth || document.documentElement.clientWidth;
-      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
       const interW = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
       const interH = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
-      const interArea = interW * interH;
-      const elArea = Math.max(1, r.width * r.height);
-      const ratio = interArea / elArea; // 0~1
-      return ratio >= 0.25; // 완화
+      const ratio = (interW * interH) / Math.max(1, r.width * r.height);
+      return ratio >= 0.25;
     };
-
-    // iOS 주소창/툴바 변동으로 인한 순간적 false 완화
-    let resizeTimer: number | null = null;
-    const onResize = () => {
-      if (resizeTimer) window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => {
-        visibleRef.current = true;
-      }, 250);
-    };
-    window.addEventListener("resize", onResize, { passive: true });
 
     let io: IntersectionObserver | null = null;
     if (slotRef.current) {
@@ -170,29 +151,23 @@ export default function AdRecharge() {
           visibleRef.current = !!(e?.isIntersecting && ratio >= 0.25);
           setSlotVisibleMaxPct((p) => Math.max(p, ratio));
         },
-        { threshold: [0.0, 0.1, 0.25, 0.5, 0.75, 1.0] }
+        { threshold: [0, 0.25, 0.5, 0.75, 1] }
       );
       io.observe(slotRef.current);
     }
 
     const id = setInterval(() => {
       const rectVis = isVisByRect(slotRef.current!);
-      const visible = visibleRef.current || rectVis;
-
-      if (visible && activeRef.current && modalOpenRef.current) {
+      if ((visibleRef.current || rectVis) && activeRef.current && modalOpenRef.current) {
         setViewableMs((ms) => ms + 200);
       }
     }, 200);
 
     return () => {
-      if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", onVis);
-      }
+      document.removeEventListener("visibilitychange", onVis);
       ["scroll", "keydown", "mousemove", "touchstart", "pointerdown"].forEach((ev) =>
         window.removeEventListener(ev, markInteract)
       );
-      window.removeEventListener("resize", onResize);
-      if (resizeTimer) window.clearTimeout(resizeTimer);
       if (io && slotRef.current) io.unobserve(slotRef.current);
       clearInterval(id);
     };
@@ -240,14 +215,14 @@ export default function AdRecharge() {
   const progress = Math.min(100, Math.round(progressSmooth));
 
   return (
-    <div className="mt-0 rounded-2xl bg-white border p-6 text-center">
+    <div className="rounded-2xl bg-white border p-6 text-center">
       <div className="font-semibold text-lg mb-4">❤️ 하트 무료 충전</div>
 
       <button
         disabled={!info?.eligible}
         onClick={handleOpen}
         className={`w-full rounded-xl px-4 py-3 text-base font-semibold transition
-          ${info?.eligible ? "bg-rose-500 text-white hover:bg-rose-500" : "bg-gray-200 text-gray-500 cursor-not-allowed"}`}
+        ${info?.eligible ? "bg-rose-500 text-white hover:bg-rose-500" : "bg-gray-200 text-gray-500 cursor-not-allowed"}`}
       >
         {label}
       </button>
@@ -269,7 +244,6 @@ export default function AdRecharge() {
             {/* 광고 슬롯 */}
             <div
               ref={slotRef}
-              id="ad-slot"
               className="mt-4 flex items-center justify-center"
               style={{ minHeight: 180 }}
               onPointerDown={() => setInteracted(true)}
@@ -318,7 +292,7 @@ export default function AdRecharge() {
               )}
 
               {info?.provider === "TRIPDOTCOM" && (
-                // 3) 트립닷컴: 제공된 iframe (border prop 제거, frameBorder 문자열)
+                // 3) 트립닷컴: 제공된 iframe
                 <div className="rounded-2xl overflow-hidden shadow" style={{ width: 320, height: 320 }}>
                   <iframe
                     title="Trip.com Affiliate"
@@ -359,6 +333,20 @@ export default function AdRecharge() {
                   aria-label="Amazon 오늘의 특가 보기"
                 >
                   🔥 Amazon 오늘의 특가 보기
+                </a>
+              )}
+
+              {info?.provider === "ALIEXPRESS" && (
+                // 6) 알리익스프레스: 버튼형 링크
+                <a
+                  href={ALIEXPRESS_URL}
+                  target="_blank"
+                  rel="nofollow sponsored noopener noreferrer"
+                  onClick={() => setInteracted(true)}
+                  className="inline-flex items-center justify-center rounded-xl border px-4 py-3 font-semibold hover:bg-gray-50"
+                  aria-label="AliExpress 인기 특가 보기"
+                >
+                  🛒 AliExpress 인기 특가 보기
                 </a>
               )}
 
