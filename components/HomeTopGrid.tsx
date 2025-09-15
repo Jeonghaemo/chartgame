@@ -124,14 +124,14 @@ export default function HomeTopGrid() {
       <div className="text-xs text-gray-400 leading-tight">로그인된 사용자</div>
     )}
 
-    {/* '내 보유 자산' 문구 크게 */}
-    <div className="mt-0.5 text-xl sm:text-2xl font-bold text-slate-900">
-      내 보유 자산
-    </div>
-
-    {/* 금액은 더 크게 */}
-    <div className="mt-0.5 text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">
-  {(startCapital || 10_000_000).toLocaleString()}원
+    {/* 현재 자산 + 금액 한 줄 */}
+<div className="mt-0.5 flex items-baseline gap-2">
+  <span className="text-xl sm:text-2xl font-bold text-slate-900">
+    현재 자산
+  </span>
+  <span className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+    {(startCapital || 10_000_000).toLocaleString()}원
+  </span>
 </div>
   </div>
 
