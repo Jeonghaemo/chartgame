@@ -394,32 +394,41 @@ export default function AdRecharge() {
               )}
 
               {provider === "NAVER" && (
-                <a
-                  href={NAVER_CONNECT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow sponsored"
-                  className="rounded-2xl shadow overflow-hidden bg-white text-left block"
-                  style={{ width: slotSize, height: slotSize }}
-                  onClick={() => setInteracted(true)}
-                >
-                  <div className="w-full h-[70%] bg-white grid place-items-center p-2">
-                    <img
-                      src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
-                      alt="네이버 제휴 광고 이미지"
-                      className="max-w-full max-h-full object-contain"
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="w-full h-[30%] px-2 py-1">
-                    <div className="text-sm font-semibold leading-snug truncate">
-                      세로 수직 트리플 주식모니터 대형모니터암
-                    </div>
-                    <div className="text-[10px] text-gray-500 leading-tight truncate">
-                      {NAVER_CONNECT_URL}
-                    </div>
-                  </div>
-                </a>
-              )}
+  <a
+    href={NAVER_CONNECT_URL}
+    target="_blank"
+    rel="noopener noreferrer nofollow sponsored"
+    className="rounded-2xl shadow overflow-hidden bg-white text-left block"
+    style={{ width: slotSize, height: slotSize }}
+    onClick={() => setInteracted(true)}
+    aria-label="네이버 제휴 링크"
+  >
+    {/* 세로 플렉스: 이미지 위, 텍스트 아래 고정 */}
+    <div className="flex flex-col w-full h-full">
+      {/* 이미지 영역: 위쪽을 꽉 채우되 패딩 안에서 contain */}
+      <div className="relative flex-1 bg-white p-2">
+        <img
+          src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
+          alt="네이버 제휴 광고 이미지"
+          className="absolute inset-2 w-[calc(100%-1rem)] h-[calc(100%-1rem)] object-contain"
+          loading="lazy"
+          draggable={false}
+        />
+      </div>
+
+      {/* 하단 정보 영역: 항상 아래쪽에 분리 표시 */}
+      <div className="w-full px-3 py-2 border-t bg-white">
+        <div className="text-sm font-semibold leading-snug line-clamp-1">
+          세로 수직 트리플 주식모니터 대형모니터암
+        </div>
+        <div className="text-[11px] text-gray-500 leading-tight break-all">
+          {NAVER_CONNECT_URL}
+        </div>
+      </div>
+    </div>
+  </a>
+)}
+
 
               {provider === "TRIPDOTCOM" && (
                 <div
