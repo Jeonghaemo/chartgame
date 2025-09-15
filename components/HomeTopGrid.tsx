@@ -63,6 +63,9 @@ export default function HomeTopGrid() {
   const setHearts = useUserStore((s) => s.setHearts);
 
   const [startCapital, setStartCapital] = useState<number>(10_000_000);
+    const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
   const [myRank, setMyRank] = useState<MyRank | null>(null);
 
   const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
@@ -102,11 +105,25 @@ export default function HomeTopGrid() {
     
 {/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
 <Card className="p-4">
- {/* 보유 자산 + 자산 초기화 버튼 한 줄 */}
-<div className="flex items-center justify-between text-xl font-bold text-slate-800">
-  <span>
-    보유 자산 {(startCapital || 10_000_000).toLocaleString()}원
-  </span>
+{/* 보유 자산 + 자산 초기화 (검수용: 사용자 식별 정보 함께 노출) */}
+<div className="flex items-center justify-between">
+  <div>
+    {/* 로그인한 사용자 식별 정보 노출 */}
+    {(userName || userEmail) ? (
+      <div className="text-xs text-gray-500">
+        {(userName ?? userEmail)} 님의 보유 자산
+        {(userEmail && userName) ? ` (${userEmail})` : ""}
+      </div>
+    ) : (
+      <div className="text-xs text-gray-400">로그인된 사용자</div>
+    )}
+
+    {/* 자산 금액 */}
+    <div className="text-xl sm:text-2xl font-bold text-slate-800">
+      {(startCapital || 10_000_000).toLocaleString()}원
+    </div>
+  </div>
+
   <button
     onClick={async () => {
       if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return
@@ -134,6 +151,7 @@ export default function HomeTopGrid() {
     자산 초기화
   </button>
 </div>
+
 
 
 
