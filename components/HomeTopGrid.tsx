@@ -126,10 +126,10 @@ export default function HomeTopGrid() {
 
     {/* 현재 자산 + 금액 한 줄 */}
 <div className="mt-0.5 flex items-baseline gap-2">
-  <span className="text-xl sm:text-2xl font-bold text-slate-900">
+  <span className="text-xl sm:text-xl font-bold text-slate-900">
     현재 자산
   </span>
-  <span className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
+  <span className="text-xl sm:text-xl font-bold text-slate-800 tracking-tight">
     {(startCapital || 10_000_000).toLocaleString()}원
   </span>
 </div>
