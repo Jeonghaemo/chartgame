@@ -17,6 +17,8 @@ export async function GET() {
     where: { id: session.user.id },
     select: {
       id: true,
+      name: true,     // ✅ 네이버 검수용: 실사용 노출 필드
+      email: true,    // ✅ 네이버 검수용: 실사용 노출 필드
       capital: true,
       hearts: true,
       maxHearts: true,
@@ -31,8 +33,13 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     user: {
-      ...u,
-      lastRefillAt: u.lastRefillAt.toISOString(), // 클라에서 Date 파싱 편하게
+      id: u.id,
+      name: u.name ?? null,        // ✅ 검수용 노출
+      email: u.email ?? null,      // ✅ 검수용 노출
+      capital: u.capital,
+      hearts: u.hearts,
+      maxHearts: u.maxHearts,
+      lastRefillAt: u.lastRefillAt ? u.lastRefillAt.toISOString() : null, // ✅ null 안전
     },
   });
 }
