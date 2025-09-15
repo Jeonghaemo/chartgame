@@ -75,20 +75,62 @@ export default function AdRecharge() {
   const activeRef = useRef<boolean>(true);
   const modalOpenRef = useRef<boolean>(false);
 
-  // KLOOK 재초기화를 위해 키/재로더 준비
+  // KLOOK 관련 상태 추가
   const [klookKey, setKlookKey] = useState(0);
-  function reloadKlookScript() {
-    const ID = "klook-widget-loader";
-    const old = document.getElementById(ID);
-    if (old) old.remove();
-    const s = document.createElement("script");
-    s.id = ID;
-    s.async = true;
-    s.src = KLOOK_WIDGET.scriptSrc;
-    document.body.appendChild(s);
-  }
+  const [klookScriptLoaded, setKlookScriptLoaded] = useState(false);
+  const [klookWidgetReady, setKlookWidgetReady] = useState(false);
 
   const setFromMe = useUserStore((s) => s.setFromMe);
+
+  // 개선된 KLOOK 스크립트 로더
+  function reloadKlookScript() {
+    return new Promise<void>((resolve, reject) => {
+      const ID = "klook-widget-loader";
+      
+      // 기존 스크립트 제거
+      const old = document.getElementById(ID);
+      if (old) old.remove();
+      
+      // 기존 위젯 정리
+      const existingWidgets = document.querySelectorAll('.klk-aff-widget');
+      existingWidgets.forEach(widget => {
+        if (widget.innerHTML !== '<a href="//www.klook.com/?aid=">Klook.com</a>') {
+          widget.innerHTML = '<a href="//www.klook.com/?aid=">Klook.com</a>';
+        }
+      });
+      
+      const s = document.createElement("script");
+      s.id = ID;
+      s.async = true;
+      s.src = KLOOK_WIDGET.scriptSrc;
+      
+      s.onload = () => {
+        console.log('KLOOK script loaded');
+        setKlookScriptLoaded(true);
+        
+        // 스크립트 로드 후 약간의 지연을 둔 다음 위젯 초기화 확인
+        setTimeout(() => {
+          const widget = document.querySelector('.klk-aff-widget');
+          if (widget && widget.innerHTML !== '<a href="//www.klook.com/?aid=">Klook.com</a>') {
+            setKlookWidgetReady(true);
+            resolve();
+          } else {
+            // 위젯이 아직 로드되지 않았다면 재시도
+            console.log('KLOOK widget not ready, retrying...');
+            setTimeout(() => resolve(), 1000);
+          }
+        }, 500);
+      };
+      
+      s.onerror = () => {
+        console.error('KLOOK script failed to load');
+        setKlookScriptLoaded(false);
+        reject(new Error('Script load failed'));
+      };
+      
+      document.body.appendChild(s);
+    });
+  }
 
   const load = async () => {
     const r = await fetch("/api/ads/next", { cache: "no-store" });
@@ -111,10 +153,15 @@ export default function AdRecharge() {
     setProgressSmooth(0);
     setSlotSize(calcSlotSize());
   };
+  
   const handleClose = () => {
     modalOpenRef.current = false;
     setOpen(false);
+    // KLOOK 상태 초기화
+    setKlookScriptLoaded(false);
+    setKlookWidgetReady(false);
   };
+  
   const handleConfirm = async () => {
     if (!confirmEnabled) return;
     const r = await fetch("/api/ads/complete", {
@@ -132,6 +179,9 @@ export default function AdRecharge() {
       await setFromMe();
       setOpen(false);
       modalOpenRef.current = false;
+      // KLOOK 상태 초기화
+      setKlookScriptLoaded(false);
+      setKlookWidgetReady(false);
     }
   };
 
@@ -208,14 +258,49 @@ export default function AdRecharge() {
     };
   }, [open]);
 
-  // KLOOK 위젯: ins 새로 렌더 + 스크립트 재삽입
+  // 개선된 KLOOK 위젯 효과
   const provider = normProvider(info?.provider);
   useEffect(() => {
-    if (!open) return;
-    if (provider !== "KLOOK") return;
-    setKlookKey((k) => k + 1);
-    const t = setTimeout(reloadKlookScript, 0);
-    return () => clearTimeout(t);
+    if (!open || provider !== "KLOOK") return;
+    
+    setKlookScriptLoaded(false);
+    setKlookWidgetReady(false);
+    setKlookKey(k => k + 1);
+    
+    const loadWidget = async () => {
+      try {
+        await reloadKlookScript();
+        
+        // 추가 재시도 로직
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        const checkWidget = () => {
+          const widget = document.querySelector('.klk-aff-widget');
+          const hasContent = widget && widget.innerHTML !== '<a href="//www.klook.com/?aid=">Klook.com</a>';
+          
+          if (hasContent) {
+            setKlookWidgetReady(true);
+            return;
+          }
+          
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`KLOOK widget retry ${retryCount}/${maxRetries}`);
+            setTimeout(checkWidget, 1000);
+          } else {
+            console.warn('KLOOK widget failed to load after retries');
+          }
+        };
+        
+        setTimeout(checkWidget, 1000);
+        
+      } catch (error) {
+        console.error('Failed to load KLOOK widget:', error);
+      }
+    };
+    
+    loadWidget();
   }, [open, provider]);
 
   useEffect(() => {
@@ -237,6 +322,20 @@ export default function AdRecharge() {
     rafRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafRef.current);
   }, [viewableMs]);
+
+  // 개발 모드 디버깅
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && provider === "KLOOK") {
+      const interval = setInterval(() => {
+        const widget = document.querySelector('.klk-aff-widget');
+        if (widget) {
+          console.log('KLOOK widget content:', widget.innerHTML.substring(0, 100) + '...');
+        }
+      }, 2000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [provider]);
 
   const progress = Math.min(100, Math.round(progressSmooth));
 
@@ -303,7 +402,6 @@ export default function AdRecharge() {
                   style={{ width: slotSize, height: slotSize }}
                   onClick={() => setInteracted(true)}
                 >
-                  {/* 이미지 + 텍스트 (이전 스타일 유지) */}
                   <div className="w-full h-[70%] bg-white grid place-items-center p-2">
                     <img
                       src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
@@ -344,9 +442,19 @@ export default function AdRecharge() {
               {provider === "KLOOK" && (
                 <div
                   key={klookKey}
-                  className="rounded-2xl overflow-hidden shadow bg-white"
+                  className="rounded-2xl overflow-hidden shadow bg-white relative"
                   style={{ width: slotSize, height: slotSize }}
                 >
+                  {/* 로딩 상태 표시 */}
+                  {!klookWidgetReady && (
+                    <div className="absolute inset-0 bg-white flex items-center justify-center z-10">
+                      <div className="text-center">
+                        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                        <div className="text-sm text-gray-500">KLOOK 위젯 로딩중...</div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <ins
                     className="klk-aff-widget"
                     data-wid={KLOOK_WIDGET.wid}
@@ -355,7 +463,13 @@ export default function AdRecharge() {
                     data-lang={KLOOK_WIDGET.lang}
                     data-prod={KLOOK_WIDGET.prod}
                     data-currency={KLOOK_WIDGET.currency}
-                    style={{ display: "block", width: slotSize, height: slotSize }}
+                    style={{ 
+                      display: "block", 
+                      width: slotSize, 
+                      height: slotSize,
+                      opacity: klookWidgetReady ? 1 : 0,
+                      transition: 'opacity 0.3s ease'
+                    }}
                   >
                     <a href="//www.klook.com/?aid=">Klook.com</a>
                   </ins>
