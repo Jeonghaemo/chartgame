@@ -7,6 +7,7 @@ import AdRecharge from "@/components/AdRecharge";
 import { Heart } from "lucide-react";
 import { useUserStore } from "@/lib/store/user";
 import Link from "next/link";
+import { useSession } from "next-auth/react"; // ⬅️ 세션 사용
 
 // 하트 카운트다운 훅
 function useHeartCountdown(
@@ -57,18 +58,22 @@ function getRankBadge(total: number) {
 }
 
 export default function HomeTopGrid() {
+  const { data: session } = useSession(); // ⬅️ 세션
   const hearts = useUserStore((s) => s.hearts) ?? 0;
   const maxHearts = useUserStore((s) => s.maxHearts) ?? 5;
   const lastRefillAt = useUserStore((s) => s.lastRefillAt);
   const setHearts = useUserStore((s) => s.setHearts);
 
   const [startCapital, setStartCapital] = useState<number>(10_000_000);
-    const [userName, setUserName] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-
   const [myRank, setMyRank] = useState<MyRank | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);   // ⬅️ 추가
+  const [userEmail, setUserEmail] = useState<string | null>(null); // ⬅️ 추가
 
   const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
+
+  // 세션 + /api/me 값을 병합해서 표시
+  const displayName = userName ?? (session?.user?.name ?? null);
+  const displayEmail = userEmail ?? (session?.user?.email ?? null);
 
   // 내 정보 + 랭킹 불러오기
   useEffect(() => {
@@ -79,6 +84,8 @@ export default function HomeTopGrid() {
           const j = await r.json();
           if (typeof j?.user?.capital === "number") setStartCapital(j.user.capital);
           if (typeof j?.user?.hearts === "number") setHearts(j.user.hearts);
+          if (typeof j?.user?.name === "string") setUserName(j.user.name);
+          if (typeof j?.user?.email === "string") setUserEmail(j.user.email);
         }
       } catch {}
       try {
@@ -103,125 +110,112 @@ export default function HomeTopGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
     
-{/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
-<Card className="p-4">
-{/* 보유 자산 + 자산 초기화 (검수용: 사용자 식별 정보 함께 노출) */}
-<div className="flex items-center justify-between">
-  <div>
-    {/* 로그인한 사용자 식별 정보 노출 */}
-    {(userName || userEmail) ? (
-      <div className="text-xs text-gray-500">
-        {(userName ?? userEmail)} 님의 보유 자산
-        {(userEmail && userName) ? ` (${userEmail})` : ""}
-      </div>
-    ) : (
-      <div className="text-xs text-gray-400">로그인된 사용자</div>
-    )}
+      {/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
+      <Card className="p-4">
+        {/* 보유 자산 + 자산 초기화 (검수용: 사용자 식별 정보 함께 노출) */}
+        <div className="flex items-center justify-between">
+          <div>
+            {(displayName || displayEmail) ? (
+              <div className="text-xs text-gray-500">
+                {(displayName ?? displayEmail)} 님의 보유 자산
+                {(displayName && displayEmail) ? ` (${displayEmail})` : ""}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-400">로그인된 사용자</div>
+            )}
+            <div className="text-xl sm:text-2xl font-bold text-slate-800">
+              {(startCapital || 10_000_000).toLocaleString()}원
+            </div>
+          </div>
 
-    {/* 자산 금액 */}
-    <div className="text-xl sm:text-2xl font-bold text-slate-800">
-      {(startCapital || 10_000_000).toLocaleString()}원
-    </div>
-  </div>
-
-  <button
-    onClick={async () => {
-      if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return
-      try {
-        const r = await fetch("/api/reset-capital", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        })
-        const j = await r.json()
-        if (!r.ok || !j?.ok) {
-          alert(j?.message ?? "초기화 실패")
-          return
-        }
-        alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`)
-        location.reload()
-      } catch {
-        alert("초기화 중 오류가 발생했습니다.")
-      }
-    }}
-    className="ml-3 rounded-lg border px-2 py-1 text-xs font-semibold
-               text-red-600 border-red-300 bg-red-50
-               hover:bg-red-100 hover:border-red-400
-               shadow-sm transition"
-  >
-    자산 초기화
-  </button>
-</div>
-
-
-
-
-  {/* 하트 + 카운트다운 */}
-  <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
-    <Heart
-      className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
-    />
-    <span>{hearts} / {maxHearts}</span>
-    {countdown && (
-      <span className="ml-1 text-sm font-normal text-gray-500">
-        ⏳ {countdown} 후 + 1
-      </span>
-      
-    )}
-  </div>
-
-  {/* [ADD] 내 순위 & 계급 뱃지 & (평균/승률) */}
-  {myRank && (
-    <div className="mt-3 text-sm">
-      <div className="flex items-center gap-2">
-        <span className="font-bold">{myRank.rank}위</span>
-        {(() => {
-          const badge = getRankBadge(myRank.total);
-          return (
-            <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
-              {badge.icon} {badge.name}
-            </span>
-          );
-        })()}
-        {typeof myRank.avgReturnPct === "number" && (
-          <span className={`${myRank.avgReturnPct >= 0 ? "text-red-600" : "text-blue-600"}`}>
-            평균 수익률 {myRank.avgReturnPct.toFixed(2)}%
-          </span>
-        )}
-      </div>
-
-      {/* 승률은 아래 줄로 분리 */}
-      {typeof myRank.winRate === "number" && (
-        <div className="mt-1 text-gray-600">
-          승률 {myRank.winRate.toFixed(1)}%
-          {(myRank.wins != null && myRank.losses != null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
+          <button
+            onClick={async () => {
+              if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return
+              try {
+                const r = await fetch("/api/reset-capital", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                })
+                const j = await r.json()
+                if (!r.ok || !j?.ok) {
+                  alert(j?.message ?? "초기화 실패")
+                  return
+                }
+                alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`)
+                location.reload()
+              } catch {
+                alert("초기화 중 오류가 발생했습니다.")
+              }
+            }}
+            className="ml-3 rounded-lg border px-2 py-1 text-xs font-semibold
+                       text-red-600 border-red-300 bg-red-50
+                       hover:bg-red-100 hover:border-red-400
+                       shadow-sm transition"
+          >
+            자산 초기화
+          </button>
         </div>
-      )}
-    </div>
-  )}
- 
-</Card>
 
+        {/* 하트 + 카운트다운 */}
+        <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
+          <Heart
+            className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
+          />
+          <span>{hearts} / {maxHearts}</span>
+          {countdown && (
+            <span className="ml-1 text-sm font-normal text-gray-500">
+              ⏳ {countdown} 후 + 1
+            </span>
+          )}
+        </div>
 
+        {/* [ADD] 내 순위 & 계급 뱃지 & (평균/승률) */}
+        {myRank && (
+          <div className="mt-3 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-bold">{myRank.rank}위</span>
+              {(() => {
+                const badge = getRankBadge(myRank.total);
+                return (
+                  <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.color}`}>
+                    {badge.icon} {badge.name}
+                  </span>
+                );
+              })()}
+              {typeof myRank.avgReturnPct === "number" && (
+                <span className={`${myRank.avgReturnPct >= 0 ? "text-red-600" : "text-blue-600"}`}>
+                  평균 수익률 {myRank.avgReturnPct.toFixed(2)}%
+                </span>
+              )}
+            </div>
 
-{/* 가운데: 게임 시작 버튼 */}
-<Card className="p-0 flex group">
-  <Link
-    href="/game"
-    className="w-full h-full flex items-center justify-center 
-               rounded-xl text-2xl sm:text-3xl font-extrabold text-white
-               bg-gradient-to-r from-blue-500 to-blue-700
-               shadow-lg animate-pulse group-hover:[animation:none]
-               focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-               min-h-[80px] sm:min-h-[120px]"
-  >
-    🚀 차트 게임 시작
-  </Link>
-</Card>
+            {/* 승률은 아래 줄로 분리 */}
+            {typeof myRank.winRate === "number" && (
+              <div className="mt-1 text-gray-600">
+                승률 {myRank.winRate.toFixed(1)}%
+                {(myRank.wins != null && myRank.losses != null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
+      {/* 가운데: 게임 시작 버튼 */}
+      <Card className="p-0 flex group">
+        <Link
+          href="/game"
+          className="w-full h-full flex items-center justify-center 
+                     rounded-xl text-2xl sm:text-3xl font-extrabold text-white
+                     bg-gradient-to-r from-blue-500 to-blue-700
+                     shadow-lg animate-pulse group-hover:[animation:none]
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                     min-h-[80px] sm:min-h-[120px]">
+          🚀 차트 게임 시작
+        </Link>
+      </Card>
 
-
-     {/* 오른쪽: 무료 충전(AdRecharge) */}
-<AdRecharge />
+      {/* 오른쪽: 무료 충전(AdRecharge) */}
+      <AdRecharge />
     </div>
   );
 }

@@ -13,7 +13,7 @@ export async function GET() {
   // ✅ 매 호출 시 서버 기준으로 하트 자동 충전(1분 주기 로직은 hearts.ts에 있음)
   await refillHearts(session.user.id);
 
-  const u = await prisma.user.findUnique({
+  let u = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
       id: true,
@@ -28,6 +28,30 @@ export async function GET() {
 
   if (!u) {
     return NextResponse.json({ ok: false }, { status: 404 });
+  }
+
+  // ✅ DB에 name/email이 비어있으면 세션에서 백필(있을 때만)
+  const mergedName = u.name ?? (session.user.name ?? null);
+  const mergedEmail = u.email ?? (session.user.email ?? null);
+
+  if ((!u.name && mergedName) || (!u.email && mergedEmail)) {
+    try {
+      await prisma.user.update({
+        where: { id: u.id },
+        data: {
+          name: u.name ?? mergedName ?? undefined,
+          email: u.email ?? mergedEmail ?? undefined,
+        },
+      });
+      // 메모리 상 객체도 최신값으로 맞춤
+      u = {
+        ...u,
+        name: u.name ?? (mergedName as string | null),
+        email: u.email ?? (mergedEmail as string | null),
+      };
+    } catch {
+      // 실패해도 응답은 계속 진행 (표시용으로는 문제 없음)
+    }
   }
 
   return NextResponse.json({
