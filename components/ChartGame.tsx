@@ -230,6 +230,7 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
   const universeRef = useRef<SymbolItem[]>([])
   const bootedRef = useRef(false)
   const nextLockRef = useRef(false)
+  const startInFlightRef = useRef(false)
   const restoringRef = useRef(true)
 
   const hearts = useUserStore(s => s.hearts) ?? 0;
@@ -414,9 +415,15 @@ return valid.length ? valid : [
    * consumeHeart=false: 차트만 변경 (하트 비소모)
    */
   const loadAndInitBySymbol = useCallback(
+    
   async (sym: string, opts?: { consumeHeart?: boolean }) => {
     // 게스트면 무조건 하트 비소모
     const consumeHeart = guestMode ? false : (opts?.consumeHeart !== false)
+// 시작 락: 하트 소모 시작은 중복 트리거 방지
+if (consumeHeart && !guestMode) {
+  if (startInFlightRef.current) return
+  startInFlightRef.current = true
+}
 
     let capital = 10_000_000
     let currentHearts: number | undefined = hearts
@@ -459,7 +466,7 @@ return valid.length ? valid : [
       // 비소모 분기에서도 게스트면 /api/me 자체 생략
       if (!guestMode) {
         try {
-          const meRes = await fetch('/api/me', { cache: 'no-store' })
+          const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
           if (meRes.ok) {
             const me = await meRes.json()
             capital = me?.user?.capital ?? 10_000_000
@@ -527,11 +534,14 @@ return valid.length ? valid : [
     setCanStart(false)
     alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
     router.push('/')
+    if (consumeHeart && !guestMode) startInFlightRef.current = false  // ← 추가
     return
   }
   alert('게임 시작 중 오류가 발생했습니다.')
+  if (consumeHeart && !guestMode) startInFlightRef.current = false    // ← 추가
   return
 }
+
 
         const data = await resp.json()
 
@@ -588,6 +598,9 @@ return valid.length ? valid : [
 
         setSymbolLabel(await resolveLabel(confirmedSymbol))
         setChartKey(k => k + 1)
+        if (consumeHeart && !guestMode) {
+  startInFlightRef.current = false
+}
         restoringRef.current = false
         return
       }
@@ -731,7 +744,7 @@ return valid.length ? valid : [
 
     // 2) 서버 me 조회 실패 → 자동 게스트 전환 후 게스트 부팅
     try {
-      const meRes = await fetch('/api/me', { cache: 'no-store' })
+      const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
       if (!meRes.ok) {
         setGuestMode(true)
         setCanStart(true)
