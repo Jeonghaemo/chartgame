@@ -112,32 +112,30 @@ export default function HomeTopGrid() {
     
       {/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
       <Card className="p-4">
-       {/* 보유 자산 + 자산 초기화 (이메일 최상단 / 금액 크게 / 버튼 한 줄 고정) */}
+      {/* 상단 헤더: 이메일만 최상단 → '내 보유 자산' 크게 → 금액 더 크게 → 버튼 한 줄 */}
 <div className="flex items-start justify-between gap-3">
   <div className="min-w-0">
-    {/* 이메일을 가장 위에 표시 */}
-    {(displayEmail || displayName) ? (
-      <>
-        {displayEmail && (
-          <div className="text-xs text-gray-500 leading-tight break-all">
-            {displayEmail}
-          </div>
-        )}
-        <div className="text-xs text-gray-500 leading-tight">
-          {(displayName ?? "로그인된 사용자")} 님의 보유 자산
-        </div>
-      </>
+    {/* 이메일만 표시 (맨 위) */}
+    {displayEmail ? (
+      <div className="text-xs text-gray-500 leading-tight break-all">
+        {displayEmail}
+      </div>
     ) : (
       <div className="text-xs text-gray-400 leading-tight">로그인된 사용자</div>
     )}
 
-    {/* 금액 크게 */}
-    <div className="mt-1 text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">
+    {/* '내 보유 자산' 문구 크게 */}
+    <div className="mt-0.5 text-xl sm:text-2xl font-bold text-slate-900">
+      내 보유 자산
+    </div>
+
+    {/* 금액은 더 크게 */}
+    <div className="mt-0.5 text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">
       {(startCapital || 10_000_000).toLocaleString()}원
     </div>
   </div>
 
-  {/* 버튼: 줄바꿈 방지 */}
+  {/* 버튼: 한 줄 고정 */}
   <button
     onClick={async () => {
       if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return
@@ -145,16 +143,16 @@ export default function HomeTopGrid() {
         const r = await fetch("/api/reset-capital", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        })
-        const j = await r.json()
+        });
+        const j = await r.json();
         if (!r.ok || !j?.ok) {
-          alert(j?.message ?? "초기화 실패")
-          return
+          alert(j?.message ?? "초기화 실패");
+          return;
         }
-        alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`)
-        location.reload()
+        alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`);
+        location.reload();
       } catch {
-        alert("초기화 중 오류가 발생했습니다.")
+        alert("초기화 중 오류가 발생했습니다.");
       }
     }}
     className="ml-3 shrink-0 whitespace-nowrap self-start rounded-lg border px-2 py-1
@@ -165,6 +163,7 @@ export default function HomeTopGrid() {
     자산 초기화
   </button>
 </div>
+
 
         {/* 하트 + 카운트다운 */}
         <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
