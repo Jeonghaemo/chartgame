@@ -2,7 +2,8 @@ import "./globals.css";
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/lib/auth";
 import HeartStatusSync from "@/components/HeartStatusSync";
-import NavMenu from "@/components/NavMenu"; // ⬅️ 추가
+import NavMenu from "@/components/NavMenu";
+import Providers from "@/components/Providers"; // ⬅️ 추가: SessionProvider 래퍼
 
 export const metadata = { title: "차트게임", description: "50턴 차트게임" };
 
@@ -15,10 +16,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <meta name="agd-partner-manual-verification" />
       </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
-        {/* 헤더 높이도 살짝 키움 */}
+        {/* 헤더 */}
         <header className="h-20 border-b bg-white flex items-center">
           <div className="max-w-[1200px] mx-auto w-full px-4 flex items-center justify-between">
-            {/* 네비게이션 (Pill + Active 구분) */}
             <NavMenu />
 
             <div className="flex items-center gap-3 text-base">
@@ -35,10 +35,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         </header>
 
-        {/* 하트/쿨다운 백그라운드 동기화 (UI에 안 보임) */}
-        <HeartStatusSync />
-
-        {children}
+        {/* 클라이언트 전역 컨텍스트 (세션 등) */}
+        <Providers>
+          {/* 하트/쿨다운 동기화도 세션 의존 가능성이 있어 함께 래핑 */}
+          <HeartStatusSync />
+          {children}
+        </Providers>
       </body>
     </html>
   );
