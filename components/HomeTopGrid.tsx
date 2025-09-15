@@ -130,9 +130,9 @@ export default function HomeTopGrid() {
     </div>
 
     {/* 금액은 더 크게 */}
-    <div className="mt-0.5 text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">
-      {(startCapital || 10_000_000).toLocaleString()}원
-    </div>
+    <div className="mt-0.5 text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">
+  {(startCapital || 10_000_000).toLocaleString()}원
+</div>
   </div>
 
   {/* 버튼: 한 줄 고정 */}
