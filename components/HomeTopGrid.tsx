@@ -121,7 +121,7 @@ export default function HomeTopGrid() {
         {displayEmail}
       </div>
     ) : (
-      <div className="text-xs text-gray-400 leading-tight">로그인된 사용자</div>
+      <div className="text-xs text-gray-400 leading-tight">미로그인 사용자</div>
     )}
 
     {/* 현재 자산 + 금액 한 줄 */}
