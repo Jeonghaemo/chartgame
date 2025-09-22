@@ -30,9 +30,15 @@ if (!currentUser || currentUser.hearts <= 0) {
   return NextResponse.json({ error: 'NO_HEART' }, { status: 400 })
 }
 
-// 기존 게임 체크
+// 기존 게임 체크 (24시간 이내만)
 const existing = await prisma.game.findFirst({
-  where: { userId, finishedAt: null },
+  where: { 
+    userId, 
+    finishedAt: null,
+    createdAt: {
+      gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // 24시간 이내
+    }
+  },
   orderBy: { createdAt: 'desc' },
   select: { id: true },
 })

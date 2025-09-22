@@ -737,21 +737,13 @@ if (consumeHeart && !guestMode) {
 
     // 2) 서버 me 조회 실패 → 자동 게스트 전환 후 게스트 부팅
     try {
-      const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
-      if (!meRes.ok) {
-        setGuestMode(true)
-        setCanStart(true)
-        setStartCapital(10_000_000)
-        let uni = universeRef.current
-        if (!uni || uni.length === 0) {
-          uni = await loadUniverseWithNames()
-          universeRef.current = uni
-        }
-        const chosen = pickRandom<SymbolItem>(uni)
-        await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
-        restoringRef.current = false
-        return
-      }
+  const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
+  if (!meRes.ok) {
+    // 로그인이 필요하면 로그인 페이지로
+    alert('로그인이 필요합니다.')
+    router.push('/login') // 또는 router.push('/')
+    return
+  }
       const me = await meRes.json()
       const currentHearts = me?.user?.hearts ?? 0
       setHearts(currentHearts)
