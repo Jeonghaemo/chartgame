@@ -232,7 +232,10 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
   const nextLockRef = useRef(false)
   const startInFlightRef = useRef(false)
   const restoringRef = useRef(true)
-
+// 전역 시작 가드 (어떤 경로든 시작 1회만 허용)
+const startGuardRef = useRef(false)
+// 같은 심볼로 중복 시작 방지 키 (심볼+consumeHeart=true 조합 기준)
+const pendingStartKeyRef = useRef<string | null>(null)
   const hearts = useUserStore(s => s.hearts) ?? 0;
   const setHearts = useUserStore(state => state.setHearts)
   const maxHearts = useUserStore(s => s.maxHearts) ?? 5;
@@ -414,140 +417,156 @@ return valid.length ? valid : [
    * consumeHeart=true: 새 게임 시작 (하트 차감, chartChangesLeft=3)
    * consumeHeart=false: 차트만 변경 (하트 비소모)
    */
-  const loadAndInitBySymbol = useCallback(
-    
+  
+    const loadAndInitBySymbol = useCallback(
   async (sym: string, opts?: { consumeHeart?: boolean }) => {
     // 게스트면 무조건 하트 비소모
-    const consumeHeart = guestMode ? false : (opts?.consumeHeart !== false)
-// 시작 락: 하트 소모 시작은 중복 트리거 방지
-if (consumeHeart && !guestMode) {
-  if (startInFlightRef.current) return
-  startInFlightRef.current = true
-}
+    const consumeHeart = guestMode ? false : (opts?.consumeHeart !== false);
 
-    let capital = 10_000_000
-    let currentHearts: number | undefined = hearts
+    let capital = 10_000_000;
+    let currentHearts: number | undefined = hearts;
 
-
+    // (A) 사전 동기화: 소비 분기면 me 조회로 최신 hearts/자본 동기화
     if (consumeHeart) {
-      // 게스트가 아니어야만 /api/me 호출 + 하트 체크
       if (!guestMode) {
         try {
-          const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
-
+          const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' });
           if (meRes.ok) {
-            const me = await meRes.json()
-            capital = me?.user?.capital ?? 10_000_000
+            const me = await meRes.json();
+            capital = me?.user?.capital ?? 10_000_000;
             if (typeof me?.user?.hearts === 'number') {
-              currentHearts = me.user.hearts
-              setHearts(me.user.hearts)
-              setCanStart(me.user.hearts > 0)
+              currentHearts = me.user.hearts;
+              setHearts(me.user.hearts);
+              setCanStart(me.user.hearts > 0);
             }
           }
         } catch {}
       }
-      setStartCapital(capital)
-      // 게스트일 땐 절대 “하트부족” 알림/리다이렉트 X
+      setStartCapital(capital);
+
+      // (B) 하트 0 즉시 가드: 이 시점엔 어떤 락/가드도 아직 켜지지 않음
       if (!guestMode && (!currentHearts || currentHearts <= 0)) {
-  setCanStart(false) // ✅ 0개면 시작 불가 상태로 유지
-  alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
-  router.push('/')
-  return
-}
+        setCanStart(false);
+        alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!');
+        router.push('/');
+        return;
+      }
 
+      // (C) 이중 가드 ON (하트 ≥ 1 확정 이후)
+      if (consumeHeart && !guestMode) {
+        // 전역 가드
+        if (startGuardRef.current) return;
+        // 동일 심볼 중복 가드
+        const key = `${sym}::consume`;
+        if (pendingStartKeyRef.current && pendingStartKeyRef.current === key) return;
+
+        startGuardRef.current = true;
+        pendingStartKeyRef.current = key;
+
+        // 기존 락도 같은 지점에서 ON
+        if (startInFlightRef.current) return;
+        startInFlightRef.current = true;
+      }
     } else {
-      // 비소모 분기에서도 게스트면 /api/me 자체 생략
+      // 비소모 분기: 게스트가 아니면 me 동기화(UI 반영용)
       if (!guestMode) {
         try {
-          const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
+          const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' });
           if (meRes.ok) {
-            const me = await meRes.json()
-            capital = me?.user?.capital ?? 10_000_000
+            const me = await meRes.json();
+            capital = me?.user?.capital ?? 10_000_000;
             if (typeof me?.user?.hearts === 'number') {
-              setHearts(me.user.hearts)
+              setHearts(me.user.hearts);
             }
           }
         } catch {}
       }
-      setStartCapital(capital)
+      setStartCapital(capital);
     }
 
+    // (D) 차트 히스토리 로드
+    const r = await fetch(
+      `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
+      { cache: 'no-store' }
+    );
+    const response = await r.json();
+    const { ohlc: ohlcResp, startIndex: startIndexResp } = response as { ohlc: OHLC[]; startIndex: number };
 
-      const r = await fetch(
-        `/api/history?symbol=${encodeURIComponent(sym)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}`,
-        { cache: 'no-store' }
-      )
-      const response = await r.json()
-      const { ohlc: ohlcResp, startIndex: startIndexResp } = response as { ohlc: OHLC[]; startIndex: number }
+    // (E) 데이터 유효성 가드 + 안전 재시도(비소모)
+    if (!Array.isArray(ohlcResp) || ohlcResp.length === 0 || !Number.isFinite(startIndexResp)) {
+      console.error('History invalid (new/change):', response);
+      alert('차트 데이터를 불러오지 못했어요. 다른 종목으로 다시 시도합니다.');
 
-      // 데이터 유효성 가드
-      if (!Array.isArray(ohlcResp) || ohlcResp.length === 0 || !Number.isFinite(startIndexResp)) {
-        console.error('History invalid (new/change):', response)
-        alert('차트 데이터를 불러오지 못했어요. 다른 종목으로 다시 시도합니다.')
-
-        // 안전하게 다른 심볼로 재시도 (하트 소모 없이)
-        let uni = universeRef.current
-        if (!uni || uni.length === 0) {
-          uni = await loadUniverseWithNames()
-          universeRef.current = uni
-        }
-        const fallback = pickRandom<SymbolItem>(uni)
-        await loadAndInitBySymbol(fallback.symbol, { consumeHeart: false })
-        return
+      // 안전하게 다른 심볼로 재시도 (하트 소모 없이)
+      let uni = universeRef.current;
+      if (!uni || uni.length === 0) {
+        uni = await loadUniverseWithNames();
+        universeRef.current = uni;
       }
+      const fallback = pickRandom<SymbolItem>(uni);
+      await loadAndInitBySymbol(fallback.symbol, { consumeHeart: false });
+      return;
+    }
 
-      const fixedStartTs: number | null =
-        typeof response?.meta?.fixedStartTs === 'number' ? response.meta.fixedStartTs : null
+    const fixedStartTs: number | null =
+      typeof (response as any)?.meta?.fixedStartTs === 'number' ? (response as any).meta.fixedStartTs : null;
 
-      setOhlc(ohlcResp)
-      writeOhlcToCache(sym, startIndexResp, ohlcResp)
-      const closes = ohlcResp.map((d: any) => d.close)
+    setOhlc(ohlcResp);
+    writeOhlcToCache(sym, startIndexResp, ohlcResp);
+    const closes = ohlcResp.map((d: any) => d.close);
 
-      if (consumeHeart) {
+    // (F) 소비 분기: /api/game/start 호출을 try/finally로 감싸서 해제 일원화
+    if (consumeHeart) {
+      try {
         // ★ 게스트는 여기 안 들어옴
-       const resp = await fetch('/api/game/start', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    code: sym,
-    startIndex: startIndexResp,
-    startCash: capital,
-    feeBps: g.feeBps ?? 5,
-    maxTurns: RESERVED_TURNS,
-    // forceNew 제거: 기존 미완료 게임이 있으면 "그걸 반환"만 하도록 (서버 정책에 따름)
-    sliceStartTs: typeof fixedStartTs === 'number' ? fixedStartTs : null,
-  }),
-})
+        const resp = await fetch('/api/game/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({
+            code: sym,
+            startIndex: startIndexResp,
+            startCash: capital,
+            feeBps: g.feeBps ?? 5,
+            maxTurns: RESERVED_TURNS,
+            sliceStartTs: typeof fixedStartTs === 'number' ? fixedStartTs : null,
+          }),
+        });
 
-
-        
         if (!resp.ok) {
-  const j = await resp.json().catch(() => ({}))
-  if (!guestMode && j?.error === 'NO_HEART') {
-    setCanStart(false)
-    alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
-    router.push('/')
-    if (consumeHeart && !guestMode) startInFlightRef.current = false  // ← 추가
-    return
-  }
-  alert('게임 시작 중 오류가 발생했습니다.')
-  if (consumeHeart && !guestMode) startInFlightRef.current = false    // ← 추가
-  return
-}
+          const j = await resp.json().catch(() => ({}));
+          if (!guestMode && j?.error === 'NO_HEART') {
+            const hh = typeof j?.hearts === 'number' ? j.hearts : undefined;
+            if (typeof hh === 'number') {
+              setHearts(hh);
+              setCanStart(hh > 0);
+            } else {
+              setCanStart(false);
+            }
+            alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!');
+            router.push('/');
+          } else {
+            alert('게임 시작 중 오류가 발생했습니다.');
+          }
+          return;
+        }
 
+        const data = await resp.json(); // { ok, gameId, symbol, startIndex, sliceStartTs, hearts, reused }
+        if (typeof data?.hearts === 'number') {
+          setHearts(data.hearts);
+          setCanStart(data.hearts > 0);
+        }
 
-        const data = await resp.json()
-
-        const newGameId = data?.gameId ?? null
-        const confirmedSymbol = data?.symbol ?? sym
-        const confirmedStartIndex = data?.startIndex ?? startIndexResp
+        const newGameId = data?.gameId ?? null;
+        const confirmedSymbol = data?.symbol ?? sym;
+        const confirmedStartIndex = data?.startIndex ?? startIndexResp;
         const confirmedSliceStartTs =
           typeof data?.sliceStartTs === 'number'
             ? data.sliceStartTs
-            : (typeof fixedStartTs === 'number' ? fixedStartTs : null)
+            : (typeof fixedStartTs === 'number' ? fixedStartTs : null);
 
-        clearLocal()
-
+        // 로컬 초기화 및 기록
+        clearLocal();
         writeLocal(
           {
             id: newGameId,
@@ -568,15 +587,10 @@ if (consumeHeart && !guestMode) {
             avgPrice: null,
             history: [],
           }
-        )
+        );
 
-        if (typeof data?.hearts === 'number') {
-  setHearts(data.hearts)
-  setCanStart(data.hearts > 0)
-}
-
-        useGame.setState({ chartChangesLeft: 3 })
-
+        // 스토어 초기화
+        useGame.setState({ chartChangesLeft: 3 });
         g.init({
           symbol: confirmedSymbol,
           prices: closes,
@@ -585,67 +599,71 @@ if (consumeHeart && !guestMode) {
           feeBps: g.feeBps ?? 5,
           slippageBps: g.slippageBps ?? 0,
           startCash: capital,
-        })
+        });
+        (g as any).setCursor?.(confirmedStartIndex);
 
-        ;(g as any).setCursor?.(confirmedStartIndex)
-
-        setSymbolLabel(await resolveLabel(confirmedSymbol))
-        setChartKey(k => k + 1)
+        setSymbolLabel(await resolveLabel(confirmedSymbol));
+        setChartKey(k => k + 1);
+        restoringRef.current = false;
+        return;
+      } finally {
+        // ✅ 어떤 경로(성공/실패/조기 return)로 끝나도 항상 해제
         if (consumeHeart && !guestMode) {
-  startInFlightRef.current = false
-}
-        restoringRef.current = false
-        return
+          startInFlightRef.current = false;
+          startGuardRef.current = false;
+          pendingStartKeyRef.current = null;
+        }
       }
+    }
 
-      // 비소모 경로(게스트 포함)
-      g.init({
+    // (G) 비소모 경로(게스트 포함)
+    g.init({
+      symbol: sym,
+      prices: closes,
+      startIndex: startIndexResp,
+      maxTurns: RESERVED_TURNS,
+      feeBps: g.feeBps ?? 5,
+      slippageBps: g.slippageBps ?? 0,
+      startCash: capital,
+    });
+    (g as any).setCursor?.(startIndexResp);
+
+    setSymbolLabel(await resolveLabel(sym));
+
+    // 현재/로컬 값 보존
+    const currentLeft =
+      useGame.getState().chartChangesLeft ??
+      readLocal()?.meta?.chartChangesLeft ??
+      3;
+
+    writeLocal(
+      {
+        id: guestMode ? null : null, // 게스트는 항상 null
         symbol: sym,
-        prices: closes,
         startIndex: startIndexResp,
         maxTurns: RESERVED_TURNS,
         feeBps: g.feeBps ?? 5,
         slippageBps: g.slippageBps ?? 0,
         startCash: capital,
-      })
+        chartChangesLeft: currentLeft,
+        sliceStartTs: fixedStartTs,
+      },
+      {
+        cursor: startIndexResp,
+        cash: Math.floor(capital),
+        shares: 0,
+        turn: 0,
+        avgPrice: null,
+        history: [],
+      }
+    );
 
-      ;(g as any).setCursor?.(startIndexResp)
+    setChartKey(k => k + 1);
+    restoringRef.current = false;
+  },
+  [guestMode, hearts, g, setHearts, router, resolveLabel, loadUniverseWithNames]
+);
 
-      setSymbolLabel(await resolveLabel(sym))
-
-      // 현재/로컬 값 보존
-      const currentLeft =
-        useGame.getState().chartChangesLeft ??
-        readLocal()?.meta?.chartChangesLeft ??
-        3
-
-      writeLocal(
-        {
-          id: guestMode ? null : null, // 게스트는 항상 null
-          symbol: sym,
-          startIndex: startIndexResp,
-          maxTurns: RESERVED_TURNS,
-          feeBps: g.feeBps ?? 5,
-          slippageBps: g.slippageBps ?? 0,
-          startCash: capital,
-          chartChangesLeft: currentLeft,
-          sliceStartTs: fixedStartTs,
-        },
-        {
-          cursor: startIndexResp,
-          cash: Math.floor(capital),
-          shares: 0,
-          turn: 0,
-          avgPrice: null,
-          history: [],
-        }
-      )
-
-      setChartKey(k => k + 1)
-      restoringRef.current = false
-    },
-    [guestMode, g, setHearts, hearts, router, resolveLabel, loadUniverseWithNames]
-  )
 
   // 차트변경(하트 비소모)
   const resetGame = useCallback(async () => {
