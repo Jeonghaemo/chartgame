@@ -317,7 +317,7 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
     return () => clearTimeout(id)
   }, [g.cursor, g.cash, g.shares, g.turn, g.avgPrice, g.history, saveProgress])
 
-  const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * Math.random() * arr.length)]
+  const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
   const loadUniverseWithNames = useCallback(async () => {
     const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
