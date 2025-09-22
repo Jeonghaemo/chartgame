@@ -20,21 +20,39 @@ export async function POST(req: Request) {
 
     await refillHearts(userId)
 
-    if (!forceNew) {
-      const existing = await prisma.game.findFirst({
-        where: { userId, finishedAt: null },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true },
-      })
-      if (existing) {
-        const me = await prisma.user.findUnique({ where: { id: userId }, select: { hearts: true } })
-        return NextResponse.json({ ok: true, gameId: existing.id, hearts: me?.hearts ?? 0, reused: true })
-      }
-    }
+// 하트 체크를 먼저
+const currentUser = await prisma.user.findUnique({
+  where: { id: userId },
+  select: { hearts: true }
+})
 
-    try {
-      await consumeHeart(userId)
-    } catch (e: any) {
+if (!currentUser || currentUser.hearts <= 0) {
+  return NextResponse.json({ error: 'NO_HEART' }, { status: 400 })
+}
+
+// 기존 게임 체크
+const existing = await prisma.game.findFirst({
+  where: { userId, finishedAt: null },
+  orderBy: { createdAt: 'desc' },
+  select: { id: true },
+})
+
+if (existing) {
+  // 기존 게임 있으면 하트 소모 없이 반환
+  return NextResponse.json({ 
+    ok: true, 
+    gameId: existing.id, 
+    hearts: currentUser.hearts, // 소모 안함
+    reused: true 
+  })
+}
+
+// 새 게임이므로 하트 소모
+try {
+  await consumeHeart(userId)
+} catch (e: any) {
+  // 에러 처리 (기존과 동일)
+
       if (e?.message === 'NO_HEART') return NextResponse.json({ error: 'NO_HEART' }, { status: 400 })
       if (e?.message === 'USER_NOT_FOUND') return NextResponse.json({ error: 'USER_NOT_FOUND' }, { status: 404 })
       return NextResponse.json({ error: 'HEART_CONSUME_FAILED' }, { status: 500 })

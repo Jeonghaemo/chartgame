@@ -427,13 +427,6 @@ if (consumeHeart && !guestMode) {
 
     let capital = 10_000_000
     let currentHearts: number | undefined = hearts
- // ✅ 즉시 가드: 네트워크 전, 현재 스토어 기준으로 0개면 바로 차단
- if (consumeHeart && !guestMode && (!currentHearts || currentHearts <= 0)) {
-   setCanStart(false)
-   alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
-   router.push('/')
-   return
- }
 
 
     if (consumeHeart) {
