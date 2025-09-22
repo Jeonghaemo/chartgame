@@ -19,6 +19,9 @@ type SymbolItem = { symbol: string; name: string; market: string }
 
 const SYMBOL_CACHE_KEY_NAMES = 'kr_symbols_with_names_v1'
 const SYMBOL_CACHE_TTL_MS = 1000 * 60 * 60 * 12 // 12h
+const lastStartAtRef = useRef<number>(0);
+const lastStartKeyRef = useRef<string | null>(null);
+const START_COOLDOWN_MS = 1500; // 1.5초
 const MIN_VISIBLE = 365
 const RESERVED_TURNS = 60
 const MIN_TOTAL_CANDLES = MIN_VISIBLE + RESERVED_TURNS // 425
@@ -422,6 +425,15 @@ return valid.length ? valid : [
   async (sym: string, opts?: { consumeHeart?: boolean }) => {
     // 게스트면 무조건 하트 비소모
     const consumeHeart = guestMode ? false : (opts?.consumeHeart !== false);
+    // ★ 동일 심볼/옵션에 대해 짧은 쿨다운 (더블 클릭/이중 호출 차단)
+const startKey = `${sym}::${!guestMode && (opts?.consumeHeart !== false) ? 'consume' : 'no'}`;
+const now = Date.now();
+if (lastStartKeyRef.current === startKey && (now - (lastStartAtRef.current || 0)) < START_COOLDOWN_MS) {
+  return; // 너무 빨리 연속 호출되면 무시
+}
+lastStartKeyRef.current = startKey;
+lastStartAtRef.current = now;
+
 
     let capital = 10_000_000;
     let currentHearts: number | undefined = hearts;
