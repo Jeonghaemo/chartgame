@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import iconv from 'iconv-lite'
 
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const preferredRegion = ['sin1'];
 export const revalidate = 300;  // 5분 캐시
