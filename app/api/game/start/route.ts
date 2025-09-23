@@ -1,3 +1,4 @@
+// app/api/game/start/route.ts
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -34,6 +35,7 @@ if (!currentUser || currentUser.hearts <= 0) {
 const existing = await prisma.game.findFirst({
   where: { 
     userId, 
+    code: gameCode,
     finishedAt: null,
     createdAt: {
       gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // 24시간 이내
