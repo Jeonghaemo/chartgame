@@ -317,7 +317,7 @@ const [guestMode, setGuestMode] = useState<boolean>(() => {
     return () => clearTimeout(id)
   }, [g.cursor, g.cash, g.shares, g.turn, g.avgPrice, g.history, saveProgress])
 
-  const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * Math.random() * arr.length)]
+ const pickRandom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
   const loadUniverseWithNames = useCallback(async () => {
     const raw = localStorage.getItem(SYMBOL_CACHE_KEY_NAMES)
@@ -669,7 +669,8 @@ if (consumeHeart && !guestMode) {
       uni = await loadUniverseWithNames()
       universeRef.current = uni
     }
-    const chosen = pickRandom<SymbolItem>(uni)
+    const shuffled = [...uni].sort(() => Math.random() - 0.5)
+const chosen = pickRandom<SymbolItem>(shuffled)
     restoringRef.current = true
     await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
     useGame.getState().decChartChanges()
@@ -1001,12 +1002,14 @@ if (consumeHeart && !guestMode) {
       }
 
       let uni = universeRef.current
-      if (!uni || uni.length === 0) {
-        uni = await loadUniverseWithNames()
-        universeRef.current = uni
-      }
-      const chosen = pickRandom<SymbolItem>(uni)
-      await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
+if (!uni || uni.length === 0) {
+  uni = await loadUniverseWithNames()
+  universeRef.current = uni
+}
+// 배열을 섞어서 더 랜덤하게 선택
+const shuffled = [...uni].sort(() => Math.random() - 0.5)
+const chosen = pickRandom<SymbolItem>(shuffled)
+await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
       restoringRef.current = false
     })()
   }, [guestMode, loadUniverseWithNames, loadAndInitBySymbol, g, setHearts, resolveLabel])
