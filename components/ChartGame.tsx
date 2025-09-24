@@ -889,7 +889,10 @@ const recentSymbolsRef = useRef<string[]>([])
           setChartKey(k => k + 1)
           restoringRef.current = false
           return
-        } catch {}
+        } catch {console.log('로컬 복원 실패, 같은 심볼로 재시작:', local.meta.symbol)
+  await loadAndInitBySymbol(local.meta.symbol, { consumeHeart: false })
+  restoringRef.current = false
+  return}
       }
 
       // 5) 새 게임 시작
