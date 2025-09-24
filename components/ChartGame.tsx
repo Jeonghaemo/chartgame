@@ -895,27 +895,33 @@ export default function ChartGame() {
     })()
   }, [guestMode, loadUniverseWithNames, loadAndInitBySymbol, g, setHearts, resolveLabel])
 
-  // 내 순위 불러오기 (최근 7일) — 게스트면 패스
-  useEffect(() => {
-    if (guestMode) return
-    ;(async () => {
-      try {
-        const r = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' })
-        if (!r.ok) return
-        const j = await r.json()
-        if (j?.myRank) {
-          setMyRank({
-            rank: Number(j.myRank.rank ?? 0),
-            total: Number(j.myRank.total ?? 0),
-            avgReturnPct: Number(j.myRank.avgReturnPct ?? 0),
-            winRate: Number(j.myRank.winRate ?? 0),
-            wins: Number(j.myRank.wins ?? 0),
-            losses: Number(j.myRank.losses ?? 0),
-          })
-        }
-      } catch {}
-    })()
-  }, [guestMode])
+// 내 순위 불러오기 (전체기간) — 게스트면 패스
+useEffect(() => {
+  if (guestMode) return
+  ;(async () => {
+    try {
+      // 전체기간 우선
+      let r = await fetch('/api/leaderboard?period=all', { cache: 'no-store' })
+      // 폴백: all 미지원이면 기본값 시도
+      if (!r.ok) {
+        r = await fetch('/api/leaderboard', { cache: 'no-store' })
+      }
+      if (!r.ok) return
+      const j = await r.json()
+      if (j?.myRank) {
+        setMyRank({
+          rank: Number(j.myRank.rank ?? 0),
+          total: Number(j.myRank.total ?? 0),
+          avgReturnPct: Number(j.myRank.avgReturnPct ?? 0),
+          winRate: Number(j.myRank.winRate ?? 0),
+          wins: Number(j.myRank.wins ?? 0),
+          losses: Number(j.myRank.losses ?? 0),
+        })
+      }
+    } catch {}
+  })()
+}, [guestMode])
+
 
   // prices / cursor 안전 가드 + 값 계산
   const safeCursor = Number.isFinite(g.cursor) ? Math.max(0, Math.min(g.cursor, g.prices.length - 1)) : 0
