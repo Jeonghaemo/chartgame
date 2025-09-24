@@ -74,6 +74,11 @@ export default function AdRecharge() {
   const visibleRef = useRef(false);
   const activeRef = useRef<boolean>(true);
   const modalOpenRef = useRef<boolean>(false);
+// 확인(complete) 중복 제출 방지
+const confirmInFlightRef = useRef(false);
+const [confirmBusy, setConfirmBusy] = useState(false);
+// 같은 시청 세션을 식별하는 논스 (서버에서 중복 방지용으로 사용 권장)
+const confirmNonceRef = useRef<string | null>(null);
 
   // KLOOK 관련 상태 추가
   const [klookKey, setKlookKey] = useState(0);
@@ -154,6 +159,21 @@ export default function AdRecharge() {
     setSlotSize(calcSlotSize());
   };
   
+    // 새 세션 논스 생성 (서버에서 중복 방지 키로 활용 가능)
+  try {
+    // 브라우저 지원 시 UUID, 아니면 타임스탬프+랜덤
+    // @ts-ignore
+    const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    confirmNonceRef.current = uuid;
+  } catch {
+    confirmNonceRef.current = `${Date.now()}-${Math.random()}`;
+  }
+
+  // 이전 confirm 상태 초기화
+  confirmInFlightRef.current = false;
+  setConfirmBusy(false);
+
+
   const handleClose = () => {
     modalOpenRef.current = false;
     setOpen(false);
@@ -163,7 +183,17 @@ export default function AdRecharge() {
   };
   
   const handleConfirm = async () => {
-    if (!confirmEnabled) return;
+  // 버튼 활성화 상태·중복 진행 방지
+  if (!confirmEnabled) return;
+  if (confirmInFlightRef.current) return;
+  if (!modalOpenRef.current) return;
+
+  // 즉시 비활성화 → 연속 클릭 차단
+  confirmInFlightRef.current = true;
+  setConfirmBusy(true);
+  setConfirmEnabled(false);
+
+  try {
     const r = await fetch("/api/ads/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -172,18 +202,36 @@ export default function AdRecharge() {
         viewableMs,
         interacted,
         slotVisibleMaxPct,
+        // 🧩 중복 방지용 클라이언트 논스 전달 (서버에서 idempotency key로 사용 권장)
+        clientNonce: confirmNonceRef.current,
       }),
     });
-    if (r.ok) {
-      await load();
-      await setFromMe();
-      setOpen(false);
-      modalOpenRef.current = false;
-      // KLOOK 상태 초기화
-      setKlookScriptLoaded(false);
-      setKlookWidgetReady(false);
+
+    if (!r.ok) {
+      // 실패 시만 재시도 가능하도록 상태 되돌림
+      setConfirmEnabled(true);
+      setConfirmBusy(false);
+      confirmInFlightRef.current = false;
+      return;
     }
-  };
+
+    // 성공 시: 다음 슬롯 로드 + 사용자 상태 갱신 + 모달 닫기
+    await load();
+    await setFromMe();
+    setOpen(false);
+    modalOpenRef.current = false;
+
+    // KLOOK 상태 초기화
+    setKlookScriptLoaded(false);
+    setKlookWidgetReady(false);
+  } catch {
+    // 네트워크 오류 → 재시도 허용
+    setConfirmEnabled(true);
+    setConfirmBusy(false);
+    confirmInFlightRef.current = false;
+  }
+};
+
 
   const DAILY_LIMIT = 5; // 5회 제한
   const label = info?.eligible
@@ -516,7 +564,7 @@ export default function AdRecharge() {
                 <div className="h-2 bg-emerald-500 transition-[width]" style={{ width: `${progress}%` }} />
               </div>
               <div className="mt-2 text-xs text-gray-500">
-                {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 후 [하트 충전 확인] 활성화
+                {Math.ceil(MIN_VIEWABLE_MS / 1000)}초 후 [❤️하트 충전 확인] 활성화
               </div>
             </div>
 
@@ -526,14 +574,16 @@ export default function AdRecharge() {
                 닫기
               </button>
               <button
-                onClick={handleConfirm}
-                disabled={!confirmEnabled}
-                className={`rounded-xl px-4 py-2 font-semibold ${
-                  confirmEnabled ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
-                }`}
-              >
-                하트 충전 확인
-              </button>
+  onClick={handleConfirm}
+  // ⚠️ 진행 중이거나 비활성 조건이면 항상 버튼 잠금
+  disabled={!confirmEnabled || confirmBusy}
+  className={`rounded-xl px-4 py-2 font-semibold ${
+    (!confirmEnabled || confirmBusy) ? "bg-gray-200 text-gray-500" : "bg-emerald-600 text-white"
+  }`}
+>
+  {confirmBusy ? "확인 중..." : "하트 충전 확인"}
+</button>
+
             </div>
           </div>
         </div>
