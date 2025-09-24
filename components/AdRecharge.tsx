@@ -581,7 +581,7 @@ const confirmNonceRef = useRef<string | null>(null);
     (!confirmEnabled || confirmBusy) ? "bg-gray-200 text-gray-500" : "bg-emerald-600 text-white"
   }`}
 >
-  {confirmBusy ? "확인 중..." : "하트 충전 확인"}
+  {confirmBusy ? "확인 중..." : "❤️하트 충전 확인"}
 </button>
 
             </div>
