@@ -149,29 +149,29 @@ const confirmNonceRef = useRef<string | null>(null);
   }, []);
 
   const handleOpen = () => {
-    setOpen(true);
-    modalOpenRef.current = true;
-    setViewableMs(0);
-    setInteracted(false);
-    setSlotVisibleMaxPct(0);
-    setConfirmEnabled(false);
-    setProgressSmooth(0);
-    setSlotSize(calcSlotSize());
-  };
-  
-    // 새 세션 논스 생성 (서버에서 중복 방지 키로 활용 가능)
+  // 새 세션 논스 생성 (서버에서 중복 방지 키로 활용)
   try {
-    // 브라우저 지원 시 UUID, 아니면 타임스탬프+랜덤
-    // @ts-ignore
-    const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    const uuid =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? (crypto as any).randomUUID()
+        : `${Date.now()}-${Math.random()}`;
     confirmNonceRef.current = uuid;
   } catch {
     confirmNonceRef.current = `${Date.now()}-${Math.random()}`;
   }
-
   // 이전 confirm 상태 초기화
   confirmInFlightRef.current = false;
   setConfirmBusy(false);
+
+  setOpen(true);
+  modalOpenRef.current = true;
+  setViewableMs(0);
+  setInteracted(false);
+  setSlotVisibleMaxPct(0);
+  setConfirmEnabled(false);
+  setProgressSmooth(0);
+  setSlotSize(calcSlotSize());
+};
 
 
   const handleClose = () => {
@@ -387,6 +387,7 @@ const confirmNonceRef = useRef<string | null>(null);
 
   const progress = Math.min(100, Math.round(progressSmooth));
 
+
   return (
     <div className="rounded-2xl bg-white border p-6 text-center">
       <div className="font-semibold text-lg mb-4">❤️ 하트 무료 충전</div>
@@ -575,7 +576,6 @@ const confirmNonceRef = useRef<string | null>(null);
               </button>
               <button
   onClick={handleConfirm}
-  // ⚠️ 진행 중이거나 비활성 조건이면 항상 버튼 잠금
   disabled={!confirmEnabled || confirmBusy}
   className={`rounded-xl px-4 py-2 font-semibold ${
     (!confirmEnabled || confirmBusy) ? "bg-gray-200 text-gray-500" : "bg-emerald-600 text-white"
