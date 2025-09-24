@@ -162,7 +162,8 @@ const HeartCountdownText = memo(function HeartCountdownText({
 export default function ChartGame() {
   const g = useGame()
   const router = useRouter()
-
+  const lastUsedSymbolRef = useRef<string>('')
+  
   // 게스트 모드
   const [guestMode, setGuestMode] = useState<boolean>(() => {
     try { return localStorage.getItem('guestMode') === '1' } catch { return false }
@@ -572,8 +573,7 @@ const recentSymbolsRef = useRef<string[]>([])
       uni = await loadUniverseWithNames()
       universeRef.current = uni
     }
-    const shuffled = [...uni].sort(() => Math.random() - 0.5)
-    const chosen = pickRandom<SymbolItem>(shuffled)
+    const chosen = pickRandom<SymbolItem>(uni)
     restoringRef.current = true
     await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
     useGame.getState().decChartChanges()
