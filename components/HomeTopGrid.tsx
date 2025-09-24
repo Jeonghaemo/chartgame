@@ -89,20 +89,27 @@ export default function HomeTopGrid() {
         }
       } catch {}
       try {
-        const r2 = await fetch("/api/leaderboard?period=7d", { cache: "no-store" });
-        if (r2.ok) {
-          const j2 = await r2.json();
-          if (j2?.myRank) {
-            setMyRank({
-              rank: Number(j2.myRank.rank ?? 0),
-              total: Number(j2.myRank.total ?? 0),
-              avgReturnPct: Number(j2.myRank.avgReturnPct ?? 0),
-              winRate: Number(j2.myRank.winRate ?? 0),
-              wins: Number(j2.myRank.wins ?? 0),
-              losses: Number(j2.myRank.losses ?? 0),
-            });
-          }
-        }
+        // 전체기간 우선 호출 (API가 지원하면 all 사용)
+let r2 = await fetch("/api/leaderboard?period=all", { cache: "no-store" });
+// 호환용 폴백: all 미지원이면 파라미터 없이 전체기간을 기본값으로 쓰는 엔드포인트일 수 있음
+if (!r2.ok) {
+  r2 = await fetch("/api/leaderboard", { cache: "no-store" });
+}
+
+if (r2.ok) {
+  const j2 = await r2.json();
+  if (j2?.myRank) {
+    setMyRank({
+      rank: Number(j2.myRank.rank ?? 0),
+      total: Number(j2.myRank.total ?? 0),
+      avgReturnPct: Number(j2.myRank.avgReturnPct ?? 0),
+      winRate: Number(j2.myRank.winRate ?? 0),
+      wins: Number(j2.myRank.wins ?? 0),
+      losses: Number(j2.myRank.losses ?? 0),
+    });
+  }
+}
+
       } catch {}
     })();
   }, [setHearts]);
