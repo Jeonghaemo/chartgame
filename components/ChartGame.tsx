@@ -231,6 +231,13 @@ const recentSymbolsRef = useRef<string[]>([])
 
   // 저장(서버+로컬)
   const saveProgress = useCallback(async () => {
+ // 너무 자주 저장하지 않도록 제한
+  const now = Date.now()
+  const lastSaveKey = 'last_save_time'
+  const lastSave = parseInt(localStorage.getItem(lastSaveKey) || '0')
+  if (now - lastSave < 500) return // 0.5초 이내 중복 저장 방지
+  localStorage.setItem(lastSaveKey, now.toString())
+
     const symbol = (g as any).symbol
     const ready =
       g.status === 'playing' &&
@@ -304,7 +311,7 @@ const recentSymbolsRef = useRef<string[]>([])
 
   // 상태 자동 저장
   useEffect(() => {
-    const id = setTimeout(() => { void saveProgress() }, 120)
+    const id = setTimeout(() => { void saveProgress() }, 1000)
     return () => clearTimeout(id)
   }, [g.cursor, g.cash, g.shares, g.turn, g.avgPrice, g.history, saveProgress])
 
