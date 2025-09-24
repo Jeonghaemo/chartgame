@@ -114,6 +114,16 @@ type MyRank = {
   losses?: number
 }
 
+// 유틸 함수들 섹션에 추가
+function fisherYatesShuffle<T>(array: T[]): T[] {
+  const result = [...array]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
 // 하트 카운트다운 훅
 function useHeartCountdown(lastRefillAt?: string | Date | null, hearts?: number, maxHearts?: number) {
   const [remain, setRemain] = useState<string>("")
@@ -188,7 +198,7 @@ export default function ChartGame() {
   const nextLockRef = useRef(false)
   const startInFlightRef = useRef(false)
   const restoringRef = useRef(true)
-
+const recentSymbolsRef = useRef<string[]>([])
   // === 중복 요청/레이스 방지 추가 ===
   const loadInFlightRef = useRef(false)
   const lastAbortRef = useRef<AbortController | null>(null)
@@ -888,8 +898,14 @@ export default function ChartGame() {
         uni = await loadUniverseWithNames()
         universeRef.current = uni
       }
-      const shuffled = [...uni].sort(() => Math.random() - 0.5)
-      const chosen = pickRandom<SymbolItem>(shuffled)
+      // 최근 3개 심볼 제외하고 선택
+const availableSymbols = uni.filter(s => !recentSymbolsRef.current.includes(s.symbol))
+const poolToUse = availableSymbols.length > 0 ? availableSymbols : uni
+const shuffled = fisherYatesShuffle(poolToUse)
+const chosen = shuffled[0]
+
+// 선택된 심볼을 최근 목록에 추가
+recentSymbolsRef.current = [chosen.symbol, ...recentSymbolsRef.current].slice(0, 3)
       await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
       restoringRef.current = false
     })()
