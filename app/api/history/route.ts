@@ -136,6 +136,16 @@ function lowerBoundByTs(arr: OHLC[], target: number) {
 }
 
 export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+const tag = url.searchParams.get('sliceStart') || url.searchParams.get('sliceStartTs')
+  ? 'RESTORE'
+  : 'RANDOM';
+console.log('[history:req]', tag, {
+  symbol: url.searchParams.get("symbol"),
+  sliceDays: url.searchParams.get("slice"),
+  gameTurns: url.searchParams.get("turns"),
+});
+
   try {
     const url = new URL(req.url);
 
@@ -227,6 +237,12 @@ export async function GET(req: NextRequest) {
     } = getRandomSlice(ohlc, sliceDays, gameTurns);
     const initialChartData = gameData.slice(0, startIndex + 1);
 
+    console.log('[history:res]', tag, {
+  symbol,
+  fixedStart: randomFixedStart,
+  count: gameData.length,
+});
+
     return NextResponse.json({
       ok: true,
       source: "yahoo",
@@ -251,6 +267,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("[/api/history] error:", err?.message || err);
+    
     return NextResponse.json(
       { ok: false, symbol: null, ohlc: [], initialChart: [], startIndex: 0 },
       { status: 200 }
