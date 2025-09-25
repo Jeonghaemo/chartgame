@@ -477,7 +477,7 @@ const recentSymbolsRef = useRef<string[]>([])
               slippageBps: g.slippageBps ?? 0,
               startCash: capital,
               chartChangesLeft: 3,
-              sliceStartTs: confirmedSliceStartTs,
+              
             },
             {
               cursor: confirmedStartIndex,
@@ -852,11 +852,11 @@ const recentSymbolsRef = useRef<string[]>([])
           let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
           if (!ohlcArr) {
             const hist = await fetch(
-              `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
-              `&startIndex=${local.meta.startIndex}` +
-              (typeof local.meta.sliceStartTs === 'number' ? `&sliceStartTs=${local.meta.sliceStartTs}` : ''),
-              { cache: 'no-store' }
-            )
+  `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+  `&startIndex=${local.meta.startIndex}`,
+  { cache: 'no-store' }
+)
+
             const hjson = await hist.json()
             ohlcArr = hjson.ohlc as OHLC[]
             writeOhlcToCache(local.meta.symbol, local.meta.startIndex, ohlcArr)
