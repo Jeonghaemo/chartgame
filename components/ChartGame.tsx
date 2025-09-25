@@ -438,6 +438,7 @@ const recentSymbolsRef = useRef<string[]>([])
               startCash: capital,
               feeBps: g.feeBps ?? 5,
               maxTurns: RESERVED_TURNS,
+              forceNew: true,
               sliceStartTs: typeof fixedStartTs === 'number' ? fixedStartTs : null,
             }),
           })
