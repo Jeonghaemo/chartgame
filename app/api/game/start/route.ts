@@ -71,8 +71,7 @@ export async function POST(req: Request) {
         }
 
         // 4) 새 게임 생성
-        const sliceStartTs =
-          typeof body?.sliceStartTs === 'number' ? (body.sliceStartTs as number) : null
+        const sliceStartTs = Math.floor(Date.now() / 1000)
 
         const game = await tx.game.create({
           data: {
