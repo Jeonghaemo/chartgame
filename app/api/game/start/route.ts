@@ -72,9 +72,7 @@ export async function POST(req: Request) {
 
         // 4) 새 게임 생성
         // sliceStartTs는 클라이언트에서 명시적으로 준 경우에만 사용 (그 외에는 null)
-const sliceStartTs =
-  typeof body?.sliceStartTs === 'number' ? (body.sliceStartTs as number) : null
-
+const sliceStartTs = null;
 
         const game = await tx.game.create({
           data: {

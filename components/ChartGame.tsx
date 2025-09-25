@@ -542,7 +542,7 @@ const recentSymbolsRef = useRef<string[]>([])
             slippageBps: g.slippageBps ?? 0,
             startCash: capital,
             chartChangesLeft: currentLeft,
-            sliceStartTs: fixedStartTs,
+            
           },
           {
             cursor: startIndexResp,
