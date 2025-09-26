@@ -141,16 +141,29 @@ export default function AverageCalculatorPage() {
 
   return (
     <main className="min-h-[70vh] bg-gray-50">
-      <div className="mx-auto max-w-3xl px-4 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-8">
         {/* 헤더 */}
-        <header className="mb-6 text-center">
+        <header className="mb-4 text-center">
   <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm">
     주식 평단가 계산기
   </h1>
-  <p className="mt-3 text-gray-700 text-lg font-medium">
-    <b>기존 보유 + 추가 매수</b>를 합산해 <b>평단가·수익률·손익금액</b>을 한눈에 확인하세요.
-  </p>
+
+  {/* 안내 박스 */}
+  <div className="mt-4 rounded-xl bg-gray-50 border border-gray-200 text-left px-6 py-5 space-y-3">
+    <p className="text-gray-900 text-[17px] font-semibold">
+      📌 기존 보유 + 추가 매수를 합산해 <b>평단가·수익률·손익금액</b>을 한눈에 확인하세요.
+    </p>
+    <ul className="list-disc list-inside space-y-0 text-[16px] text-gray-800">
+      <li>여러 번 나눠 매수한 주식의 <b>평균 단가</b>와 <b>손익률</b>을 계산할 수 있습니다.</li>
+      <li><b>국내주식·미국주식·해외주식</b> 모두 계산할 수 있으며, 소수점 입력도 지원합니다.</li>
+      <li>실제 증권사 평단가는 수수료, 세금, 반올림 방식에 따라 다를 수 있습니다.</li>
+      <li>세금·수수료는 포함되지 않은 단순 계산이며, 참고용으로만 사용하세요.</li>
+    </ul>
+  </div>
 </header>
+
+
+
 
         {/* 입력 카드 */}
         <section className="rounded-2xl bg-white shadow p-6 space-y-4">
