@@ -11,7 +11,7 @@ export default async function Home() {
  <section className="rounded-2xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 text-white px-6 py-6 shadow-xl text-center">
   {/* 타이틀 */}
   <h1 className="text-3xl md:text-3xl font-extrabold tracking-tight mb-3 drop-shadow-lg">
-    🚀 주식 차트게임
+    📈 주식 차트게임
   </h1>
 
   {/* 본문 문구 */}

@@ -226,7 +226,7 @@ if (r2.ok) {
                      shadow-lg animate-pulse group-hover:[animation:none]
                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                      min-h-[80px] sm:min-h-[120px]">
-          📈 차트 게임 시작
+          🚀 차트 게임 시작
         </Link>
       </Card>
 

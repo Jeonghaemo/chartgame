@@ -5,7 +5,7 @@ const meta = {
     title: "복리 계산기",
     description: "기본 복리와 적립식 복리를 계산할 수 있습니다.",
     url: "https://chartgame.co.kr/compound",
-    siteName: "Stocktrend Calculator",
+    siteName: "주식 차트게임",
     locale: "ko_KR",
     type: "website"
   }

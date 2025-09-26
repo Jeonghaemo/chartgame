@@ -4,15 +4,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home as HomeIcon, LineChart, Trophy } from "lucide-react";
+import { Calculator } from "lucide-react";
 
 export default function NavMenu() {
   const pathname = usePathname();
 
-  const menus = [
-    { href: "/", label: "홈", icon: <HomeIcon className="w-5 h-5" /> },
-    { href: "/game", label: "차트게임", icon: <LineChart className="w-5 h-5" /> },
-    { href: "/leaderboard", label: "랭킹보기", icon: <Trophy className="w-5 h-5" /> },
-  ];
+ const menus = [
+  { href: "/", label: "홈", icon: <HomeIcon className="w-5 h-5" /> },
+  { href: "/game", label: "차트게임", icon: <LineChart className="w-5 h-5" /> },
+  { href: "/leaderboard", label: "랭킹보기", icon: <Trophy className="w-5 h-5" /> },
+  { href: "/calculators", label: "투자 계산기", icon: <Calculator className="w-5 h-5" /> }, // ✅ 추가
+];
+
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";

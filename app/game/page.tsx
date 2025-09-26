@@ -21,9 +21,9 @@ export default async function GamePage({
      return (
   <main className="min-h-[80vh] flex items-start justify-center bg-gray-100 px-4 pt-4">
   <div className="w-full max-w-5xl rounded-2xl bg-blue-600 text-white px-8 py-6 shadow-lg text-center">
-    {/* 메인 타이틀 (🚀 + 제목 한 줄) */}
+    {/* 메인 타이틀 (📈 + 제목 한 줄) */}
     <div className="flex items-center justify-center gap-3 mb-4">
-      <span className="text-3xl">🚀</span>
+      <span className="text-3xl">📈</span>
       <h1 className="text-3xl md:text-3xl font-extrabold text-white tracking-tight">
         주식 차트게임
       </h1>
