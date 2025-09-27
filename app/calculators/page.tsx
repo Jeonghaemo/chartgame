@@ -10,7 +10,7 @@ import {
   Droplet,
   TrendingUp,
   Coins,
-  ReceiptCent,
+  CircleDollarSign,
   ArrowRight,
 } from "lucide-react";
 
@@ -21,138 +21,152 @@ type Card = {
   title: string;
   desc: string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  badge?: "인기" | "신규" | "업데이트";
+  gradient: string;
+  ring: string;
 };
 
 const cards: Card[] = [
   {
     href: "/calculators/average",
     title: "주식 평단가 계산기",
-    desc: "여러 번 매수의 평균 단가/수익률 계산",
+    desc: "여러 번 매수의 평균 단가/수익률",
     Icon: Layers3,
+    gradient: "from-sky-500 via-blue-500 to-indigo-500",
+    ring: "ring-sky-300",
   },
   {
     href: "/calculators/compound",
     title: "복리 계산기",
-    desc: "원금·이율·기간에 따른 복리 성장",
+    desc: "원금·이율·기간의 복리 성장",
     Icon: Calculator,
+    gradient: "from-emerald-500 via-teal-500 to-cyan-500",
+    ring: "ring-emerald-300",
   },
   {
     href: "/calculators/fee",
     title: "수수료 계산기",
-    desc: "매수·매도 수수료/세금 반영 실수령액",
+    desc: "매수·매도 수수료/세금 추정",
     Icon: Percent,
-    badge: "인기",
+    gradient: "from-fuchsia-500 via-purple-500 to-pink-500",
+    ring: "ring-fuchsia-300",
   },
   {
     href: "/calculators/losscut",
     title: "손절가 계산기",
     desc: "허용 손실률 기준 손절 가격",
     Icon: Scissors,
+    gradient: "from-rose-500 via-red-500 to-orange-500",
+    ring: "ring-rose-300",
   },
   {
     href: "/calculators/target",
     title: "목표수익률 계산기",
     desc: "목표 수익률 달성 주가/수익액",
     Icon: Target,
+    gradient: "from-amber-500 via-orange-500 to-red-500",
+    ring: "ring-amber-300",
   },
   {
     href: "/calculators/water",
     title: "물타기 계산기",
-    desc: "추가 매수 후 평단 변화/수익률",
+    desc: "추가 매수로 평단 변화",
     Icon: Droplet,
+    gradient: "from-cyan-500 via-sky-500 to-blue-500",
+    ring: "ring-cyan-300",
   },
   {
     href: "/calculators/yield",
     title: "수익률 계산기",
     desc: "매수·매도 가격 기반 수익률",
     Icon: TrendingUp,
+    gradient: "from-lime-500 via-green-500 to-emerald-500",
+    ring: "ring-lime-300",
   },
   {
     href: "/calculators/exchange",
     title: "환율 계산기",
-    desc: "전일 환율 기준 간편 통화 변환",
+    desc: "간편하게 통화 변환을 할 수 있는 환율 계산기",
     Icon: Coins,
-    badge: "업데이트",
+    gradient: "from-violet-500 via-indigo-500 to-blue-500",
+    ring: "ring-violet-300",
   },
   {
     href: "/calculators/tax",
     title: "양도소득세 계산기",
-    desc: "국내/해외 주식 양도세 간편 산출",
-    Icon: ReceiptCent,
-    badge: "신규",
+    desc: "국내·해외 양도차익 세금 계산",
+    Icon: CircleDollarSign,
+    gradient: "from-purple-500 via-fuchsia-500 to-pink-500",
+    ring: "ring-purple-300",
   },
 ];
 
 export default function CalculatorsIndexPage() {
   return (
-    <main className="min-h-[70vh] bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-8">
+    <main className="min-h-[70vh] bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="mx-auto max-w-7xl px-4 py-10">
         {/* 헤더 */}
-        <header className="mb-6 text-center">
-          <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm">
-            주식 투자 계산기
-          </h1>
-          <div className="mt-4 rounded-xl bg-white border border-gray-200 shadow-sm text-left px-6 py-5 space-y-2 mx-auto max-w-3xl">
-            <p className="text-gray-900 text-[17px] font-semibold leading-snug">
-              📌 주식·환율 계산을 하나로. 총 <b>{cards.length}개</b> 계산기를 빠르고 정확하게 이용해 보세요.
-            </p>
-            <ul className="list-disc list-inside text-[16px] text-gray-800 space-y-1">
-              <li>일관된 UI와 검증된 계산 로직으로 신뢰도 향상</li>
-              <li>세부 설명·공식·FAQ 제공으로 초보도 쉽게 활용</li>
-              <li>모든 결과는 참고용이며 실제 거래/신고와 차이가 있을 수 있습니다.</li>
-            </ul>
-          </div>
-        </header>
+<header className="mb-8 text-center">
+  <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-5xl font-extrabold tracking-tight drop-shadow-sm">
+    투자 계산기
+  </h1>
+
+  {/* 설명 박스 */}
+  <div className="mx-auto mt-5 max-w-3xl rounded-2xl bg-white/80 backdrop-blur border border-gray-200 shadow-sm text-left px-6 py-6">
+    <p className="text-gray-900 text-lg md:text-xl font-medium leading-snug">
+      <b className="text-blue-700">주식·환율·세금까지 한 번에 계산하세요.</b><br />
+      매수가·수수료·세금·환율 등 간단히 입력하면 즉시 결과를 확인할 수 있습니다.
+    </p>
+  </div>
+</header>
+
 
         {/* 카드 그리드 */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map(({ href, title, desc, Icon, badge }) => (
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map(({ href, title, desc, Icon, gradient, ring }) => (
             <Link
               key={href}
               href={href}
-              className="group rounded-2xl bg-white shadow-sm hover:shadow-md transition border border-gray-200 hover:border-blue-200 p-5"
+              className={[
+                "group relative overflow-hidden rounded-2xl bg-white/90 border border-gray-100",
+                "shadow-sm hover:shadow-xl transition",
+                "focus:outline-none focus:ring-2", ring,
+              ].join(" ")}
             >
-              <div className="flex items-start gap-3">
-                <div className="rounded-xl p-2 border bg-gray-50">
-                  <Icon className="w-6 h-6 text-gray-800" aria-hidden />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-                    {badge && (
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full border ${
-                          badge === "신규"
-                            ? "border-green-200 bg-green-50 text-green-700"
-                            : badge === "업데이트"
-                            ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : "border-blue-200 bg-blue-50 text-blue-700"
-                        }`}
-                      >
-                        {badge}
-                      </span>
-                    )}
+              {/* 카드 상단 그라데이션 라인 */}
+              <div className={`h-1 w-full bg-gradient-to-r ${gradient}`} />
+
+              <div className="p-5">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={[
+                      "shrink-0 rounded-xl p-2.5 text-white shadow-sm",
+                      "bg-gradient-to-br", gradient,
+                      "transition-transform group-hover:scale-105",
+                    ].join(" ")}
+                    aria-hidden
+                  >
+                    <Icon className="w-6 h-6" />
                   </div>
-                  <p className="mt-1 text-sm text-gray-600">{desc}</p>
+                  <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                </div>
+
+                <p className="mt-2 text-sm text-gray-600">{desc}</p>
+
+                <div className="mt-4 flex items-center gap-1 text-sm font-medium text-blue-600">
+                  이동하기
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                 </div>
               </div>
-              <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-600">
-                이동하기 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </div>
+
+              {/* 카드 하이라이트 */}
+              <div
+                className={[
+                  "pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity",
+                  "bg-[radial-gradient(600px_circle_at_var(--x)_var(--y),rgba(59,130,246,0.06),transparent_40%)]",
+                ].join(" ")}
+              />
             </Link>
           ))}
-        </section>
-
-        {/* 신뢰/가이드 푸터 블록 */}
-        <section className="mt-8">
-          <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
-            <h3 className="text-[15px] font-semibold text-gray-900">안내 및 유의사항</h3>
-            <p className="mt-1 text-[14px] text-gray-600 leading-relaxed">
-              본 서비스의 계산 결과는 참고용입니다. 수수료·세금·호가·환율 등의 실제 적용 방식,
-              증권사/기관별 절사·반올림 규칙, 공시·정책 변경 등에 따라 결과가 달라질 수 있습니다.
-            </p>
-          </div>
         </section>
       </div>
     </main>
