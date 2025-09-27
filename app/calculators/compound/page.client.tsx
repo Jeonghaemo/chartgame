@@ -140,21 +140,21 @@ export default function CompoundCalculatorPage() {
     <main className="min-h-[70vh] bg-gray-50">
       <div className="mx-auto max-w-5xl px-4 py-8">
         {/* 헤더 */}
-        <header className="mb-6 text-center">
-          <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm">
-            복리 계산기
-          </h1>
-          <div className="mt-4 rounded-xl bg-gray-50 border border-gray-200 text-left px-6 py-5 space-y-3">
-            <p className="text-gray-900 text-[17px] font-semibold">
-              📌 원금과 이자율, 기간을 입력해 <b>기본 복리·적립식 복리</b>를 계산합니다.
-            </p>
-            <ul className="list-disc list-inside text-[16px] text-gray-800">
-              <li>연·월·일 복리 등 다양한 주기를 선택할 수 있습니다.</li>
-              <li>적립식 투자 시 매월 일정 금액 추가 납입도 계산됩니다.</li>
-              <li>장기 투자 수익률, 은퇴 자산 시뮬레이션 등에 활용하세요.</li>
-            </ul>
-          </div>
-        </header>
+<header className="mb-6 text-center">
+  <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm">
+    복리 계산기
+  </h1>
+  <div className="mt-4 rounded-xl bg-white border border-gray-200 shadow-sm text-left px-6 py-5 space-y-2">
+    <p className="text-gray-900 text-[17px] font-semibold leading-snug">
+      📌 원금과 이자율, 기간을 입력해 <b>기본 복리·적립식 복리</b>를 계산합니다.
+    </p>
+    <ul className="list-disc list-inside text-[16px] text-gray-800 space-y-1">
+      <li>연·월·일 복리 등 다양한 주기를 선택할 수 있습니다.</li>
+      <li>적립식 투자 시 매월 일정 금액 추가 납입도 계산됩니다.</li>
+      <li>장기 투자 수익률, 은퇴 자산 시뮬레이션 등에 활용하세요.</li>
+    </ul>
+  </div>
+</header>
 
         {/* 입력 카드 */}
         <section className="rounded-2xl bg-white shadow p-6 space-y-4">

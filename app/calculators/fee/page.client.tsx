@@ -177,22 +177,23 @@ export default function FeeCalculatorPage() {
   return (
     <main className="min-h-[70vh] bg-gray-50">
       <div className="mx-auto max-w-5xl px-4 py-8">
-        {/* 헤더 */}
-        <header className="mb-6 text-center">
-          <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm">
-            수수료 계산기
-          </h1>
-          <div className="mt-4 rounded-xl bg-gray-50 border border-gray-200 text-left px-6 py-5 space-y-3">
-            <p className="text-gray-900 text-[17px] font-semibold">
-              📌 매수·매도 금액과 수량을 입력하면 <b>수수료/세금이 반영된 실수령액·총 손익</b>을 계산합니다.
-            </p>
-            <ul className="list-disc list-inside text-[16px] text-gray-800">
-              <li><b>국내주식·미국주식</b> 모두 가능하며 시장에 따라 세율 선택 가능합니다.</li>
-              <li>증권사별 수수료/세율은 <b>고급설정</b>에서 직접 수정하세요.</li>
-              <li>ETF(국내)는 거래세는 0% 입니다.(수수료는 발생)</li>
-            </ul>
-          </div>
-        </header>
+       {/* 헤더 */}
+<header className="mb-6 text-center">
+  <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-4xl font-extrabold tracking-tight drop-shadow-sm">
+    주식 수수료 계산기
+  </h1>
+  <div className="mt-4 rounded-xl bg-white border border-gray-200 shadow-sm text-left px-6 py-5 space-y-2">
+    <p className="text-gray-900 text-[17px] font-semibold leading-snug">
+      📌 매수·매도 금액과 수량을 입력하면 <b>수수료/세금이 반영된 실수령액·총 손익</b>을 계산합니다.
+    </p>
+    <ul className="list-disc list-inside text-[16px] text-gray-800 space-y-1">
+      <li><b>국내주식·미국주식</b> 모두 가능하며 시장에 따라 세율 선택 가능합니다.</li>
+      <li>증권사별 수수료/세율은 <b>고급설정</b>에서 직접 수정하세요.</li>
+      <li>ETF(국내)는 거래세는 0% 입니다.(수수료는 발생)</li>
+    </ul>
+  </div>
+</header>
+
 
         {/* 입력 카드 */}
         <section className="rounded-2xl bg-white shadow p-6 space-y-5">
@@ -210,7 +211,7 @@ export default function FeeCalculatorPage() {
               className={`flex-1 py-3 text-lg font-bold rounded-2xl shadow transition-all 
                 ${activeTab === "us" ? "bg-green-600 text-white scale-105" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
-              🇺🇸 미국주식
+              🇺🇸 미국주식(해외주식)
             </button>
           </div>
 

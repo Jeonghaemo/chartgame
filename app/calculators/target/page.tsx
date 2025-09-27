@@ -1,13 +1,11 @@
-import TargetClient from "./page.client";
+// app/calculators/target/page.tsx
 import meta from "./metadata";
+import dynamic from "next/dynamic";
 
 export const metadata = meta;
 
+const TargetCalculator = dynamic(() => import("./page.client"), { ssr: false });
+
 export default function Page() {
-  return (
-    <main className="min-h-[70vh] px-4 py-8 max-w-[900px] mx-auto">
-      <h1 className="text-2xl font-bold">목표수익률 계산기</h1>
-      <TargetClient />
-    </main>
-  );
+  return <TargetCalculator />;
 }

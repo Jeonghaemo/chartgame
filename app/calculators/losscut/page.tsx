@@ -1,13 +1,11 @@
-import LosscutClient from "./page.client";
+// app/calculators/losscut/page.tsx
 import meta from "./metadata";
+import dynamic from "next/dynamic";
 
 export const metadata = meta;
 
+const LosscutCalculator = dynamic(() => import("./page.client"), { ssr: false });
+
 export default function Page() {
-  return (
-    <main className="min-h-[70vh] px-4 py-8 max-w-[900px] mx-auto">
-      <h1 className="text-2xl font-bold">손절가 계산기</h1>
-      <LosscutClient />
-    </main>
-  );
+  return <LosscutCalculator />;
 }
