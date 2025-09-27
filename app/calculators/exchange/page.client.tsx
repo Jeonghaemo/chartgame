@@ -349,9 +349,7 @@ export default function ExchangeCalculatorPage() {
                   </>
                 )}
               </div>
-              <p className="mt-3 text-xs text-gray-500">
-                ※ 데이터 제공: open.er-api.com · 전일 기준 환율. 실제 환전 시에는 은행 스프레드·수수료로 인해 계산 결과와 다를 수 있습니다.
-              </p>
+            
             </div>
           )}
         </section>
