@@ -1,13 +1,11 @@
-import FeeClient from "./page.client";
+// app/calculators/fee/page.tsx
 import meta from "./metadata";
+import dynamic from "next/dynamic";
 
 export const metadata = meta;
 
+const FeeCalculator = dynamic(() => import("./page.client"), { ssr: false });
+
 export default function Page() {
-  return (
-    <main className="min-h-[70vh] px-4 py-8 max-w-[900px] mx-auto">
-      <h1 className="text-2xl font-bold">수수료 계산기</h1>
-      <FeeClient />
-    </main>
-  );
+  return <FeeCalculator />;
 }
