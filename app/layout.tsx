@@ -13,6 +13,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ko">
       <head>
+        <script
+  async
+  src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4564123419761220"
+  crossOrigin="anonymous"
+/>
         <meta name="agd-partner-manual-verification" />
       </head>
       <body className="min-h-screen bg-slate-50 text-slate-900">
