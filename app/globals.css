@@ -6,3 +6,11 @@
 body { @apply bg-gray-50 text-gray-900; }
 a { @apply underline-offset-2; }
 .btn { @apply rounded-xl px-4 py-2 font-semibold; }
+
+/* ✅ 구글 폰트 불러오기 */
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap');
+
+/* ✅ 커스텀 폰트 클래스 */
+.font-gowun {
+  font-family: 'Gowun Dodum', sans-serif;
+}

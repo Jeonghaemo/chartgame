@@ -3,19 +3,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home as HomeIcon, LineChart, Trophy } from "lucide-react";
-import { Calculator } from "lucide-react";
+import { FaHome, FaChartLine, FaTrophy, FaCalculator } from "react-icons/fa";
 
 export default function NavMenu() {
   const pathname = usePathname();
 
- const menus = [
-  { href: "/", label: "홈", icon: <HomeIcon className="w-5 h-5" /> },
-  { href: "/game", label: "차트게임", icon: <LineChart className="w-5 h-5" /> },
-  { href: "/leaderboard", label: "랭킹보기", icon: <Trophy className="w-5 h-5" /> },
-  { href: "/calculators", label: "투자 계산기", icon: <Calculator className="w-5 h-5" /> }, // ✅ 추가
-];
-
+  const menus = [
+    { href: "/", label: "홈", icon: FaHome, idleClass: "text-blue-600" },
+    { href: "/game", label: "차트게임", icon: FaChartLine, idleClass: "text-emerald-600" },
+    { href: "/leaderboard", label: "랭킹보기", icon: FaTrophy, idleClass: "text-amber-500" },
+    { href: "/calculators", label: "투자 계산기", icon: FaCalculator, idleClass: "text-violet-600" },
+  ];
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -24,29 +22,36 @@ export default function NavMenu() {
 
   return (
     <nav
-  className="
-    flex items-center gap-1.5 rounded-2xl bg-slate-100
-    p-1.5 sm:p-2
-    text-xs sm:text-base
+      className="
+    flex justify-center items-center gap-1.5
+    rounded-2xl bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100
+    p-1.5 sm:p-2 shadow-inner
+    text-xs sm:text-base font-gowun
   "
 >
       {menus.map((m) => {
         const active = isActive(m.href);
+        const Icon = m.icon;
         return (
           <Link
             key={m.href}
             href={m.href}
+            aria-current={active ? "page" : undefined}
             className={[
-  "flex items-center gap-1 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition font-medium",
-  "text-xs sm:text-base",   // 모바일은 작게, PC는 원래 크기
-  active
-    ? "bg-white shadow text-blue-600"
-    : "text-slate-700 hover:bg-white hover:shadow-sm hover:text-slate-900",
-].join(" ")}
-
+              "flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition font-medium",
+              "text-xs sm:text-base",
+              active
+                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
+                : "text-slate-800 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 hover:shadow",
+            ].join(" ")}
           >
-            {m.icon}
-            <span>{m.label}</span>
+            <Icon
+              className={[
+                "text-base sm:text-lg",
+                active ? "text-white" : m.idleClass,
+              ].join(" ")}
+            />
+            <span className="leading-none">{m.label}</span>
           </Link>
         );
       })}
