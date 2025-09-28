@@ -466,6 +466,7 @@ const recentSymbolsRef = useRef<string[]>([])
               : (typeof fixedStartTs === 'number' ? fixedStartTs : null)
 
           clearLocal()
+setGameId(newGameId)
 
           writeLocal(
             {
