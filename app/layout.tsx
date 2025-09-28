@@ -1,6 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
-import { auth } from "@/lib/auth";
+import { auth, signIn, signOut } from "@/lib/auth";
 import HeartStatusSync from "@/components/HeartStatusSync";
 import NavMenu from "@/components/NavMenu";
 import Providers from "@/components/Providers";
@@ -10,10 +10,26 @@ import Script from "next/script";
 export const metadata = { 
   title: "차트게임", 
   description: "50턴 차트게임",
-  // ✅ 애드센스 메타 태그를 metadata에 추가
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon-512.png"
+  },
+  openGraph: {
+    title: "주식 차트게임",
+    description: "가상 주식투자 게임! 랭킹 경쟁, 차트 공부까지",
+    url: "https://chartgame.co.kr",
+    siteName: "차트게임",
+    images: [
+      { url: "/og-image.png", width: 1200, height: 630, alt: "차트게임 썸네일" }
+    ],
+    locale: "ko_KR",
+    type: "website",
+  },
   other: {
-    'google-adsense-account': 'ca-pub-4564123418761220'
-  }
+    // ✅ AdSense 메타 (head 최상단에 노출됨)
+    "google-adsense-account": "ca-pub-4564123418761220",
+  },
 };
 
 // ✅ 사이트 전체 폰트 적용
@@ -33,7 +49,7 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body className={`${notoSans.className} min-h-screen bg-slate-50 text-slate-900`}>
-        {/* ✅ Next.js Script 컴포넌트로 애드센스 스크립트 추가 */}
+        {/* ✅ AdSense 스크립트 */}
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4564123418761220"
@@ -43,9 +59,46 @@ export default async function RootLayout({
 
         {/* 헤더 */}
         <header className="h-20 border-b bg-white flex items-center">
-          {/* ✅ NavMenu만 중앙 정렬 */}
-          <div className="max-w-[1200px] mx-auto w-full px-4 flex justify-center">
-            <NavMenu />
+          {/*
+            ✅ 반응형 3열 그리드:
+            - 모바일: 1열(위 Nav, 아래 버튼 중앙)
+            - 데스크탑(sm 이상): [왼쪽 비움] [가운데 NavMenu] [오른쪽 버튼]
+          */}
+          <div className="max-w-[1200px] mx-auto w-full px-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            {/* 왼쪽(로고 자리) - 모바일에선 숨김 */}
+            <div className="hidden sm:block" />
+
+            {/* 중앙: NavMenu */}
+            <div className="justify-self-center">
+              <NavMenu />
+            </div>
+
+            {/* 오른쪽: 로그인/로그아웃 버튼 (모바일 중앙, 데스크탑 우측) */}
+            <div className="justify-self-center sm:justify-self-end flex items-center gap-3 text-base">
+              {session?.user ? (
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut();
+                  }}
+                >
+                  <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
+                    로그아웃
+                  </button>
+                </form>
+              ) : (
+                <form
+                  action={async () => {
+                    "use server";
+                    await signIn();
+                  }}
+                >
+                  <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
+                    로그인
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </header>
 
