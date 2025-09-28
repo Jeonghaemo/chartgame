@@ -5,8 +5,16 @@ import HeartStatusSync from "@/components/HeartStatusSync";
 import NavMenu from "@/components/NavMenu";
 import Providers from "@/components/Providers";
 import { Noto_Sans_KR } from "next/font/google";
+import Script from "next/script";
 
-export const metadata = { title: "차트게임", description: "50턴 차트게임" };
+export const metadata = { 
+  title: "차트게임", 
+  description: "50턴 차트게임",
+  // ✅ 애드센스 메타 태그를 metadata에 추가
+  other: {
+    'google-adsense-account': 'ca-pub-4564123418761220'
+  }
+};
 
 // ✅ 사이트 전체 폰트 적용
 const notoSans = Noto_Sans_KR({
@@ -24,17 +32,15 @@ export default async function RootLayout({
 
   return (
     <html lang="ko">
-      <head>
-        {/* Google AdSense */}
-        <meta name="google-adsense-account" content="ca-pub-4564123419761220" />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4564123419761220"
-          crossOrigin="anonymous"
-        />
-        <meta name="agd-partner-manual-verification" />
-      </head>
       <body className={`${notoSans.className} min-h-screen bg-slate-50 text-slate-900`}>
+        {/* ✅ Next.js Script 컴포넌트로 애드센스 스크립트 추가 */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4564123418761220"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+
         {/* 헤더 */}
         <header className="h-20 border-b bg-white flex items-center">
           {/* ✅ NavMenu만 중앙 정렬 */}
