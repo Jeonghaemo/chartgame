@@ -85,8 +85,9 @@ export default async function RootLayout({
               <NavMenu />
             </div>
 
-            {/* 오른쪽: 로그인/로그아웃 버튼 (모바일 중앙, 데스크탑 우측) */}
-<div className="justify-self-center sm:justify-self-end flex items-center gap-3 text-base">
+            {/* 오른쪽: 로그인/로그아웃 버튼 (데스크탑에서만 표시) */}
+<div className="hidden sm:flex justify-self-end items-center gap-3 text-base">
+
   {session?.user ? (
     <form
       action={async () => {

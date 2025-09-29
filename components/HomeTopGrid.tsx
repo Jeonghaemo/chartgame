@@ -164,35 +164,39 @@ export default function HomeTopGrid() {
           </button>
         </div>
 
-        {/* [모바일 전용] 로그인/로그아웃 버튼 (자산 초기화 아래) */}
-        <div className="mt-3 sm:hidden flex justify-end">
-          {session?.user ? (
-            <button
-              onClick={() => signOut()}
-              className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50"
-            >
-              로그아웃
-            </button>
-          ) : (
-            <button
-              onClick={() => signIn()}
-              className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50"
-            >
-              로그인
-            </button>
-          )}
-        </div>
+      
 
-        {/* 하트 + 카운트다운 */}
-        <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
-          <Heart className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`} />
-          <span>
-            {hearts} / {maxHearts}
-          </span>
-          {countdown && (
-            <span className="ml-1 text-sm font-normal text-gray-500">⏳ {countdown} 후 + 1</span>
-          )}
-        </div>
+        {/* 하트 + 카운트다운 + [모바일 전용 로그인/로그아웃 버튼] */}
+<div className="mt-2 flex items-center justify-between text-base font-medium">
+  {/* 왼쪽: 하트 + 카운트다운 */}
+  <div className="flex items-center gap-2">
+    <Heart className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`} />
+    <span>{hearts} / {maxHearts}</span>
+    {countdown && (
+      <span className="ml-1 text-xs font-normal text-gray-500">⏳ {countdown} 후 + 1</span>
+    )}
+  </div>
+
+  {/* 오른쪽: 모바일 전용 로그인/로그아웃 버튼 */}
+  <div className="sm:hidden">
+    {session?.user ? (
+      <button
+        onClick={() => signOut()}
+        className="rounded-md border px-2 py-1 text-xs hover:bg-slate-50"
+      >
+        로그아웃
+      </button>
+    ) : (
+      <button
+        onClick={() => signIn()}
+        className="rounded-md border px-2 py-1 text-xs hover:bg-slate-50"
+      >
+        로그인
+      </button>
+    )}
+  </div>
+</div>
+
 
         {/* 내 순위 & 계급 뱃지 & (평균/승률) */}
         {myRank && (
