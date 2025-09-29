@@ -8,6 +8,7 @@ import { Noto_Sans_KR } from "next/font/google";
 import Script from "next/script";
 
 export const metadata = { 
+  metadataBase: new URL("https://chartgame.co.kr"),
   title: "차트게임", 
   description: "50턴 차트게임",
   icons: {
