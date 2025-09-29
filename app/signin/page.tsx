@@ -13,7 +13,7 @@ export default function SignInPage() {
       return;
     }
     // 일반 브라우저에서는 기존처럼 진행
-    signIn("google", { callbackUrl: "/game" });
+    signIn("google", { callbackUrl: "/" });
   };
 
   return (
@@ -46,7 +46,7 @@ export default function SignInPage() {
 
         {/* Naver 버튼(그대로) */}
         <button
-          onClick={() => signIn("naver", { callbackUrl: "/game" })}
+          onClick={() => signIn("naver", { callbackUrl: "/" })}
           className="relative w-full h-10 rounded-full border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 transition-colors text-sm"
         >
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#03C75A] font-extrabold tracking-wider text-sm">
