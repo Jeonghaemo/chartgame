@@ -51,22 +51,6 @@ const cards: Card[] = [
     ring: "ring-fuchsia-300",
   },
   {
-    href: "/calculators/losscut",
-    title: "손절가 계산기",
-    desc: "허용 손실률 기준 손절 가격",
-    Icon: Scissors,
-    gradient: "from-rose-500 via-red-500 to-orange-500",
-    ring: "ring-rose-300",
-  },
-  {
-    href: "/calculators/target",
-    title: "목표수익률 계산기",
-    desc: "목표 수익률 달성 주가/수익액",
-    Icon: Target,
-    gradient: "from-amber-500 via-orange-500 to-red-500",
-    ring: "ring-amber-300",
-  },
-  {
     href: "/calculators/water",
     title: "물타기 계산기",
     desc: "추가 매수로 평단 변화",
@@ -97,6 +81,22 @@ const cards: Card[] = [
     Icon: CircleDollarSign,
     gradient: "from-purple-500 via-fuchsia-500 to-pink-500",
     ring: "ring-purple-300",
+  },
+  {
+    href: "/calculators/losscut",
+    title: "손절가 계산기",
+    desc: "허용 손실률 기준 손절 가격",
+    Icon: Scissors,
+    gradient: "from-rose-500 via-red-500 to-orange-500",
+    ring: "ring-rose-300",
+  },
+  {
+    href: "/calculators/target",
+    title: "목표수익률 계산기",
+    desc: "목표 수익률 달성 주가/수익액",
+    Icon: Target,
+    gradient: "from-amber-500 via-orange-500 to-red-500",
+    ring: "ring-amber-300",
   },
 ];
 

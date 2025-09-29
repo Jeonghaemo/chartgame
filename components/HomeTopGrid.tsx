@@ -7,7 +7,7 @@ import AdRecharge from "@/components/AdRecharge";
 import { Heart } from "lucide-react";
 import { useUserStore } from "@/lib/store/user";
 import Link from "next/link";
-import { useSession } from "next-auth/react"; // ⬅️ 세션 사용
+import { useSession, signIn, signOut } from "next-auth/react"; // ✅ 클라이언트용
 
 // 하트 카운트다운 훅
 function useHeartCountdown(
@@ -47,18 +47,18 @@ type MyRank = {
   losses?: number;
 };
 
-// === [ADD] 내 순위/계급 표시용 ===
+// === [UTIL] 내 순위/계급 표시용 ===
 function getRankBadge(total: number) {
-  if (total >= 5_000_000_000) return { name: '졸업자', icon: '👑', color: 'bg-purple-100 text-purple-700' }
-  if (total >= 1_000_000_000)   return { name: '승리자', icon: '🏆', color: 'bg-yellow-100 text-yellow-800' }
-  if (total >= 100_000_000)   return { name: '물방개', icon: '🐳', color: 'bg-blue-100 text-blue-800' }
-  if (total >= 50_000_000)    return { name: '불장러', icon: '🚀', color: 'bg-red-100 text-red-700' }
-  if (total >= 20_000_000)    return { name: '존버러', icon: '🐢', color: 'bg-green-100 text-green-700' }
-  return { name: '주린이', icon: '🐣', color: 'bg-gray-100 text-gray-700' }
+  if (total >= 5_000_000_000) return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700" };
+  if (total >= 1_000_000_000) return { name: "승리자", icon: "🏆", color: "bg-yellow-100 text-yellow-800" };
+  if (total >= 100_000_000) return { name: "물방개", icon: "🐳", color: "bg-blue-100 text-blue-800" };
+  if (total >= 50_000_000) return { name: "불장러", icon: "🚀", color: "bg-red-100 text-red-700" };
+  if (total >= 20_000_000) return { name: "존버러", icon: "🐢", color: "bg-green-100 text-green-700" };
+  return { name: "주린이", icon: "🐣", color: "bg-gray-100 text-gray-700" };
 }
 
 export default function HomeTopGrid() {
-  const { data: session } = useSession(); // ⬅️ 세션
+  const { data: session } = useSession(); // ✅ 세션
   const hearts = useUserStore((s) => s.hearts) ?? 0;
   const maxHearts = useUserStore((s) => s.maxHearts) ?? 5;
   const lastRefillAt = useUserStore((s) => s.lastRefillAt);
@@ -66,8 +66,8 @@ export default function HomeTopGrid() {
 
   const [startCapital, setStartCapital] = useState<number>(10_000_000);
   const [myRank, setMyRank] = useState<MyRank | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);   // ⬅️ 추가
-  const [userEmail, setUserEmail] = useState<string | null>(null); // ⬅️ 추가
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const countdown = useHeartCountdown(lastRefillAt, hearts, maxHearts);
 
@@ -90,102 +90,111 @@ export default function HomeTopGrid() {
       } catch {}
       try {
         // 전체기간 우선 호출 (API가 지원하면 all 사용)
-let r2 = await fetch("/api/leaderboard?period=all", { cache: "no-store" });
-// 호환용 폴백: all 미지원이면 파라미터 없이 전체기간을 기본값으로 쓰는 엔드포인트일 수 있음
-if (!r2.ok) {
-  r2 = await fetch("/api/leaderboard", { cache: "no-store" });
-}
-
-if (r2.ok) {
-  const j2 = await r2.json();
-  if (j2?.myRank) {
-    setMyRank({
-      rank: Number(j2.myRank.rank ?? 0),
-      total: Number(j2.myRank.total ?? 0),
-      avgReturnPct: Number(j2.myRank.avgReturnPct ?? 0),
-      winRate: Number(j2.myRank.winRate ?? 0),
-      wins: Number(j2.myRank.wins ?? 0),
-      losses: Number(j2.myRank.losses ?? 0),
-    });
-  }
-}
-
+        let r2 = await fetch("/api/leaderboard?period=all", { cache: "no-store" });
+        // 호환용 폴백: all 미지원이면 파라미터 없이 전체기간 기본값
+        if (!r2.ok) {
+          r2 = await fetch("/api/leaderboard", { cache: "no-store" });
+        }
+        if (r2.ok) {
+          const j2 = await r2.json();
+          if (j2?.myRank) {
+            setMyRank({
+              rank: Number(j2.myRank.rank ?? 0),
+              total: Number(j2.myRank.total ?? 0),
+              avgReturnPct: Number(j2.myRank.avgReturnPct ?? 0),
+              winRate: Number(j2.myRank.winRate ?? 0),
+              wins: Number(j2.myRank.wins ?? 0),
+              losses: Number(j2.myRank.losses ?? 0),
+            });
+          }
+        }
       } catch {}
     })();
   }, [setHearts]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
-    
       {/* 왼쪽: 보유 자산 + 하트 + 카운트다운 + 순위/계급 */}
       <Card className="p-4">
-      {/* 상단 헤더: 이메일만 최상단 → '내 보유 자산' 크게 → 금액 더 크게 → 버튼 한 줄 */}
-<div className="flex items-start justify-between gap-3">
-  <div className="min-w-0">
-    {/* 이메일만 표시 (맨 위) */}
-    {displayEmail ? (
-      <div className="text-xs text-gray-500 leading-tight break-all">
-        {displayEmail}
-      </div>
-    ) : (
-      <div className="text-xs text-gray-400 leading-tight">미로그인 사용자</div>
-    )}
+        {/* 상단 헤더: 이메일만 최상단 → '내 보유 자산' 크게 → 금액 더 크게 → 버튼 한 줄 */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {/* 이메일만 표시 (맨 위) */}
+            {displayEmail ? (
+              <div className="text-xs text-gray-500 leading-tight break-all">{displayEmail}</div>
+            ) : (
+              <div className="text-xs text-gray-400 leading-tight">미로그인 사용자</div>
+            )}
 
-    {/* 현재 자산 + 금액 한 줄 */}
-<div className="mt-0.5 flex items-baseline gap-2">
-  <span className="text-xl sm:text-xl font-bold text-slate-900">
-    현재 자산
-  </span>
-  <span className="text-xl sm:text-xl font-bold text-slate-800 tracking-tight">
-    {(startCapital || 10_000_000).toLocaleString()}원
-  </span>
-</div>
-  </div>
+            {/* 현재 자산 + 금액 한 줄 */}
+            <div className="mt-0.5 flex items-baseline gap-2">
+              <span className="text-xl sm:text-xl font-bold text-slate-900">현재 자산</span>
+              <span className="text-xl sm:text-xl font-bold text-slate-800 tracking-tight">
+                {(startCapital || 10_000_000).toLocaleString()}원
+              </span>
+            </div>
+          </div>
 
-  {/* 버튼: 한 줄 고정 */}
-  <button
-    onClick={async () => {
-      if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return
-      try {
-        const r = await fetch("/api/reset-capital", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        const j = await r.json();
-        if (!r.ok || !j?.ok) {
-          alert(j?.message ?? "초기화 실패");
-          return;
-        }
-        alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`);
-        location.reload();
-      } catch {
-        alert("초기화 중 오류가 발생했습니다.");
-      }
-    }}
-    className="ml-3 shrink-0 whitespace-nowrap self-start rounded-lg border px-2 py-1
-               text-xs font-semibold text-red-600 border-red-300 bg-red-50
-               hover:bg-red-100 hover:border-red-400 shadow-sm transition"
-    title="자산을 초기화합니다"
-  >
-    자산 초기화
-  </button>
-</div>
+          {/* 버튼: 한 줄 고정 */}
+          <button
+            onClick={async () => {
+              if (!confirm("자산을 초기화하시겠습니까? 300만원 이하시 초기화 가능 (하루 1회 제한)")) return;
+              try {
+                const r = await fetch("/api/reset-capital", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                });
+                const j = await r.json();
+                if (!r.ok || !j?.ok) {
+                  alert(j?.message ?? "초기화 실패");
+                  return;
+                }
+                alert(`자산이 ${j.capital.toLocaleString()}원으로 초기화되었습니다.`);
+                location.reload();
+              } catch {
+                alert("초기화 중 오류가 발생했습니다.");
+              }
+            }}
+            className="ml-3 shrink-0 whitespace-nowrap self-start rounded-lg border px-2 py-1
+                       text-xs font-semibold text-red-600 border-red-300 bg-red-50
+                       hover:bg-red-100 hover:border-red-400 shadow-sm transition"
+            title="자산을 초기화합니다"
+          >
+            자산 초기화
+          </button>
+        </div>
 
-
-        {/* 하트 + 카운트다운 */}
-        <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
-          <Heart
-            className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`}
-          />
-          <span>{hearts} / {maxHearts}</span>
-          {countdown && (
-            <span className="ml-1 text-sm font-normal text-gray-500">
-              ⏳ {countdown} 후 + 1
-            </span>
+        {/* [모바일 전용] 로그인/로그아웃 버튼 (자산 초기화 아래) */}
+        <div className="mt-3 sm:hidden flex justify-end">
+          {session?.user ? (
+            <button
+              onClick={() => signOut()}
+              className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50"
+            >
+              로그아웃
+            </button>
+          ) : (
+            <button
+              onClick={() => signIn()}
+              className="rounded-md border px-3 py-1.5 text-sm hover:bg-slate-50"
+            >
+              로그인
+            </button>
           )}
         </div>
 
-        {/* [ADD] 내 순위 & 계급 뱃지 & (평균/승률) */}
+        {/* 하트 + 카운트다운 */}
+        <div className="mt-2 flex items-center gap-2 text-lg font-semibold">
+          <Heart className={`w-5 h-5 ${hearts >= maxHearts ? "fill-red-500 text-red-500" : "text-red-500"}`} />
+          <span>
+            {hearts} / {maxHearts}
+          </span>
+          {countdown && (
+            <span className="ml-1 text-sm font-normal text-gray-500">⏳ {countdown} 후 + 1</span>
+          )}
+        </div>
+
+        {/* 내 순위 & 계급 뱃지 & (평균/승률) */}
         {myRank && (
           <div className="mt-3 text-sm">
             <div className="flex items-center gap-2">
@@ -209,7 +218,7 @@ if (r2.ok) {
             {typeof myRank.winRate === "number" && (
               <div className="mt-1 text-gray-600">
                 승률 {myRank.winRate.toFixed(1)}%
-                {(myRank.wins != null && myRank.losses != null) && ` (${myRank.wins}승 ${myRank.losses}패)`}
+                {myRank.wins != null && myRank.losses != null && ` (${myRank.wins}승 ${myRank.losses}패)`}
               </div>
             )}
           </div>

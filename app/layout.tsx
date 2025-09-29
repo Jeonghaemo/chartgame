@@ -5,30 +5,40 @@ import HeartStatusSync from "@/components/HeartStatusSync";
 import NavMenu from "@/components/NavMenu";
 import Providers from "@/components/Providers";
 import { Noto_Sans_KR } from "next/font/google";
-import Script from "next/script";
+import type { Metadata } from "next";
 
-export const metadata = { 
+// ✅ 메타데이터 (OG/트위터 절대경로 해석용)
+export const metadata: Metadata = {
   metadataBase: new URL("https://chartgame.co.kr"),
-  title: "차트게임", 
-  description: "50턴 차트게임",
+  title: "차트게임",
+  description: "가상 주식투자 게임! 랭킹 경쟁, 차트 공부, 투자 계산기까지",
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
-    apple: "/favicon-512.png"
+    apple: "/favicon-512.png",
   },
   openGraph: {
     title: "주식 차트게임",
-    description: "가상 주식투자 게임! 랭킹 경쟁, 차트 공부까지",
+    description: "가상 주식투자 게임! 랭킹 경쟁, 차트 공부, 투자 계산기까지",
     url: "https://chartgame.co.kr",
     siteName: "차트게임",
     images: [
-      { url: "/chartgame_og_image.png", width: 1200, height: 630, alt: "차트게임 썸네일" }
+      {
+        url: "/chartgame_og_image.png",
+        width: 1200,
+        height: 630,
+        alt: "차트게임 썸네일",
+      },
     ],
     locale: "ko_KR",
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/chartgame_og_image.png"],
+  },
   other: {
-    // ✅ AdSense 메타 (head 최상단에 노출됨)
+    // ✅ AdSense 메타 (head 최상단에 출력됨)
     "google-adsense-account": "ca-pub-4564123418761220",
   },
 };
@@ -49,15 +59,16 @@ export default async function RootLayout({
 
   return (
     <html lang="ko">
-      <body className={`${notoSans.className} min-h-screen bg-slate-50 text-slate-900`}>
-        {/* ✅ AdSense 스크립트 */}
-        <Script
+      <head>
+        {/* ✅ AdSense 스크립트 (head에 직접 삽입 / 중복 금지) */}
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4564123418761220"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
+      </head>
 
+      <body className={`${notoSans.className} min-h-screen bg-slate-50 text-slate-900`}>
         {/* 헤더 */}
         <header className="h-20 border-b bg-white flex items-center">
           {/*
@@ -75,35 +86,36 @@ export default async function RootLayout({
             </div>
 
             {/* 오른쪽: 로그인/로그아웃 버튼 (모바일 중앙, 데스크탑 우측) */}
-            <div className="justify-self-center sm:justify-self-end flex items-center gap-3 text-base">
-              {session?.user ? (
-                <form
-                  action={async () => {
-                    "use server";
-                    await signOut();
-                  }}
-                >
-                  <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
-                    로그아웃
-                  </button>
-                </form>
-              ) : (
-                <form
-                  action={async () => {
-                    "use server";
-                    await signIn();
-                  }}
-                >
-                  <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
-                    로그인
-                  </button>
-                </form>
-              )}
-            </div>
+<div className="justify-self-center sm:justify-self-end flex items-center gap-3 text-base">
+  {session?.user ? (
+    <form
+      action={async () => {
+        "use server";
+        await signOut();
+      }}
+    >
+      <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
+        로그아웃
+      </button>
+    </form>
+  ) : (
+    <form
+      action={async () => {
+        "use server";
+        await signIn();
+      }}
+    >
+      <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
+        로그인
+      </button>
+    </form>
+  )}
+</div>
+
           </div>
         </header>
 
-        {/* 클라이언트 전역 컨텍스트 */}
+        {/* 전역 컨텍스트 / 동기화 */}
         <Providers>
           <HeartStatusSync />
           {children}
