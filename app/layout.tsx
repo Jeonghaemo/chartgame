@@ -21,7 +21,7 @@ export const metadata = {
     url: "https://chartgame.co.kr",
     siteName: "차트게임",
     images: [
-      { url: "/og-image.png", width: 1200, height: 630, alt: "차트게임 썸네일" }
+      { url: "/chartgame_og_image.png", width: 1200, height: 630, alt: "차트게임 썸네일" }
     ],
     locale: "ko_KR",
     type: "website",
