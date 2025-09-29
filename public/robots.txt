@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://chartgame.co.kr
+
+# Sitemaps
+Sitemap: https://chartgame.co.kr/sitemap.xml
