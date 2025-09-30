@@ -67,10 +67,10 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
               <span className="text-lg font-bold flex items-center gap-1">
                 {result.rank}위
                 {rankDiff > 0 && (
-                  <span className="text-green-600 text-sm">▲ {rankDiff}</span>
+                  <span className="text-red-600 text-sm">▲ {rankDiff}</span>
                 )}
                 {rankDiff < 0 && (
-                  <span className="text-red-600 text-sm">▼ {Math.abs(rankDiff)}</span>
+                  <span className="text-blue-600 text-sm">▼ {Math.abs(rankDiff)}</span>
                 )}
                 {rankDiff === 0 && (
                   <span className="text-gray-400 text-sm">-</span>
