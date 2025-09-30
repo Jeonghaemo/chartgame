@@ -812,7 +812,7 @@ useEffect(() => {
     }
   }, [g.turn, g.maxTurns, g.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const endGame = useCallback(async () => {
+    const endGame = useCallback(async () => {
     let rank: number | null = null
     let prevRank: number | null = null
 
@@ -826,6 +826,23 @@ useEffect(() => {
     const taxOnly = grossProfit > 0 ? Math.floor((grossProfit * taxRateBps) / 10000) : 0
     const taxAndFees = Math.max(0, feeAccrued) + Math.max(0, taxOnly)
 
+    // [추가] finish 전에 이전 순위 조회 (period=all)
+    try {
+      if (!guestMode) {
+        let preRes = await fetch('/api/leaderboard?period=all', { cache: 'no-store' })
+        if (!preRes.ok) {
+          preRes = await fetch('/api/leaderboard', { cache: 'no-store' })
+        }
+        if (preRes.ok) {
+          const pre = await preRes.json()
+          if (pre?.myRank) {
+            prevRank = typeof pre.myRank.rank === 'number' ? pre.myRank.rank : null
+          }
+        }
+      }
+    } catch {}
+
+    // finish 호출(점수 반영)
     try {
       if (!guestMode && gameId) {
         await fetch('/api/game/finish', {
@@ -842,14 +859,17 @@ useEffect(() => {
       }
     } catch {}
 
+    // [변경] finish 이후 현재 순위 재조회 (period=all)
     try {
       if (!guestMode) {
-        const res = await fetch('/api/leaderboard?period=7d', { cache: 'no-store' })
-        if (res.ok) {
-          const data = await res.json()
-          if (data?.myRank) {
-            rank = data.myRank.rank ?? null
-            prevRank = null
+        let postRes = await fetch('/api/leaderboard?period=all', { cache: 'no-store' })
+        if (!postRes.ok) {
+          postRes = await fetch('/api/leaderboard', { cache: 'no-store' })
+        }
+        if (postRes.ok) {
+          const post = await postRes.json()
+          if (post?.myRank) {
+            rank = typeof post.myRank.rank === 'number' ? post.myRank.rank : null
           }
         }
       }
@@ -870,12 +890,13 @@ useEffect(() => {
       tradeCount: g.history.length,
       turnCount: g.turn + 1,
       heartsLeft: hearts ?? 0,
-      rank,
-      prevRank,
+      rank,       // 현재 순위 (finish 이후)
+      prevRank,   // 이전 순위 (finish 이전)
     })
     setIsGameEnd(true)
     g.end()
   }, [guestMode, gameId, startCapital, total, ret, g.history.length, g.turn, g, hearts, resolveLabel])
+
 
   const fmt = (n?: number) => (n == null ? '-' : Math.round(n).toLocaleString())
 
