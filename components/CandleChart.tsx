@@ -46,6 +46,12 @@ const isValidLR = (lr: any) => lr && lr.from != null && lr.to != null;
 const pctStr = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
 const pctCls = (v: number) => v > 0 ? "text-red-600" : v < 0 ? "text-blue-600" : "text-gray-500";
 
+/** 정수(0자리)로 강제 포맷 */
+function formatPriceInt(v: number) {
+  if (!Number.isFinite(v)) return "-";
+  return nf.format(Math.round(v));
+}
+
 export default function CandleChart({
   data,
   fullForMA,
@@ -384,10 +390,11 @@ export default function CandleChart({
 
           hoverRowRef.current.style.display = "flex";
           hoverRowRef.current.innerHTML =
-            `<span>시 <b>${nf.format(c.open)}</b> <b class="${pctCls(o)}">${pctStr(o)}</b></span>` +
-            `<span>고 <b>${nf.format(c.high)}</b> <b class="${pctCls(h)}">${pctStr(h)}</b></span>` +
-            `<span>저 <b>${nf.format(c.low)}</b>  <b class="${pctCls(l)}">${pctStr(l)}</b></span>` +
-            `<span>종 <b>${nf.format(c.close)}</b> <b class="${pctCls(cc)}">${pctStr(cc)}</b></span>`;
+  `<span>시 <b>${formatPriceInt(c.open)}</b> <b class="${pctCls(o)}">${pctStr(o)}</b></span>` +
+  `<span>고 <b>${formatPriceInt(c.high)}</b> <b class="${pctCls(h)}">${pctStr(h)}</b></span>` +
+  `<span>저 <b>${formatPriceInt(c.low)}</b>  <b class="${pctCls(l)}">${pctStr(l)}</b></span>` +
+  `<span>종 <b>${formatPriceInt(c.close)}</b> <b class="${pctCls(cc)}">${pctStr(cc)}</b></span>`;
+
         } else if (hoverRowRef.current) {
           hoverRowRef.current.style.display = "none";
         }
