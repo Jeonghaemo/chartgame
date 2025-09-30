@@ -1005,8 +1005,8 @@ useEffect(() => {
                 />
               </div>
 
-              {/* 액션 버튼 */}
-<div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+          {/* 액션 버튼 */}
+<div className="grid grid-cols-3 gap-2 items-center">
   {/* 매수 */}
   <button
     onClick={() => setOrderType('buy')}
@@ -1036,11 +1036,12 @@ useEffect(() => {
     }}
     disabled={g.status !== 'playing'}
     aria-label="다음"
-    className="w-24 h-14 rounded-lg bg-gray-900 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+    className="flex-1 rounded-xl bg-gray-900 text-white py-3 font-semibold hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
   >
     다음
   </button>
 </div>
+
 
 
               {/* 차트 변경/게임 종료 */}
