@@ -62,7 +62,7 @@ export default function CandleChart({
   trades = [],
   volumeAreaRatio = 0.24,
   lockToRight = true,
-  rightWindowBars = 365,
+  rightWindowBars = 250,
 }: Props) {
   const rootRef      = useRef<HTMLDivElement | null>(null);
   const priceRootRef = useRef<HTMLDivElement | null>(null);
