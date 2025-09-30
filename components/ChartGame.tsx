@@ -1008,33 +1008,34 @@ useEffect(() => {
               {/* 액션 버튼 */}
               <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
                 <button
-                  onClick={() => setOrderType('buy')}
-                  disabled={g.status !== 'playing'}
-                  className="rounded-xl bg-red-600 text-white py-3 font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  매수
-                </button>
+  onClick={() => setOrderType('buy')}
+  disabled={g.status !== 'playing'}
+  className="w-24 rounded-xl bg-red-600 text-white py-3 font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  매수
+</button>
+<button
+  onClick={() => setOrderType('sell')}
+  disabled={g.status !== 'playing'}
+  className="w-24 rounded-xl bg-blue-600 text-white py-3 font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  매도
+</button>
                 <button
-                  onClick={() => setOrderType('sell')}
-                  disabled={g.status !== 'playing'}
-                  className="rounded-xl bg-blue-600 text-white py-3 font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  매도
-                </button>
-                <button
-                  onClick={async () => {
-                    if (nextLockRef.current) return;
-                    nextLockRef.current = true;
-                    g.next();
-                    await saveProgress();
-                    setTimeout(() => { nextLockRef.current = false }, NEXT_LOCK_MS);
-                  }}
-                  disabled={g.status !== 'playing'}
-                  aria-label="다음"
-                  className="rounded-full w-14 h-14 bg-gray-900 text-white font-semibold place-self-end disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  다음
-                </button>
+  onClick={async () => {
+    if (nextLockRef.current) return;
+    nextLockRef.current = true;
+    g.next();
+    await saveProgress();
+    setTimeout(() => { nextLockRef.current = false }, NEXT_LOCK_MS);
+  }}
+  disabled={g.status !== 'playing'}
+  aria-label="다음"
+  className="w-20 h-14 rounded-lg bg-gray-900 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  다음
+</button>
+
               </div>
 
               {/* 차트 변경/게임 종료 */}
