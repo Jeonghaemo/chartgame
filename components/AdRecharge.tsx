@@ -442,40 +442,118 @@ const confirmNonceRef = useRef<string | null>(null);
                 </div>
               )}
 
-              {provider === "NAVER" && (
-  <a
-    href={NAVER_CONNECT_URL}
-    target="_blank"
-    rel="noopener noreferrer nofollow sponsored"
-    className="rounded-2xl shadow overflow-hidden bg-white text-left block"
+             {provider === "NAVER" && (
+  <div
+    className="rounded-2xl shadow overflow-hidden bg-white"
     style={{ width: slotSize, height: slotSize }}
-    onClick={() => setInteracted(true)}
-    aria-label="네이버 제휴 링크"
   >
-    {/* 세로 플렉스: 이미지 위, 텍스트 아래 고정 */}
-    <div className="flex flex-col w-full h-full">
-      {/* 이미지 영역: 위쪽을 꽉 채우되 패딩 안에서 contain */}
-      <div className="relative flex-1 bg-white p-2">
-        <img
-          src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
-          alt="네이버 제휴 광고 이미지"
-          className="absolute inset-2 w-[calc(100%-1rem)] h-[calc(100%-1rem)] object-contain"
-          loading="lazy"
-          draggable={false}
-        />
-      </div>
+    {/* PC/모바일 동일: 가로 슬라이스 */}
+    <div className="flex gap-2 overflow-x-auto snap-x h-full p-2">
+      {/* 1) 기존 모니터 */}
+      <a
+        href={NAVER_CONNECT_URL}
+        target="_blank"
+        rel="noopener noreferrer nofollow sponsored"
+        className="shrink-0 snap-start block rounded-xl border bg-white overflow-hidden hover:shadow-md transition"
+        style={{ width: Math.min(320, slotSize - 16), height: '100%' }}
+        onClick={() => setInteracted(true)}
+        aria-label="네이버 제휴: 모니터"
+      >
+        <div className="flex flex-col w-full h-full">
+          {/* 이미지 */}
+          <div className="relative flex-1 bg-white p-2">
+            <img
+              src="https://shop-phinf.pstatic.net/20230211_19/1676104105485qhh9e_JPEG/77239994177191191_610733684.jpg?type=m510"
+              alt="세로 수직 트리플 주식모니터 대형모니터"
+              className="absolute inset-2 w-[calc(100%-1rem)] h-[calc(100%-1rem)] object-contain"
+              loading="lazy"
+              draggable={false}
+            />
+          </div>
+          {/* 정보 */}
+          <div className="w-full px-3 py-2 border-t bg-white">
+            <div className="text-sm font-semibold leading-snug line-clamp-1">
+              세로 수직 트리플 주식모니터 대형모니터
+            </div>
+            <div className="text-[11px] text-gray-500 leading-tight break-all">
+              {NAVER_CONNECT_URL}
+            </div>
+            <div className="mt-2 inline-flex items-center rounded-lg bg-rose-600 text-white px-2 py-1 text-[11px] font-bold">
+              무료 충전
+            </div>
+          </div>
+        </div>
+      </a>
 
-      {/* 하단 정보 영역: 항상 아래쪽에 분리 표시 */}
-      <div className="w-full px-3 py-2 border-t bg-white">
-        <div className="text-sm font-semibold leading-snug line-clamp-1">
-          세로 수직 트리플 주식모니터 대형모니터암
+      {/* 2) Apple 아이폰 17 Pro 자급제 */}
+      <a
+        href="https://naver.me/FutwI7vN"
+        target="_blank"
+        rel="noopener noreferrer nofollow sponsored"
+        className="shrink-0 snap-start block rounded-xl border bg-white overflow-hidden hover:shadow-md transition"
+        style={{ width: Math.min(320, slotSize - 16), height: '100%' }}
+        onClick={() => setInteracted(true)}
+        aria-label="네이버 제휴: Apple 아이폰 17 Pro 자급제"
+      >
+        <div className="flex flex-col w-full h-full">
+          <div className="relative flex-1 bg-white p-2">
+            <img
+              src="https://shop-phinf.pstatic.net/20250910_181/1757468851917ENQuO_PNG/iPhone_17_Pro_Deep_Blue_07.png?type=m510"
+              alt="아이폰17"
+              className="absolute inset-2 w-[calc(100%-1rem)] h-[calc(100%-1rem)] object-contain"
+              loading="lazy"
+              draggable={false}
+            />
+          </div>
+          <div className="w-full px-3 py-2 border-t bg-white">
+            <div className="text-sm font-semibold leading-snug line-clamp-1">
+              Apple 아이폰 17 Pro 자급제
+            </div>
+            <div className="text-[11px] text-gray-500 leading-tight break-all">
+              https://naver.me/FutwI7vN
+            </div>
+            <div className="mt-2 inline-flex items-center rounded-lg bg-rose-600 text-white px-2 py-1 text-[11px] font-bold">
+              무료 충전
+            </div>
+          </div>
         </div>
-        <div className="text-[11px] text-gray-500 leading-tight break-all">
-          {NAVER_CONNECT_URL}
+      </a>
+
+      {/* 3) 삼성전자 갤럭시탭 A9+ Wi-Fi 64GB (SM-X210) */}
+      <a
+        href="https://naver.me/FxC0EFKp"
+        target="_blank"
+        rel="noopener noreferrer nofollow sponsored"
+        className="shrink-0 snap-start block rounded-xl border bg-white overflow-hidden hover:shadow-md transition"
+        style={{ width: Math.min(320, slotSize - 16), height: '100%' }}
+        onClick={() => setInteracted(true)}
+        aria-label="네이버 제휴: 갤럭시탭 A9+"
+      >
+        <div className="flex flex-col w-full h-full">
+          <div className="relative flex-1 bg-white p-2">
+            <img
+              src="https://shop-phinf.pstatic.net/20241202_244/1733115122450jEyeo_JPEG/14868115594852478_1097514799.jpg?type=m510"
+              alt="갤럭시탭"
+              className="absolute inset-2 w-[calc(100%-1rem)] h-[calc(100%-1rem)] object-contain"
+              loading="lazy"
+              draggable={false}
+            />
+          </div>
+          <div className="w-full px-3 py-2 border-t bg-white">
+            <div className="text-sm font-semibold leading-snug line-clamp-1">
+              삼성전자 갤럭시탭 A9+ Wi-Fi 64GB (SM-X210)
+            </div>
+            <div className="text-[11px] text-gray-500 leading-tight break-all">
+              https://naver.me/FxC0EFKp
+            </div>
+            <div className="mt-2 inline-flex items-center rounded-lg bg-rose-600 text-white px-2 py-1 text-[11px] font-bold">
+              무료 충전
+            </div>
+          </div>
         </div>
-      </div>
+      </a>
     </div>
-  </a>
+  </div>
 )}
 
 
