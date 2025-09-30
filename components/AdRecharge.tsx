@@ -25,6 +25,11 @@ const COUPANG_DEAL_URL = "https://link.coupang.com/a/cQAVnv";
 const COUPANG_DEAL_IMG =
   "https://image5.coupangcdn.com/image/affiliate/event/promotion/2025/09/12/35d23a7a2263003f012224ad5532af7c.png";
 
+  // NAVER 슬라이스 자동 슬라이드용
+const naverCarouselRef = useRef<HTMLDivElement | null>(null);
+const naverIndexRef = useRef(0);
+const naverIntervalRef = useRef<number | null>(null);
+
 const KLOOK_WIDGET = {
   wid: "99172",
   adid: "1123728",
@@ -306,6 +311,8 @@ const confirmNonceRef = useRef<string | null>(null);
     };
   }, [open]);
 
+  
+
   // 개선된 KLOOK 위젯 효과
   const provider = normProvider(info?.provider);
   useEffect(() => {
@@ -370,6 +377,46 @@ const confirmNonceRef = useRef<string | null>(null);
     rafRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafRef.current);
   }, [viewableMs]);
+// NAVER 슬라이스 자동 슬라이드 (2초 간격)
+useEffect(() => {
+  if (!open || provider !== "NAVER") {
+    if (naverIntervalRef.current) {
+      clearInterval(naverIntervalRef.current);
+      naverIntervalRef.current = null;
+    }
+    return;
+  }
+
+  // 카드 폭 계산 (카드 width는 Math.min(320, slotSize - 16), gap-2 = 8px)
+  const cardWidth = Math.min(320, slotSize - 16);
+  const gapPx = 8;
+  const totalCards = 3;
+
+  const tick = () => {
+    const el = naverCarouselRef.current;
+    if (!el) return;
+
+    const next = (naverIndexRef.current + 1) % totalCards;
+    naverIndexRef.current = next;
+
+    const targetLeft = next * (cardWidth + gapPx);
+    el.scrollTo({ left: targetLeft, behavior: "smooth" });
+  };
+
+  // 초기화
+  naverIndexRef.current = 0;
+  const el = naverCarouselRef.current;
+  if (el) el.scrollTo({ left: 0 });
+
+  naverIntervalRef.current = window.setInterval(tick, 2000);
+
+  return () => {
+    if (naverIntervalRef.current) {
+      clearInterval(naverIntervalRef.current);
+      naverIntervalRef.current = null;
+    }
+  };
+}, [open, provider, slotSize]);
 
   // 개발 모드 디버깅
   useEffect(() => {
@@ -442,13 +489,16 @@ const confirmNonceRef = useRef<string | null>(null);
                 </div>
               )}
 
-             {provider === "NAVER" && (
+            {provider === "NAVER" && (
   <div
     className="rounded-2xl shadow overflow-hidden bg-white"
     style={{ width: slotSize, height: slotSize }}
   >
     {/* PC/모바일 동일: 가로 슬라이스 */}
-    <div className="flex gap-2 overflow-x-auto snap-x h-full p-2">
+    <div
+      ref={naverCarouselRef}
+      className="flex gap-2 overflow-x-auto snap-x h-full p-2"
+    >
       {/* 1) 기존 모니터 */}
       <a
         href={NAVER_CONNECT_URL}
@@ -477,9 +527,6 @@ const confirmNonceRef = useRef<string | null>(null);
             </div>
             <div className="text-[11px] text-gray-500 leading-tight break-all">
               {NAVER_CONNECT_URL}
-            </div>
-            <div className="mt-2 inline-flex items-center rounded-lg bg-rose-600 text-white px-2 py-1 text-[11px] font-bold">
-              무료 충전
             </div>
           </div>
         </div>
@@ -512,9 +559,6 @@ const confirmNonceRef = useRef<string | null>(null);
             <div className="text-[11px] text-gray-500 leading-tight break-all">
               https://naver.me/FutwI7vN
             </div>
-            <div className="mt-2 inline-flex items-center rounded-lg bg-rose-600 text-white px-2 py-1 text-[11px] font-bold">
-              무료 충전
-            </div>
           </div>
         </div>
       </a>
@@ -546,15 +590,13 @@ const confirmNonceRef = useRef<string | null>(null);
             <div className="text-[11px] text-gray-500 leading-tight break-all">
               https://naver.me/FxC0EFKp
             </div>
-            <div className="mt-2 inline-flex items-center rounded-lg bg-rose-600 text-white px-2 py-1 text-[11px] font-bold">
-              무료 충전
-            </div>
           </div>
         </div>
       </a>
     </div>
   </div>
 )}
+
 
 
               {provider === "TRIPDOTCOM" && (
