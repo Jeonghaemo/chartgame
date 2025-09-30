@@ -25,10 +25,6 @@ const COUPANG_DEAL_URL = "https://link.coupang.com/a/cQAVnv";
 const COUPANG_DEAL_IMG =
   "https://image5.coupangcdn.com/image/affiliate/event/promotion/2025/09/12/35d23a7a2263003f012224ad5532af7c.png";
 
-  // NAVER 슬라이스 자동 슬라이드용
-const naverCarouselRef = useRef<HTMLDivElement | null>(null);
-const naverIndexRef = useRef(0);
-const naverIntervalRef = useRef<number | null>(null);
 
 const KLOOK_WIDGET = {
   wid: "99172",
@@ -79,6 +75,10 @@ export default function AdRecharge() {
   const visibleRef = useRef(false);
   const activeRef = useRef<boolean>(true);
   const modalOpenRef = useRef<boolean>(false);
+  const naverCarouselRef = useRef<HTMLDivElement | null>(null);
+  const naverIndexRef = useRef(0);
+  const naverIntervalRef = useRef<number | null>(null);
+  
 // 확인(complete) 중복 제출 방지
 const confirmInFlightRef = useRef(false);
 const [confirmBusy, setConfirmBusy] = useState(false);
