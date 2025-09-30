@@ -974,6 +974,7 @@ useEffect(() => {
                 const dataSlice = ohlc.slice(0, end);
                 return (
                   <CandleChart
+                  rightWindowBars={365}
                     key={chartKey}
                     data={dataSlice}
                     fullForMA={ohlc}

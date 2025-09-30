@@ -62,7 +62,7 @@ export default function CandleChart({
   trades = [],
   volumeAreaRatio = 0.24,
   lockToRight = true,
-  rightWindowBars = 300,
+  rightWindowBars = 365,
 }: Props) {
   const rootRef      = useRef<HTMLDivElement | null>(null);
   const priceRootRef = useRef<HTMLDivElement | null>(null);
@@ -350,10 +350,7 @@ export default function CandleChart({
       let syncing = false;
       const onLR = (lr: any, fromChart: "price" | "vol") => {
         if (!isValidLR(lr)) return;
-        if (!pinningRef.current) {
-          const newSpan = lr.to - lr.from;
-          if (newSpan > 5) spanRef.current = newSpan;
-        }
+        
         if (lockToRight && !pinningRef.current) {
           const last = candles.length - 1;
           if (Math.abs(last - lr.to) > 0.5) { pinRight(); return; }
