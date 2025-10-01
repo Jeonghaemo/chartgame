@@ -23,9 +23,9 @@ export default function NavMenu() {
   return (
     <nav
       className="
-        flex justify-center items-center gap-1.5
+        flex justify-center items-center flex-nowrap gap-1
         rounded-2xl bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100
-        p-1.5 sm:p-2 shadow-inner
+        p-1 sm:p-1.5 shadow-inner
         text-sm sm:text-lg font-gowun
       "
     >
@@ -38,7 +38,7 @@ export default function NavMenu() {
             href={m.href}
             aria-current={active ? "page" : undefined}
             className={[
-              "flex items-center gap-2 px-3 py-1.5 sm:px-5 sm:py-2 rounded-lg transition font-medium",
+              "flex items-center gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition font-medium whitespace-nowrap",
               "text-sm sm:text-lg",
               active
                 ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
@@ -47,7 +47,7 @@ export default function NavMenu() {
           >
             <Icon
               className={[
-                "text-lg sm:text-xl",
+                "text-base sm:text-xl",
                 active ? "text-white" : m.idleClass,
               ].join(" ")}
             />
