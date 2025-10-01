@@ -70,7 +70,7 @@ async function fetchYahooDaily(symbol: string, period1: number, period2: number)
 
 function getRandomSlice(
   data: OHLC[],
-  sliceDays: number = 365,
+  sliceDays: number = 250,
   gameTurns: number = 60
 ): {
   gameData: OHLC[];
