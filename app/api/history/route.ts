@@ -70,7 +70,7 @@ async function fetchYahooDaily(symbol: string, period1: number, period2: number)
 
 function getRandomSlice(
   data: OHLC[],
-  sliceDays: number = 300,
+  sliceDays: number = 365,
   gameTurns: number = 60
 ): {
   gameData: OHLC[];
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const symbol = url.searchParams.get("symbol") ?? "005930.KS";
     const lookbackDays = Number(url.searchParams.get("days") ?? "3650");
-    const sliceDays = Number(url.searchParams.get("slice") ?? "250");
+    const sliceDays = Number(url.searchParams.get("slice") ?? "365");
     const gameTurns = Number(url.searchParams.get("turns") ?? "60");
 
     // ✅ 하루 단위 기준

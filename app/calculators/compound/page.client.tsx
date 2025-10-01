@@ -80,7 +80,7 @@ export default function CompoundCalculatorPage() {
       case "semiannual": return 2;
       case "quarterly": return 4;
       case "monthly": return 12;
-      case "daily": return 250;
+      case "daily": return 365;
       default: return 1;
     }
   };
