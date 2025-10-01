@@ -10,7 +10,7 @@ import type { Metadata } from "next";
 // ✅ 메타데이터 (OG/트위터 절대경로 해석용)
 export const metadata: Metadata = {
   metadataBase: new URL("https://chartgame.co.kr"),
-  title: "차트게임",
+  title: "주식 차트게임",
   description: "가상 주식투자 게임! 랭킹 경쟁, 차트 공부, 투자 계산기까지",
   icons: {
     icon: "/favicon.ico",
@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     title: "주식 차트게임",
     description: "가상 주식투자 게임! 랭킹 경쟁, 차트 공부, 투자 계산기까지",
     url: "https://chartgame.co.kr",
-    siteName: "차트게임",
+    siteName: "주식 차트게임",
     images: [
       {
         url: "/chartgame_og_image.png",
         width: 1200,
         height: 630,
-        alt: "차트게임 썸네일",
+        alt: "주식 차트게임 썸네일",
       },
     ],
     locale: "ko_KR",
