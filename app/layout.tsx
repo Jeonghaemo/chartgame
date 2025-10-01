@@ -115,24 +115,7 @@ export default async function RootLayout({
 
           </div>
         </header>
-        {/* ✅ TradingView 배너 (모바일+PC 공통 표시) */}
-<div className="flex justify-center py-2">
-  <a
-    href="https://www.tradingview.com/chart/?aff_id=156242&utm_source=creative&utm_lang=KR"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="block"
-  >
-    <img
-      src="https://s3.tradingview.com/pub/referrals/creatives/WT/KR/468x60Banner.jpg"
-      srcSet="https://s3.tradingview.com/pub/referrals/creatives/WT/KR/936x120Banner.jpg 2x"
-      width="468"
-      height="60"
-      alt="TradingView 배너"
-      className="block border-0"
-    />
-  </a>
-</div>
+      
 
 
         {/* 전역 컨텍스트 / 동기화 */}
