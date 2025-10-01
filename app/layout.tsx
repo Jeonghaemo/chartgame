@@ -61,7 +61,11 @@ export default async function RootLayout({
     <html lang="ko">
       <head>
         {/* ✅ AdSense 스크립트 (head에 직접 삽입 / 중복 금지) */}
-       
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4564123418761220"
+          crossOrigin="anonymous"
+        />
       </head>
 
       <body className={`${notoSans.className} min-h-screen bg-slate-50 text-slate-900`}>

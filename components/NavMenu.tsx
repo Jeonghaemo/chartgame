@@ -39,7 +39,7 @@ export default function NavMenu() {
             aria-current={active ? "page" : undefined}
             className={[
               "flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition font-medium",
-              "text-xs sm:text-base",
+              "text-sm sm:text-base",
               active
                 ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
                 : "text-slate-800 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 hover:shadow",
