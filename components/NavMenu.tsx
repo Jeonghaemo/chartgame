@@ -23,12 +23,12 @@ export default function NavMenu() {
   return (
     <nav
       className="
-        flex justify-center items-center flex-nowrap gap-1
-        rounded-2xl bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100
-        p-1 sm:p-1.5 shadow-inner
-        text-sm sm:text-lg font-gowun
-      "
-    >
+    flex justify-center items-center gap-1.5
+    rounded-2xl bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100
+    p-1.5 sm:p-2 shadow-inner
+    text-xs sm:text-base font-gowun
+  "
+>
       {menus.map((m) => {
         const active = isActive(m.href);
         const Icon = m.icon;
@@ -38,8 +38,8 @@ export default function NavMenu() {
             href={m.href}
             aria-current={active ? "page" : undefined}
             className={[
-              "flex items-center gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition font-medium whitespace-nowrap",
-              "text-sm sm:text-lg",
+              "flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg transition font-medium",
+              "text-xs sm:text-base",
               active
                 ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
                 : "text-slate-800 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 hover:shadow",
@@ -47,7 +47,7 @@ export default function NavMenu() {
           >
             <Icon
               className={[
-                "text-base sm:text-xl",
+                "text-base sm:text-lg",
                 active ? "text-white" : m.idleClass,
               ].join(" ")}
             />

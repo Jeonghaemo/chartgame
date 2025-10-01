@@ -79,10 +79,10 @@ export default async function GamePage({
   }
 
   // ✅ 게스트거나 로그인된 경우 → 게임 렌더
-return (
-  <main className="mt-20 sm:mt-24 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-0">
-    <ChartGameClient />
-  </main>
+  return (
+    <main className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-0">
+      <ChartGameClient />
+    </main>
   );
 }
 
