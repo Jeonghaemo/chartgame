@@ -25,7 +25,7 @@ export default function NavMenu() {
       className="
     flex justify-center items-center gap-1.5
     rounded-2xl bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100
-    p-1.5 sm:p-2 shadow-inner
+    p-2 sm:p-1.5 shadow-inner
     text-xs sm:text-base font-gowun
   "
 >

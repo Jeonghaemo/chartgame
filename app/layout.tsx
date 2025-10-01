@@ -70,7 +70,7 @@ export default async function RootLayout({
 
       <body className={`${notoSans.className} min-h-screen bg-slate-50 text-slate-900`}>
         {/* 헤더 */}
-        <header className="h-20 border-b bg-white flex items-center">
+        <header className="h-16 border-b bg-white flex items-center">
           {/*
             ✅ 반응형 3열 그리드:
             - 모바일: 1열(위 Nav, 아래 버튼 중앙)
