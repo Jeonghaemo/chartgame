@@ -19,7 +19,7 @@ type SymbolItem = { symbol: string; name: string; market: string }
 
 const SYMBOL_CACHE_KEY_NAMES = 'kr_symbols_with_names_v1'
 const SYMBOL_CACHE_TTL_MS = 1000 * 60 * 60 * 12 // 12h
-const MIN_VISIBLE = 300
+const MIN_VISIBLE = 365
 const RESERVED_TURNS = 60
 const MIN_TOTAL_CANDLES = MIN_VISIBLE + RESERVED_TURNS // 425
 const NEXT_LOCK_MS = 30
@@ -974,7 +974,6 @@ useEffect(() => {
                 const dataSlice = ohlc.slice(0, end);
                 return (
                   <CandleChart
-                  rightWindowBars={300}
                     key={chartKey}
                     data={dataSlice}
                     fullForMA={ohlc}
