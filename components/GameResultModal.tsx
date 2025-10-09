@@ -1,3 +1,4 @@
+// app/.../GameResultModal.tsx
 "use client"
 
 import React from "react"
@@ -37,13 +38,15 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
         
         {/* 타이틀 */}
         <h2 className="text-xl font-bold text-center mb-4">게임 종료 결과</h2>
-{result.symbol && (
+
+        {result.symbol && (
           <div className="mb-3 flex items-center justify-center">
             <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-sm">
               {result.symbol}
             </span>
           </div>
         )}
+
         {/* 자산 & 순위 */}
         <div className="mb-4">
           <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg mb-2">
@@ -66,15 +69,9 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
               <span className="text-gray-600 font-medium">현재 순위</span>
               <span className="text-lg font-bold flex items-center gap-1">
                 {result.rank}위
-                {rankDiff > 0 && (
-                  <span className="text-red-600 text-sm">▲ {rankDiff}</span>
-                )}
-                {rankDiff < 0 && (
-                  <span className="text-blue-600 text-sm">▼ {Math.abs(rankDiff)}</span>
-                )}
-                {rankDiff === 0 && (
-                  <span className="text-gray-400 text-sm">-</span>
-                )}
+                {rankDiff > 0 && <span className="text-red-600 text-sm">▲ {rankDiff}</span>}
+                {rankDiff < 0 && <span className="text-blue-600 text-sm">▼ {Math.abs(rankDiff)}</span>}
+                {rankDiff === 0 && <span className="text-gray-400 text-sm">-</span>}
               </span>
             </div>
           )}
@@ -126,7 +123,10 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
           </button>
           <button
             className="flex-1 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
-            onClick={() => location.reload()}
+            onClick={() => {
+              // ✅ 실제 페이지 이동(하드 네비게이션)로 전면광고(Vignette) 트리거
+              window.location.assign("/game?new=1&t=" + Date.now());
+            }}
           >
             새 게임
           </button>
@@ -135,3 +135,4 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
     </div>
   )
 }
+
