@@ -14,75 +14,79 @@ export default async function GamePage({
 }) {
   const guestMode = searchParams?.guest === "1";
 
-  // 게스트가 아니면 기존처럼 세션 체크
+  // 게스트가 아니면 세션 체크
   if (!guestMode) {
     const session = await auth();
     if (!session) {
-     return (
-  <main className="min-h-[80vh] flex items-start justify-center bg-gray-100 px-4 pt-4">
-  <div className="w-full max-w-5xl rounded-2xl bg-blue-600 text-white px-8 py-6 shadow-lg text-center">
-    {/* 메인 타이틀 (📈 + 제목 한 줄) */}
-    <div className="flex items-center justify-center gap-3 mb-4">
-      <span className="text-3xl">📈</span>
-      <h1 className="text-3xl md:text-3xl font-extrabold text-white tracking-tight">
-        주식 차트게임
-      </h1>
-    </div>
+      // ✅ 로그인 유도 화면 (홈 Hero와 통일된 다크 그라데이션 + 미니멀)
+      return (
+        <main className="max-w-[1100px] mx-auto px-6 pt-6 pb-10">
+          <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white shadow-lg">
+            {/* 은은한 라디얼 */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 [background:radial-gradient(600px_300px_at_80%_20%,rgba(99,102,241,0.25),transparent_60%)]"
+            />
+            <div className="relative px-6 py-8 md:px-10 md:py-10 text-center">
+              {/* 타이틀 */}
+              <h1 className="text-[30px] md:text-[38px] font-extrabold tracking-tight mb-3">
+                🚀 주식 차트게임
+              </h1>
 
-    {/* 본문 문구 */}
-    <p className="text-xl md:text-2xl leading-snug text-blue-50 max-w-3xl mx-auto font-medium space-y-2">
-      <span className="block">
-        <span className="font-extrabold text-white">실제 과거 차트</span>로 즐기는 <strong>실전 감각 모의 투자 게임!</strong>
-      </span>
+              {/* 설명 */}
+              <p className="mx-auto max-w-2xl text-[16px] md:text-[18px] text-slate-100/95 leading-snug font-medium">
+                <span className="font-semibold text-white">실제 과거 차트</span>로 즐기는
+                주식 모의 투자 게임. 랭킹 경쟁까지! 🏆
+              </p>
 
-      <span className="block">
-        <strong className="text-yellow-300">로그인</strong>하면 자산이 이어지고 랭킹 점수
-        <span className="underline decoration-yellow-300 decoration-2"> 실시간 반영!</span>
-      </span>
+              <p className="mt-2 text-[15px] md:text-[17px] text-slate-200/90">
+                로그인하면 자산이 이어지고 랭킹 점수 <span className="font-semibold">실시간 반영!</span>
+                <br className="hidden sm:block" />
+                나의 계급은 <span className="font-semibold text-yellow-300">🐣 주린이</span>? 아니면{" "}
+                <span className="font-semibold text-yellow-300">👑 졸업자</span>?
+              </p>
 
-      <span className="block">
-        게임하면서 <span className="text-green-200 font-semibold">주식 차트 공부</span> 까지!
-      </span>
+              {/* 버튼들: a 링크(하드 네비) → 전면광고 트리거에도 적합 */}
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a
+                  href="/api/auth/signin"
+                  className="inline-flex w-full sm:w-auto items-center justify-center rounded-2xl
+                            bg-white text-slate-900 font-extrabold tracking-tight
+                            px-5 py-3 text-lg shadow-sm hover:bg-slate-50 transition
+                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  로그인하고 시작하기
+                </a>
 
-      <span className="block">
-        나의 계급은 과연 🐣 <span className="font-semibold">주린이</span>? 아니면 👑 <span className="font-semibold">졸업자</span>?
-      </span>
+                <a
+                  href="/game?guest=1"
+                  className="inline-flex w-full sm:w-auto items-center justify-center rounded-2xl
+                            border border-white/20 bg-transparent text-white
+                            px-5 py-3 text-lg font-extrabold tracking-tight
+                            hover:bg-white/10 transition
+                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  게스트 모드 시작하기
+                </a>
+              </div>
 
-      <span className="block mt-4 text-2xl font-bold text-yellow-300 animate-bounce">
-        지금 바로 시작해 나만의 기록을 세워보세요!
-      </span>
-    </p>
-
-
-
-      {/* 버튼 영역 */}
-      <div className="flex flex-col items-center gap-4 mt-6">
-        <a
-          href="/api/auth/signin"
-          className="w-60 rounded-xl bg-white px-5 py-3 text-lg font-bold text-blue-700 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white text-center"
-        >
-          로그인하고 시작하기
-        </a>
-
-        <a
-          href="/game?guest=1"
-          className="w-60 rounded-xl border-2 border-white bg-blue-600 px-5 py-3 text-lg font-bold text-white shadow hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-white text-center"
-        >
-          게스트 모드 시작하기
-        </a>
-      </div>
-    </div>
-  </main>
-);
-
+             
+            </div>
+          </section>
+        </main>
+      );
     }
   }
 
   // ✅ 게스트거나 로그인된 경우 → 게임 렌더
   return (
-    <main className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-0">
-      <ChartGameClient />
+    <main className="max-w-[1300px] mx-auto px-4 py-4">
+      {/* 게임 캔버스: 여백 최소화, 컨테이너만 유지 */}
+      <div className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-0">
+        <ChartGameClient />
+      </div>
     </main>
   );
 }
+
 

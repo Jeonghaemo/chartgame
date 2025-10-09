@@ -103,36 +103,49 @@ const cards: Card[] = [
 export default function CalculatorsIndexPage() {
   return (
     <main className="min-h-[70vh] bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="mx-auto max-w-7xl px-4 py-10">
-        {/* 헤더 */}
-<header className="mb-8 text-center">
-  <h1 className="inline-block bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent text-4xl md:text-5xl font-extrabold tracking-tight drop-shadow-sm">
-    투자 계산기
-  </h1>
+      <div className="mx-auto max-w-7xl px-4 py-6 md:py-8">
+        {/* ===== 상단 히어로 (사이트 톤 통일) ===== */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white shadow-lg">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 [background:radial-gradient(600px_300px_at_80%_20%,rgba(99,102,241,0.25),transparent_60%)]"
+          />
+          <div className="relative px-6 py-6 md:px-10 md:py-8 text-center">
+            <h1 className="text-[28px] md:text-[34px] font-extrabold tracking-tight">
+              🧮 투자 계산기
+            </h1>
+            <p className="mt-2 mx-auto max-w-2xl text-[15px] md:text-[16px] text-white/90 leading-snug">
+              <span className="font-semibold text-white">주식·환율·세금</span>까지 한 번에.
+              필요한 값만 입력하면 즉시 결과를 확인할 수 있습니다.
+            </p>
+            {/* 서브 배지 */}
+            <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs md:text-sm text-white/90">
+                정확한 계산
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs md:text-sm text-white/90">
+                빠르고 간편
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs md:text-sm text-white/90">
+                실전 투자에 바로 적용
+              </span>
+            </div>
+          </div>
+        </section>
 
-  {/* 설명 박스 */}
-  <div className="mx-auto mt-5 max-w-3xl rounded-2xl bg-white/80 backdrop-blur border border-gray-200 shadow-sm text-left px-6 py-6">
-    <p className="text-gray-900 text-lg md:text-xl font-medium leading-snug">
-      <b className="text-blue-700">주식·환율·세금까지 한 번에 계산하세요.</b><br />
-      매수가·수수료·세금·환율 등 간단히 입력하면 즉시 결과를 확인할 수 있습니다.
-    </p>
-  </div>
-</header>
-
-
-        {/* 카드 그리드 */}
-        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {/* ===== 카드 그리드 (라이트 카드로 대비) ===== */}
+        <section className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map(({ href, title, desc, Icon, gradient, ring }) => (
             <Link
               key={href}
               href={href}
               className={[
-                "group relative overflow-hidden rounded-2xl bg-white/90 border border-gray-100",
+                "group relative overflow-hidden rounded-2xl bg-white border border-gray-100",
                 "shadow-sm hover:shadow-xl transition",
-                "focus:outline-none focus:ring-2", ring,
+                "focus:outline-none focus:ring-2 focus:ring-indigo-500", ring,
               ].join(" ")}
             >
-              {/* 카드 상단 그라데이션 라인 */}
+              {/* 상단 그라데이션 라인 */}
               <div className={`h-1 w-full bg-gradient-to-r ${gradient}`} />
 
               <div className="p-5">
@@ -147,12 +160,14 @@ export default function CalculatorsIndexPage() {
                   >
                     <Icon className="w-6 h-6" />
                   </div>
-                  <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+                  <h2 className="text-[16px] md:text-[17px] font-semibold text-gray-900">
+                    {title}
+                  </h2>
                 </div>
 
                 <p className="mt-2 text-sm text-gray-600">{desc}</p>
 
-                <div className="mt-4 flex items-center gap-1 text-sm font-medium text-blue-600">
+                <div className="mt-4 flex items-center gap-1 text-sm font-medium text-indigo-600">
                   이동하기
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                 </div>
@@ -167,6 +182,24 @@ export default function CalculatorsIndexPage() {
               />
             </Link>
           ))}
+        </section>
+
+        {/* (옵션) 계산기 → 차트게임 크로스 링크 배너 */}
+        {/* 필요 없으면 이 섹션 삭제해도 됨 */}
+        <section className="mt-8">
+          <div className="rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-blue-600 text-white text-center shadow-lg px-6 py-5">
+            <p className="text-[15px] md:text-[16px] font-semibold">
+              
+              <span className="font-extrabold">주식 차트게임</span>에서{" "}
+              실전처럼 매수·매도로 직접 검증해보세요!
+            </p>
+            <a
+              href={`/game?t=${Date.now()}`}
+              className="inline-block mt-3 rounded-full bg-white text-indigo-700 font-semibold py-2 px-5 shadow-sm hover:bg-gray-100 transition"
+            >
+              🚀 차트게임으로 연습 & 랭킹 도전하기 →
+            </a>
+          </div>
         </section>
       </div>
     </main>

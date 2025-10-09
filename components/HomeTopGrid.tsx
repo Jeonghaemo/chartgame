@@ -230,18 +230,23 @@ export default function HomeTopGrid() {
       </Card>
 
       {/* 가운데: 게임 시작 버튼 */}
-      <Card className="p-0 flex group">
-        <Link
-          href="/game"
-          className="w-full h-full flex items-center justify-center 
-                     rounded-xl text-2xl sm:text-3xl font-extrabold text-white
-                     bg-gradient-to-r from-blue-500 to-blue-700
-                     shadow-lg animate-pulse group-hover:[animation:none]
-                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                     min-h-[80px] sm:min-h-[120px]">
-          🚀 차트 게임 시작
-        </Link>
-      </Card>
+<Card className="p-0 flex group">
+  <Link
+    href="/game"
+    className="w-full h-full flex items-center justify-center 
+               rounded-2xl text-2xl sm:text-4xl font-extrabold tracking-tight text-white
+               bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700
+               shadow-[0_4px_16px_rgba(59,130,246,0.4)]
+               hover:shadow-[0_6px_20px_rgba(99,102,241,0.5)]
+               hover:scale-[1.02] active:scale-[0.99]
+               transition-all duration-200 ease-out
+               focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+               min-h-[80px] sm:min-h-[110px]">
+    🚀 <span className="ml-2">차트 게임 시작</span>
+  </Link>
+</Card>
+
+
 
       {/* 오른쪽: 무료 충전(AdRecharge) */}
       <AdRecharge />
