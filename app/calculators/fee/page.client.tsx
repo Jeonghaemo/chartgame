@@ -425,6 +425,22 @@ export default function FeeCalculatorPage() {
           )}
         </section>
 
+        {/* 차트게임 CTA: 결과 아래 카드형 배너 */}
+<div className="mt-8 p-5 rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-blue-600 text-white text-center shadow-lg">
+  <h3 className="text-lg font-bold mb-3">📈 이론은 계산으로, 실전은 게임으로!</h3>
+  <p className="text-[16px] md:text-[17px] font-semibold opacity-95 leading-relaxed mb-4">
+    <b>차트게임</b>에서 실전처럼 매수·매도로 직접 검증해보세요.<br />
+    가상의 자본으로 수익률을 올려 다른 투자자들과 <b>랭킹 경쟁</b>에 도전하세요!
+  </p>
+  <a
+    href={`/game?t=${Date.now()}`}
+    className="inline-block bg-white text-indigo-700 font-semibold py-2 px-5 rounded-full shadow-sm hover:bg-gray-100 transition"
+  >
+    🚀 차트게임으로 연습 & 랭킹 도전하기 →
+  </a>
+</div>
+
+
         {/* 사용방법/공식/FAQ */}
         <section className="mt-10 space-y-6">
           {/* 사용방법 */}
