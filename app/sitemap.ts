@@ -1,3 +1,4 @@
+// app/sitemap.ts
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -9,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/game',
     '/leaderboard',
     '/signin',
+    '/posts', // ← 블로그 허브 추가 (색인 강화)
     '/calculators',
     '/calculators/average',
     '/calculators/compound',
@@ -24,7 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/contact',
   ]
 
-  // 승인용 포스트 (블로그/가이드 글)
+  // 블로그/가이드 포스트
   const posts = [
     '/posts/avg-price-calculator',
     '/posts/chart-basics',

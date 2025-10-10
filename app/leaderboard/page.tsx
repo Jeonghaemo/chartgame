@@ -125,7 +125,7 @@ export default function LeaderboardPage() {
     <div>
       <h1 className="text-[28px] md:text-[34px] font-extrabold tracking-tight mb-1">🏆 랭킹</h1>
       <p className="mx-auto max-w-2xl text-[15px] md:text-[16px] text-white/90 leading-snug">
-        실전 같은 <span className="font-semibold text-white">모의 투자</span>로 겨루는 차트게임 랭킹킹.<br className="hidden sm:block" />
+        실전 같은 <span className="font-semibold text-white">모의 투자</span>로 겨루는 차트게임 랭킹<br className="hidden sm:block" />
         나의 계급은 <span className="font-semibold text-yellow-300">🐣 주린이</span>인가?{" "}
         <span className="font-semibold text-yellow-300">👑 졸업자</span>인가?
       </p>
