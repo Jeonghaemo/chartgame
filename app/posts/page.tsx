@@ -19,6 +19,13 @@ const posts: Post[] = [
   { slug: "chart-basics", title: "차트 보는 법 (기본편)", excerpt: "캔들·거래량·추세선 등 핵심 개념을 사례 중심으로 정리.", date: "2025-10-03" },
   { slug: "calculators-overview", title: "투자 계산기 모음 안내", excerpt: "사이트 내 여러 계산기들의 사용 목적과 연결 동선을 안내.", date: "2025-10-03" },
   { slug: "common-mistakes", title: "초보자가 자주 하는 실수 TOP 5", excerpt: "몰빵·무계획 매수·손절없음·레버리지 남용 등 체크리스트.", date: "2025-10-03" },
+
+  // ✅ 신규 5개 심화 글 추가
+  { slug: "trading-journal", title: "매매 일지 쓰는 법 (기록·복기·개선)", excerpt: "승패 이유를 데이터로 남겨 투자 감정을 제어하고 시스템을 만든다.", date: "2025-10-10" },
+  { slug: "market-cycles", title: "주식 시장 사이클 완전 정리", excerpt: "상승·하락·횡보의 구조와 거시변수 연계, 레짐별 전략까지 한눈에.", date: "2025-10-10" },
+  { slug: "stop-loss-mastery", title: "손절 라인 설정의 모든 것", excerpt: "손절 기준·심리·실수·이동손절까지 실전 대응법을 심화 정리.", date: "2025-10-10" },
+  { slug: "trend-reversals", title: "실전 차트 예시로 배우는 추세 전환 패턴 5가지", excerpt: "더블탑·헤드앤숄더·쐐기·컵앤핸들·스프링 패턴 완전 해설.", date: "2025-10-10" },
+  { slug: "portfolio-risk", title: "포트폴리오 분산과 리스크 관리 심화편", excerpt: "상관관계·섹터 밸런싱·리밸런싱으로 계좌 변동성 낮추기.", date: "2025-10-10" },
 ];
 
 export default function PostsPage() {

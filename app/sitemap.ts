@@ -1,4 +1,3 @@
-// app/sitemap.ts
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -10,7 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/game',
     '/leaderboard',
     '/signin',
-    '/posts', // ← 블로그 허브 추가 (색인 강화)
+    '/posts', // 블로그 허브
     '/calculators',
     '/calculators/average',
     '/calculators/compound',
@@ -26,8 +25,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/contact',
   ]
 
-  // 블로그/가이드 포스트
+  // 블로그 / 가이드 포스트 (총 16개)
   const posts = [
+    // 기존 11개
     '/posts/avg-price-calculator',
     '/posts/chart-basics',
     '/posts/chartgame-guide',
@@ -39,6 +39,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/posts/risk-management',
     '/posts/stock-faq',
     '/posts/stock-tax-fee',
+
+    // ✅ 신규 5개 심화글
+    '/posts/trading-journal',
+    '/posts/market-cycles',
+    '/posts/stop-loss-mastery',
+    '/posts/trend-reversals',
+    '/posts/portfolio-risk',
   ]
 
   const all = [...routes, ...posts]
