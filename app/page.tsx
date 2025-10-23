@@ -1,8 +1,8 @@
+// app/page.tsx
 import { auth } from "@/lib/auth";
 import HomeHero from "@/components/HomeHero";
 import HomeTopGrid from "@/components/HomeTopGrid";
-import Script from "next/script";
-import AdBanner from '@/components/AdBanner'
+import AdBanner from "@/components/AdBanner";
 
 export default async function Home() {
   const session = await auth();
@@ -17,9 +17,11 @@ export default async function Home() {
         <HomeTopGrid />
       </section>
 
-      {/* AdSense: 푸터 바로 위 */}
-      <div className="my-8 flex justify-center">
-        <AdBanner slot="2809714485" />
+      {/* ✅ AdSense: 푸터 바로 위 (폭 보장 래퍼) */}
+      <div className="my-8">
+        <div className="mx-auto w-full max-w-[1000px] px-4">
+          <AdBanner slot="2809714485" />
+        </div>
       </div>
 
       {/* 홈 전용 푸터 */}

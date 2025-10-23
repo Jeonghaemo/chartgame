@@ -1,3 +1,4 @@
+// components/AdBanner.tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
@@ -22,7 +23,6 @@ export default function AdBanner({
 
   useEffect(() => {
     if (!insRef.current || pushedRef.current) return
-
     const el = insRef.current
 
     const tryPush = () => {
@@ -31,24 +31,23 @@ export default function AdBanner({
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({})
           pushedRef.current = true
-        } catch (e) {
-          // 재시도는 observers가 계속 트리거해 줌
-          // console.warn('adsbygoogle push failed', e)
+        } catch {
+          // 옵저버가 다시 호출해줄 것이므로 여기선 무시
         }
       }
     }
 
-    // 보이기/사이즈 변화 감지해서 가용 너비가 생기면 push
+    // 보일 때/크기 변할 때만 push 시도
     const ro = new ResizeObserver(tryPush)
     ro.observe(el)
 
-    const io = new IntersectionObserver((entries) => {
+    const io = new IntersectionObserver(entries => {
       if (entries.some(e => e.isIntersecting)) tryPush()
     })
     io.observe(el)
 
-    // 초기 한 번 시도 (첫 렌더 직후)
-    const t = setTimeout(tryPush, 0)
+    // 초기 지연 후 1차 시도 (SSR→CSR 전환 타이밍 커버)
+    const t = setTimeout(tryPush, 50)
 
     return () => {
       clearTimeout(t)
@@ -61,7 +60,8 @@ export default function AdBanner({
     <ins
       ref={insRef as any}
       className={`adsbygoogle ${className ?? ''}`}
-      style={{ display: 'block' }}
+      // ✅ 폭 0 문제 방지: display:block + width:100%
+      style={{ display: 'block', width: '100%' }}
       data-ad-client={client}
       data-ad-slot={slot}
       data-ad-format="auto"
