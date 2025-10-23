@@ -50,7 +50,8 @@ function writeOhlcToCache(symbol: string, startIndex: number, data: OHLC[]) {
 }
 
 // ---------- 이어하기용 로컬 스냅 ----------
-const LS_KEY = 'chartgame_current_v3'
+let CURRENT_USER_ID: string | null = null; // ← 전역으로 현재 사용자 ID 저장
+
 type LocalMeta = {
   id: string | null
   symbol: string
@@ -72,15 +73,19 @@ type LocalSnap = {
   ts?: number
 }
 type LocalState = { meta: LocalMeta; snap: LocalSnap }
+
+const makeLsKey = () => `chartgame_current_v3_${CURRENT_USER_ID ?? 'guest'}`
+
 function readLocal(): LocalState | null {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null') } catch { return null }
+  try { return JSON.parse(localStorage.getItem(makeLsKey()) || 'null') } catch { return null }
 }
 function writeLocal(meta: LocalMeta, snap: LocalSnap) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ meta, snap: { ...snap, ts: Date.now() } })) } catch {}
+  try { localStorage.setItem(makeLsKey(), JSON.stringify({ meta, snap: { ...snap, ts: Date.now() } })) } catch {}
 }
 function clearLocal() {
-  try { localStorage.removeItem(LS_KEY) } catch {}
+  try { localStorage.removeItem(makeLsKey()) } catch {}
 }
+
 
 // ---------- 유틸 ----------
 async function validateSymbolWithHistory(item: SymbolItem): Promise<SymbolItem | null> {
@@ -387,6 +392,7 @@ const recentSymbolsRef = useRef<string[]>([])
             const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store', signal })
             if (meRes.ok) {
               const me = await meRes.json()
+              CURRENT_USER_ID = me?.user?.id ?? null
               capital = me?.user?.capital ?? 10_000_000
               if (typeof me?.user?.hearts === 'number') {
                 setHearts(me.user.hearts)
@@ -638,6 +644,7 @@ setGameId(newGameId)
 
     ;(async () => {
       // 1) 로컬 플래그가 게스트면 즉시 게스트 부팅
+      CURRENT_USER_ID = null
       if (guestMode) {
         try {
           setCanStart(true)
@@ -656,6 +663,7 @@ setGameId(newGameId)
       }
 
       // 2) 서버 me 조회 실패 → 자동 게스트 전환 후 게스트 부팅
+      CURRENT_USER_ID = null // 실패 시 게스트 취급
       try {
         const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
         if (!meRes.ok) {
@@ -673,6 +681,7 @@ setGameId(newGameId)
           return
         }
         const me = await meRes.json()
+        CURRENT_USER_ID = me?.user?.id ?? null // 로그인 사용자 ID 설정
         const currentHearts = me?.user?.hearts ?? 0
         setHearts(currentHearts)
         setCanStart(currentHearts > 0)
