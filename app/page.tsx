@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import HomeHero from "@/components/HomeHero";
 import HomeTopGrid from "@/components/HomeTopGrid";
+import Script from "next/script";
 
 export default async function Home() {
   const session = await auth();
@@ -15,7 +16,25 @@ export default async function Home() {
         <HomeTopGrid />
       </section>
 
-      {/* 홈 전용 푸터 링크 */}
+      {/* ✅ AdSense 광고: 푸터 바로 위 */}
+      <div className="my-8 flex justify-center">
+        <ins
+          className="adsbygoogle"
+          style={{ display: "block" }}
+          data-ad-client="ca-pub-4564123418761220"
+          data-ad-slot="2809714485"
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+          data-language="ko"
+        />
+      </div>
+
+      <Script id="adsbygoogle-init" strategy="afterInteractive">
+        {`(adsbygoogle = window.adsbygoogle || []).push({});`}
+      </Script>
+      {/* ✅ /AdSense 광고 */}
+
+      {/* 홈 전용 푸터 */}
       <footer className="mt-16 py-8 border-t border-gray-200 text-center text-sm text-gray-500">
         <a href="/terms" className="mx-2 hover:text-gray-700">이용약관</a>
         {" | "}
