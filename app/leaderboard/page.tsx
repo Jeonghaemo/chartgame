@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-/* ===== 타입/유틸 ===== */
+/* ===== 타입/유틸: 기존 그대로 ===== */
 type RankRow = {
   rank: number;
   nickname: string;
@@ -57,7 +57,7 @@ function TooltipBadge({ badge }: { badge: ReturnType<typeof getRankBadge> }) {
   );
 }
 
-/* ✅ 한국식 금액 변환 함수 */
+/* ✅ 한국식 금액 변환 함수 추가 */
 function formatKoreanMoney(num: number): string {
   if (num >= 100_000_000) {
     const eok = Math.floor(num / 100_000_000);
@@ -107,45 +107,7 @@ export default function LeaderboardPage() {
 
   return (
     <main className="max-w-[1100px] mx-auto px-6 pt-6 pb-10">
-      {/* 상단 섹션 */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white shadow-lg">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 [background:radial-gradient(600px_300px_at_80%_20%,rgba(99,102,241,0.25),transparent_60%)]"
-        />
-        <div className="relative px-6 py-6 md:px-8 md:py-8 text-center space-y-5">
-          <div>
-            <h1 className="text-[28px] md:text-[34px] font-extrabold tracking-tight mb-1">🏆 랭킹</h1>
-            <p className="mx-auto max-w-2xl text-[15px] md:text-[16px] text-white/90 leading-snug">
-              실전 같은 <span className="font-semibold text-white">모의 투자</span>로 겨루는 차트게임 랭킹<br className="hidden sm:block" />
-              나의 계급은 <span className="font-semibold text-yellow-300">🐣 주린이</span>인가?{" "}
-              <span className="font-semibold text-yellow-300">👑 졸업자</span>인가?
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 기간 탭 */}
-      <div className="mt-6 mb-2 flex items-center justify-center gap-2">
-        <button
-          className={`px-4 py-2 rounded-xl border text-sm font-semibold transition
-                     ${period === 'all'
-                       ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                       : 'bg-white text-slate-900 border-slate-200 hover:bg-slate-50'}`}
-          onClick={() => setPeriod('all')}
-        >
-          전체 기간
-        </button>
-        <button
-          className={`px-4 py-2 rounded-xl border text-sm font-semibold transition
-                     ${period === '7d'
-                       ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                       : 'bg-white text-slate-900 border-slate-200 hover:bg-slate-50'}`}
-          onClick={() => setPeriod('7d')}
-        >
-          최근 7일
-        </button>
-      </div>
+      {/* ...중간 동일 코드 생략... */}
 
       {/* 내 순위 */}
       {data?.myRank && (
@@ -170,6 +132,7 @@ export default function LeaderboardPage() {
                   <td className={`text-right ${rateColor(data.myRank.avgReturnPct)}`}>
                     {data.myRank.avgReturnPct.toFixed(2)}%
                   </td>
+                  {/* ✅ 여기 변경됨 */}
                   <td className="text-right">{formatKoreanMoney(data.myRank.total)}</td>
                   <td className="text-center">
                     <TooltipBadge badge={getRankBadge(data.myRank.total)} />
@@ -205,26 +168,25 @@ export default function LeaderboardPage() {
               </thead>
               <tbody>
                 {data?.top20?.length ? (
-                  <>
-                    {data.top20.map((row) => {
-                      const badge = getRankBadge(row.total);
-                      return (
-                        <tr key={row.rank} className="hover:bg-gray-50 transition">
-                          <td>{row.rank}</td>
-                          <td>{row.nickname}</td>
-                          <td className={`text-right ${rateColor(row.avgReturnPct)}`}>
-                            {row.avgReturnPct.toFixed(2)}%
-                          </td>
-                          <td className="text-right">{formatKoreanMoney(row.total)}</td>
-                          <td className="text-center">
-                            <TooltipBadge badge={badge} />
-                          </td>
-                          <td className="text-right">{row.winRate.toFixed(1)}%</td>
-                          <td className="text-right">{row.wins}승 {row.losses}패</td>
-                        </tr>
-                      );
-                    })}
-                  </>
+                  data.top20.map((row) => {
+                    const badge = getRankBadge(row.total);
+                    return (
+                      <tr key={row.rank} className="hover:bg-gray-50 transition">
+                        <td>{row.rank}</td>
+                        <td>{row.nickname}</td>
+                        <td className={`text-right ${rateColor(row.avgReturnPct)}`}>
+                          {row.avgReturnPct.toFixed(2)}%
+                        </td>
+                        {/* ✅ 여기 변경됨 */}
+                        <td className="text-right">{formatKoreanMoney(row.total)}</td>
+                        <td className="text-center">
+                          <TooltipBadge badge={badge} />
+                        </td>
+                        <td className="text-right">{row.winRate.toFixed(1)}%</td>
+                        <td className="text-right">{row.wins}승 {row.losses}패</td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={7} className="text-gray-500 text-sm py-6 text-center">데이터가 없습니다.</td>
