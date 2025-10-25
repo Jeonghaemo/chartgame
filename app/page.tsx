@@ -17,7 +17,7 @@ export default async function Home() {
         <HomeTopGrid />
       </section>
 
-      {/* ✅ AdSense: 푸터 바로 위 (폭 보장 래퍼) */}
+      {/* ✅ AdSense */}
       <div className="my-8">
         <div className="mx-auto w-full max-w-[1000px] px-4">
           <AdBanner slot="2809714485" />
