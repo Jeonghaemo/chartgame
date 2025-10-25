@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdBanner from "@/components/AdBanner";
-import dynamic from "next/dynamic";
-const MobileAd = dynamic(() => import("@/components/MobileAd"), { ssr: false });
+
 
 /* ===== 타입/유틸: 기존 그대로 ===== */
 type RankRow = {
@@ -208,17 +207,12 @@ export default function LeaderboardPage() {
       )}
 
       {/* ✅ AdSense */}
-      <div className="my-8">
-        {/* 💻 PC 전용 (lg 이상) */}
-        <div className="hidden lg:block mx-auto w-full max-w-[1000px] px-4">
-          <AdBanner slot="2809714485" />
-        </div>
-
-        {/* 📱 모바일 전용 (lg 미만) */}
-        <div className="block lg:hidden mx-auto w-full px-2">
-          <MobileAd />
-        </div>
-      </div>
+<div className="my-8">
+  <div className="mx-auto w-full max-w-[1000px] px-4">
+    <AdBanner slot="2809714485" />
+  </div>
+</div>
+      
 
       {/* 전체 순위 */}
       <section className="mt-4 rounded-2xl bg-white shadow ring-1 ring-gray-200 p-3 sm:p-4">
