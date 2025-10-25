@@ -182,12 +182,12 @@ export default function LeaderboardPage() {
               {/* ⬇ 더 타이트한 열 배치 */}
               <colgroup>
                 <col style={{ width: "6%"  }} /> {/* 순위 */}
-                <col style={{ width: "10%" }} /> {/* 닉네임 */}
-                <col style={{ width: "10%" }} /> {/* 평균 수익률 */}
-                <col style={{ width: "15%" }} /> {/* 최종 자산 */}
+                <col style={{ width: "8%" }} /> {/* 닉네임 */}
+                <col style={{ width: "8%" }} /> {/* 평균 수익률 */}
+                <col style={{ width: "11%" }} /> {/* 최종 자산 */}
                 <col style={{ width: "5%"  }} /> {/* 계급 */}
                 <col style={{ width: "10%" }} /> {/* 승률 */}
-                <col style={{ width: "15%" }} /> {/* 전적 */}
+                <col style={{ width: "10%" }} /> {/* 전적 */}
                 {/* 나머지 16%는 브라우저가 자동 분배(고정 폭 컬럼이 있으면 거기에) */}
               </colgroup>
               <thead>
