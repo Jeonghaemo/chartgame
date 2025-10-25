@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import AdBanner from "@/components/AdBanner";
 
 /* ===== 타입/유틸: 기존 그대로 ===== */
 type RankRow = {
@@ -214,6 +215,13 @@ export default function LeaderboardPage() {
           </div>
         </section>
       )}
+
+{/* ✅ AdSense */}
+      <div className="my-8">
+        <div className="mx-auto w-full max-w-[1000px] px-4">
+          <AdBanner slot="2809714485" />
+        </div>
+      </div>
 
       {/* 전체 순위 */}
       <section className="mt-4 rounded-2xl bg-white shadow ring-1 ring-gray-200 p-3 sm:p-4">
