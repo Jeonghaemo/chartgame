@@ -310,6 +310,19 @@ export default function LeaderboardPage() {
           </div>
         )}
       </section>
+            {/* 모바일에서만 테이블 패딩 줄이기 */}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          table th,
+          table td {
+            padding-left: 0.25rem !important; /* px-1 */
+            padding-right: 0.25rem !important; /* px-1 */
+            padding-top: 0.25rem !important;
+            padding-bottom: 0.25rem !important;
+          }
+        }
+      `}</style>
+
     </main>
   );
 }
