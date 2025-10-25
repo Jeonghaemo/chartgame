@@ -3,6 +3,7 @@
 
 import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import AdBanner from "@/components/AdBanner";
 
 type Row = { price: string; qty: string };
 
@@ -159,6 +160,13 @@ export default function AverageCalculatorPage() {
     </ul>
   </div>
 </header>
+
+{/* ✅ AdSense 광고 영역 */}
+      <div className="my-8">
+        <div className="mx-auto w-full max-w-[1000px] px-4">
+          <AdBanner slot="2809714485" />
+        </div>
+      </div>
 
 
         {/* 입력 카드 */}

@@ -3,6 +3,7 @@
 
 import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import AdBanner from "@/components/AdBanner";
 
 /* -------- 숫자 유틸 -------- */
 function cleanNumber(s: string): number {
@@ -128,6 +129,13 @@ export default function TargetCalculatorPage() {
     </ul>
   </div>
 </header>
+{/* ✅ AdSense 광고 영역 */}
+      <div className="my-8">
+        <div className="mx-auto w-full max-w-[1000px] px-4">
+          <AdBanner slot="2809714485" />
+        </div>
+      </div>
+
 
         {/* 입력 카드 */}
         <section className="rounded-2xl bg-white shadow p-6 space-y-4">
