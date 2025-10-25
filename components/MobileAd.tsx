@@ -93,8 +93,8 @@ export default function MobileAd() {
         key={routeKey + "|" + size}
         className="adsbygoogle"
         style={style}
-        data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"  /* ← 본인 값 */
-        data-ad-slot="YYYYYYYYYY"                 /* ← 본인 값(PC 용과 '다른' 슬롯 권장) */
+        data-ad-client="ca-pub-4564123418761220"  /* ← 본인 값 */
+        data-ad-slot="2809714485"                 /* ← 본인 값(PC 용과 '다른' 슬롯 권장) */
         data-full-width-responsive="false"
         // 개발 중 로컬/프리뷰에서만 테스트 광고 강제하고 싶다면 ↓을 잠깐 켜세요(배포본에서는 제거!)
         // data-adtest="on"
