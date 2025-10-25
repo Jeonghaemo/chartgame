@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import AdBanner from "@/components/AdBanner";
+import dynamic from "next/dynamic";
+const MobileAd = dynamic(() => import("@/components/MobileAd"), { ssr: false });
 
 /* ===== 타입/유틸: 기존 그대로 ===== */
 type RankRow = {
@@ -109,49 +111,39 @@ export default function LeaderboardPage() {
 
   return (
     <main className="max-w-[1100px] mx-auto px-6 pt-6 pb-10">
-      {/* 상단 히어로 + 계급 레전드 통합 (여백 줄인 버전) */}
-<section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white shadow-lg">
-  <div
-    aria-hidden
-    className="pointer-events-none absolute inset-0 [background:radial-gradient(600px_300px_at_80%_20%,rgba(99,102,241,0.25),transparent_60%)]"
-  />
-  <div className="relative px-6 py-6 md:px-8 md:py-8 text-center space-y-5">
-    {/* 제목/설명 */}
-    <div>
-      <h1 className="text-[28px] md:text-[34px] font-extrabold tracking-tight mb-1">🏆 랭킹</h1>
-      <p className="mx-auto max-w-2xl text-[15px] md:text-[16px] text-white/90 leading-snug">
-        실전 같은 <span className="font-semibold text-white">모의 투자</span>로 겨루는 차트게임 랭킹<br className="hidden sm:block" />
-        나의 계급은 <span className="font-semibold text-yellow-300">🐣 주린이</span>인가?{" "}
-        <span className="font-semibold text-yellow-300">👑 졸업자</span>인가?
-      </p>
-    </div>
+      {/* 상단 히어로 + 계급 레전드 통합 */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white shadow-lg">
+        <div aria-hidden className="pointer-events-none absolute inset-0 [background:radial-gradient(600px_300px_at_80%_20%,rgba(99,102,241,0.25),transparent_60%)]" />
+        <div className="relative px-6 py-6 md:px-8 md:py-8 text-center space-y-5">
+          <div>
+            <h1 className="text-[28px] md:text-[34px] font-extrabold tracking-tight mb-1">🏆 랭킹</h1>
+            <p className="mx-auto max-w-2xl text-[15px] md:text-[16px] text-white/90 leading-snug">
+              실전 같은 <span className="font-semibold text-white">모의 투자</span>로 겨루는 차트게임 랭킹<br className="hidden sm:block" />
+              나의 계급은 <span className="font-semibold text-yellow-300">🐣 주린이</span>인가?{" "}
+              <span className="font-semibold text-yellow-300">👑 졸업자</span>인가?
+            </p>
+          </div>
 
-    {/* 계급 레전드 */}
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 max-w-3xl mx-auto mt-3">
-      {[
-        { icon: "👑", label: "졸업자", range: "5,000,000,000원 ~" },
-        { icon: "🏆", label: "승리자", range: "1,000,000,000원 ~" },
-        { icon: "🐳", label: "물방개", range: "100,000,000원 ~" },
-        { icon: "🚀", label: "불장러", range: "50,000,000원 ~" },
-        { icon: "🐢", label: "존버러", range: "20,000,000원 ~" },
-        { icon: "🐣", label: "주린이", range: "~ 20,000,000원" },
-      ].map((t) => (
-        <div
-          key={t.label}
-          className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-2"
-        >
-          <span className="text-lg">{t.icon}</span>
-          <span className="text-sm font-semibold">{t.label}</span>
-          <span className="text-[11px] text-white/70">{t.range}</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 max-w-3xl mx-auto mt-3">
+            {[
+              { icon: "👑", label: "졸업자", range: "5,000,000,000원 ~" },
+              { icon: "🏆", label: "승리자", range: "1,000,000,000원 ~" },
+              { icon: "🐳", label: "물방개", range: "100,000,000원 ~" },
+              { icon: "🚀", label: "불장러", range: "50,000,000원 ~" },
+              { icon: "🐢", label: "존버러", range: "20,000,000원 ~" },
+              { icon: "🐣", label: "주린이", range: "~ 20,000,000원" },
+            ].map((t) => (
+              <div key={t.label} className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <span className="text-lg">{t.icon}</span>
+                <span className="text-sm font-semibold">{t.label}</span>
+                <span className="text-[11px] text-white/70">{t.range}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-    </div>
-  </div>
-</section>
+      </section>
 
-
-
-      {/* ✅ 기간 탭: 여기(‘전체 순위’ 바로 위)로 이동 */}
+      {/* ✅ 기간 탭 */}
       <div className="mt-6 mb-2 flex items-center justify-center gap-2">
         <button
           className={`px-4 py-2 rounded-xl border text-sm font-semibold transition
@@ -197,7 +189,6 @@ export default function LeaderboardPage() {
                     {data.myRank.avgReturnPct.toFixed(2)}%
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    {/* 최종자산 단위 변환만 적용 */}
                     <span className="sm:hidden">{formatKoreanMoney(data.myRank.total)}</span>
                     <span className="hidden sm:inline">{formatKoreanMoney(data.myRank.total)}</span>
                   </td>
@@ -216,10 +207,16 @@ export default function LeaderboardPage() {
         </section>
       )}
 
-{/* ✅ AdSense */}
+      {/* ✅ AdSense */}
       <div className="my-8">
-        <div className="mx-auto w-full max-w-[1000px] px-4">
+        {/* 💻 PC 전용 (lg 이상) */}
+        <div className="hidden lg:block mx-auto w-full max-w-[1000px] px-4">
           <AdBanner slot="2809714485" />
+        </div>
+
+        {/* 📱 모바일 전용 (lg 미만) */}
+        <div className="block lg:hidden mx-auto w-full px-2">
+          <MobileAd />
         </div>
       </div>
 
@@ -266,7 +263,6 @@ export default function LeaderboardPage() {
                             {row.avgReturnPct.toFixed(2)}%
                           </td>
                           <td className="px-3 py-2 text-right whitespace-nowrap">
-                            {/* 최종자산 단위 변환만 적용 */}
                             <span className="sm:hidden">{formatKoreanMoney(row.total)}</span>
                             <span className="hidden sm:inline">{formatKoreanMoney(row.total)}</span>
                           </td>
@@ -314,19 +310,19 @@ export default function LeaderboardPage() {
           </div>
         )}
       </section>
-            {/* 모바일에서만 테이블 패딩 줄이기 */}
+
+      {/* 모바일에서만 테이블 패딩 줄이기 */}
       <style jsx>{`
         @media (max-width: 768px) {
           table th,
           table td {
-            padding-left: 0.25rem !important; /* px-1 */
-            padding-right: 0.25rem !important; /* px-1 */
+            padding-left: 0.25rem !important;
+            padding-right: 0.25rem !important;
             padding-top: 0.25rem !important;
             padding-bottom: 0.25rem !important;
           }
         }
       `}</style>
-
     </main>
   );
 }

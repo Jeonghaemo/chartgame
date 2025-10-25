@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import HomeHero from "@/components/HomeHero";
 import HomeTopGrid from "@/components/HomeTopGrid";
 import AdBanner from "@/components/AdBanner";
+import dynamic from "next/dynamic";
+
+// ✅ 모바일 전용 광고 (클라이언트 전용)
+const MobileAd = dynamic(() => import("@/components/MobileAd"), { ssr: false });
 
 export default async function Home() {
   const session = await auth();
@@ -17,10 +21,16 @@ export default async function Home() {
         <HomeTopGrid />
       </section>
 
-      {/* ✅ AdSense */}
+      {/* ✅ AdSense 광고 영역 */}
       <div className="my-8">
-        <div className="mx-auto w-full max-w-[1000px] px-4">
+        {/* 💻 PC 전용 (lg 이상일 때만 표시) */}
+        <div className="hidden lg:block mx-auto w-full max-w-[1000px] px-4">
           <AdBanner slot="2809714485" />
+        </div>
+
+        {/* 📱 모바일 전용 (lg 미만일 때만 표시) */}
+        <div className="block lg:hidden mx-auto w-full px-2">
+          <MobileAd />
         </div>
       </div>
 
