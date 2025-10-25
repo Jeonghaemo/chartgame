@@ -34,6 +34,7 @@ export default async function Home() {
         </div>
       </div>
 
+
       {/* 홈 전용 푸터 */}
       <footer className="mt-16 py-8 border-t border-gray-200 text-center text-sm text-gray-500">
         <a href="/terms" className="mx-2 hover:text-gray-700">이용약관</a>
