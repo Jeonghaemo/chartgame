@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import AdBanner from "@/components/AdBanner";
 
-/* ===== 타입/유틸 ===== */
+/* ===== 타입 ===== */
 type RankRow = {
   rank: number;
   nickname: string;
@@ -21,6 +21,8 @@ type LeaderboardResponse = {
   top20: RankRow[];
   myRank: RankRow | null;
 };
+
+/* ===== 유틸 ===== */
 function getRankBadge(total: number) {
   if (total >= 5_000_000_000)
     return { name: "졸업자", icon: "👑", color: "bg-purple-100 text-purple-700", range: "5,000,000,000원 이상" };
@@ -61,7 +63,7 @@ function compactMoneyKR(v: number) {
   return `${Math.round(v / 10_000).toLocaleString()}만`;
 }
 
-/* ===== 페이지 ===== */
+/* ===== 페이지 컴포넌트 ===== */
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<'7d' | 'all'>('all');
   const [data, setData] = useState<LeaderboardResponse | null>(null);
@@ -92,11 +94,12 @@ export default function LeaderboardPage() {
     }
   };
   useEffect(() => { loadData(period); }, [period]);
+
   const rateColor = (v:number) => (v >= 0 ? "text-red-600" : "text-blue-600");
 
   return (
     <main className="max-w-[1100px] mx-auto px-6 pt-6 pb-10">
-      {/* 상단 히어로 (디자인 유지) */}
+      {/* 상단 히어로 */}
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white shadow-lg">
         <div
           aria-hidden
@@ -111,6 +114,7 @@ export default function LeaderboardPage() {
               <span className="font-semibold text-yellow-300">👑 졸업자</span>인가?
             </p>
           </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 max-w-3xl mx-auto mt-3">
             {[
               { icon: "👑", label: "졸업자", range: "5,000,000,000원 ~" },
@@ -120,7 +124,10 @@ export default function LeaderboardPage() {
               { icon: "🐢", label: "존버러", range: "20,000,000원 ~" },
               { icon: "🐣", label: "주린이", range: "~ 20,000,000원" },
             ].map((t) => (
-              <div key={t.label} className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <div
+                key={t.label}
+                className="flex flex-col items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+              >
                 <span className="text-lg">{t.icon}</span>
                 <span className="text-sm font-semibold">{t.label}</span>
                 <span className="text-[11px] text-white/70">{t.range}</span>
@@ -152,33 +159,27 @@ export default function LeaderboardPage() {
         </button>
       </div>
 
-      {/* 내 순위 (디자인 유지 + 모바일 폭 절약) */}
+      {/* 내 순위 (가로 스크롤 허용 + 라벨/전적 고정) */}
       {data?.myRank && (
         <section className="mt-4 rounded-2xl bg-white shadow ring-1 ring-gray-200 p-2 sm:p-4">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-collapse rounded-xl overflow-hidden text-[11px] sm:text-sm">
+            <table className="w-full table-fixed border-collapse rounded-xl overflow-hidden text-[11px] sm:text-sm min-w-[780px]">
               {/* 모바일 기준 고정 열 너비 */}
               <colgroup>
                 <col style={{ width: "10%" }} /> {/* 내 순위 */}
-                <col style={{ width: "24%" }} /> {/* 닉네임 */}
-                <col style={{ width: "16%" }} /> {/* 평균 */}
+                <col style={{ width: "22%" }} /> {/* 닉네임 */}
+                <col style={{ width: "16%" }} /> {/* 평균 수익률 */}
                 <col style={{ width: "18%" }} /> {/* 자산 */}
                 <col style={{ width: "12%" }} /> {/* 계급 */}
-                <col style={{ width: "10%" }} /> {/* 승률 */}
-                <col style={{ width: "10%" }} /> {/* 전적 */}
+                <col style={{ width: "8%"  }} /> {/* 승률 */}
+                <col style={{ width: "14%" }} /> {/* 전적 */}
               </colgroup>
               <thead>
                 <tr className="bg-gray-900 text-white">
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-left whitespace-nowrap">내 순위</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-left whitespace-nowrap">닉네임</th>
-                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
-                    <span className="sm:hidden">평균</span>
-                    <span className="hidden sm:inline">평균 수익률</span>
-                  </th>
-                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
-                    <span className="sm:hidden">자산</span>
-                    <span className="hidden sm:inline">최종 자산</span>
-                  </th>
+                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">평균 수익률</th>
+                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">최종 자산</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-center whitespace-nowrap">계급</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">승률</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">전적</th>
@@ -189,8 +190,7 @@ export default function LeaderboardPage() {
                   <td className="px-2 py-1.5 sm:px-3 sm:py-2 whitespace-nowrap font-semibold">{data.myRank.rank}</td>
                   <td className="px-2 py-1.5 sm:px-3 sm:py-2 whitespace-nowrap truncate">{data.myRank.nickname}</td>
                   <td className={`px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap ${rateColor(data.myRank.avgReturnPct)}`}>
-                    <span className="sm:hidden">{data.myRank.avgReturnPct.toFixed(1)}%</span>
-                    <span className="hidden sm:inline">{data.myRank.avgReturnPct.toFixed(2)}%</span>
+                    {data.myRank.avgReturnPct.toFixed(2)}%
                   </td>
                   <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
                     <span className="sm:hidden">{compactMoneyKR(data.myRank.total)}</span>
@@ -207,8 +207,7 @@ export default function LeaderboardPage() {
                     <span className="hidden sm:inline">{data.myRank.winRate.toFixed(1)}%</span>
                   </td>
                   <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
-                    <span className="sm:hidden">{data.myRank.wins}-{data.myRank.losses}</span>
-                    <span className="hidden sm:inline">{data.myRank.wins}승 {data.myRank.losses}패</span>
+                    {data.myRank.wins}승 {data.myRank.losses}패
                   </td>
                 </tr>
               </tbody>
@@ -217,7 +216,7 @@ export default function LeaderboardPage() {
         </section>
       )}
 
-      {/* ✅ 광고 (모바일: 세로 작게). overflow-hidden으로 과도한 높이 잘라냄 */}
+      {/* ✅ 광고 (모바일 세로 작게 유지) */}
       <div className="my-8">
         <div className="mx-auto w-full max-w-[1000px] px-4">
           <div className="overflow-hidden h-[90px] sm:h-[120px]">
@@ -226,35 +225,29 @@ export default function LeaderboardPage() {
         </div>
       </div>
 
-      {/* 전체 순위 (디자인 유지 + 모바일 폭 절약) */}
+      {/* 전체 순위 (가로 스크롤 허용 + 라벨/전적 고정) */}
       <section className="mt-4 rounded-2xl bg-white shadow ring-1 ring-gray-200 p-2 sm:p-4">
         <h2 className="text-lg sm:text-xl font-bold mb-3 text-center text-slate-900">전체 순위</h2>
         {loading ? (
           <div className="py-8 text-center text-gray-500">로딩 중...</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-collapse rounded-xl overflow-hidden text-[11px] sm:text-sm">
+            <table className="w-full table-fixed border-collapse rounded-xl overflow-hidden text-[11px] sm:text-sm min-w-[780px]">
               <colgroup>
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "24%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "18%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} /> {/* 순위 */}
+                <col style={{ width: "22%" }} /> {/* 닉네임 */}
+                <col style={{ width: "16%" }} /> {/* 평균 수익률 */}
+                <col style={{ width: "18%" }} /> {/* 자산 */}
+                <col style={{ width: "12%" }} /> {/* 계급 */}
+                <col style={{ width: "8%"  }} /> {/* 승률 */}
+                <col style={{ width: "14%" }} /> {/* 전적 */}
               </colgroup>
               <thead>
                 <tr className="bg-gray-900 text-white">
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-left whitespace-nowrap">순위</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-left whitespace-nowrap">닉네임</th>
-                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
-                    <span className="sm:hidden">평균</span>
-                    <span className="hidden sm:inline">평균 수익률</span>
-                  </th>
-                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
-                    <span className="sm:hidden">자산</span>
-                    <span className="hidden sm:inline">최종 자산</span>
-                  </th>
+                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">평균 수익률</th>
+                  <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">최종 자산</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-center whitespace-nowrap">계급</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">승률</th>
                   <th className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">전적</th>
@@ -280,8 +273,7 @@ export default function LeaderboardPage() {
                           </td>
                           <td className="px-2 py-1.5 sm:px-3 sm:py-2 whitespace-nowrap truncate">{r.nickname}</td>
                           <td className={`px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap ${rateColor(r.avgReturnPct)}`}>
-                            <span className="sm:hidden">{r.avgReturnPct.toFixed(1)}%</span>
-                            <span className="hidden sm:inline">{r.avgReturnPct.toFixed(2)}%</span>
+                            {r.avgReturnPct.toFixed(2)}%
                           </td>
                           <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
                             <span className="sm:hidden">{compactMoneyKR(r.total)}</span>
@@ -298,8 +290,7 @@ export default function LeaderboardPage() {
                             <span className="hidden sm:inline">{r.winRate.toFixed(1)}%</span>
                           </td>
                           <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
-                            <span className="sm:hidden">{r.wins}-{r.losses}</span>
-                            <span className="hidden sm:inline">{r.wins}승 {r.losses}패</span>
+                            {r.wins}승 {r.losses}패
                           </td>
                         </tr>
                       );
@@ -310,8 +301,7 @@ export default function LeaderboardPage() {
                         <td className="px-2 py-1.5 sm:px-3 sm:py-2 whitespace-nowrap">{data.myRank.rank}</td>
                         <td className="px-2 py-1.5 sm:px-3 sm:py-2 whitespace-nowrap truncate">{data.myRank.nickname}</td>
                         <td className={`px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap ${rateColor(data.myRank.avgReturnPct)}`}>
-                          <span className="sm:hidden">{data.myRank.avgReturnPct.toFixed(1)}%</span>
-                          <span className="hidden sm:inline">{data.myRank.avgReturnPct.toFixed(2)}%</span>
+                          {data.myRank.avgReturnPct.toFixed(2)}%
                         </td>
                         <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
                           <span className="sm:hidden">{compactMoneyKR(data.myRank.total)}</span>
@@ -328,8 +318,7 @@ export default function LeaderboardPage() {
                           <span className="hidden sm:inline">{data.myRank.winRate.toFixed(1)}%</span>
                         </td>
                         <td className="px-2 py-1.5 sm:px-3 sm:py-2 text-right whitespace-nowrap">
-                          <span className="sm:hidden">{data.myRank.wins}-{data.myRank.losses}</span>
-                          <span className="hidden sm:inline">{data.myRank.wins}승 {data.myRank.losses}패</span>
+                          {data.myRank.wins}승 {data.myRank.losses}패
                         </td>
                       </tr>
                     )}
@@ -347,3 +336,4 @@ export default function LeaderboardPage() {
     </main>
   );
 }
+
