@@ -9,8 +9,8 @@ declare global {
 }
 
 /**
- * 📱 모바일 전용 가로형(수평 긴) AdSense 광고 컴포넌트
- * 예시 slot: '1234567890'
+ * 📱 공식 AdSense Large Mobile Banner (320×100)
+ * 반응형으로 폭에 맞춰 자동 조정되며, 잘림 없이 노출됩니다.
  */
 export default function AdBannerMobile({
   slot,
@@ -42,14 +42,17 @@ export default function AdBannerMobile({
       }
     }
 
+    // 크기 변할 때마다 push 재시도
     const ro = new ResizeObserver(tryPush)
     ro.observe(el)
 
+    // 보일 때만 push 실행
     const io = new IntersectionObserver(entries => {
       if (entries.some(e => e.isIntersecting)) tryPush()
     })
     io.observe(el)
 
+    // 초기 지연 보정
     const t = setTimeout(tryPush, 80)
 
     return () => {
@@ -66,14 +69,14 @@ export default function AdBannerMobile({
       style={{
         display: 'block',
         width: '100%',
-        height: '90px', // ✅ 가로형 높이 (필요 시 50~100px 조정)
+        minHeight: '100px', // ✅ 공식 Large Mobile Banner 기준 높이
         textAlign: 'center',
-        margin: '8px 0',
+        margin: '12px 0',
       }}
       data-ad-client={client}
       data-ad-slot={slot}
-      data-ad-format="horizontal" // ✅ 가로형
-      data-full-width-responsive="true"
+      data-ad-format="auto"                // ✅ 반응형 (자동 크기 조정)
+      data-full-width-responsive="true"    // ✅ 화면폭 100% 사용
       data-language={lang}
     />
   )
