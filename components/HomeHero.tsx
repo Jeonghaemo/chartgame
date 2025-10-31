@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { LineChart, Trophy } from "lucide-react";
-import AdBanner from "@/components/AdBanner";
 
 export default function HomeHero() {
   return (
@@ -36,14 +35,7 @@ export default function HomeHero() {
           <span className="font-semibold text-white">모의 투자 게임</span>.<br className="hidden sm:block" />
           최고의 투자자는 누구일까? <span aria-hidden>🏆</span>
         </motion.p>
-
-{/* ✅ AdSense 광고 영역 */}
-      <div className="my-8">
-        <div className="mx-auto w-full max-w-[1000px] px-4">
-          <AdBanner slot="2809714485" />
-        </div>
-      </div>
-
+      
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}

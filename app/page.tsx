@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import HomeHero from "@/components/HomeHero";
 import HomeTopGrid from "@/components/HomeTopGrid";
-
+import AdBanner from "@/components/AdBanner";
 
 export default async function Home() {
   const session = await auth();
@@ -11,6 +11,13 @@ export default async function Home() {
     <main className="max-w-[1300px] mx-auto px-8 pt-2 pb-8">
       {/* Hero (클라이언트 컴포넌트) */}
       <HomeHero />
+
+      {/* ✅ AdSense 광고 영역 */}
+      <div className="my-8">
+        <div className="mx-auto w-full max-w-[1000px] px-4">
+          <AdBanner slot="2809714485" />
+        </div>
+      </div>
 
       {/* 추가 정보 영역 */}
       <section className="mt-4">
