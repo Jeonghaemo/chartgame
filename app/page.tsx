@@ -23,9 +23,11 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* 모바일 전용: Large Mobile Banner */}
-<div className="block md:hidden text-center">
-  <AdBannerMobile slot="5937026455" />
+          {/* 모바일 전용: Large Mobile Banner (320×100 고정 컨테이너) */}
+<div className="md:hidden flex justify-center">
+  <div className="w-[320px]">
+    <AdBannerMobile slot="5937026455" />
+  </div>
 </div>
         </div>
       </div>
