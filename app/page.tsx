@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth";
 import HomeHero from "@/components/HomeHero";
 import HomeTopGrid from "@/components/HomeTopGrid";
-import AdBanner from "@/components/AdBanner";
+
 
 export default async function Home() {
   const session = await auth();
@@ -17,12 +17,7 @@ export default async function Home() {
         <HomeTopGrid />
       </section>
 
-      {/* ✅ AdSense 광고 영역 */}
-      <div className="my-8">
-        <div className="mx-auto w-full max-w-[1000px] px-4">
-          <AdBanner slot="2809714485" />
-        </div>
-      </div>
+
 
       {/* 홈 전용 푸터 */}
       <footer className="mt-16 py-8 border-t border-gray-200 text-center text-sm text-gray-500">
