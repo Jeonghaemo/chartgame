@@ -1,76 +1,99 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 declare global {
-  interface Window {
-    adsbygoogle: any[]
-  }
+  interface Window { adsbygoogle: any[] }
 }
 
 /**
- * 📢 수평형 반응형(Responsive Leaderboard) 광고
- *  - Google 공식 권장 설정 (data-ad-format="auto" + full-width-responsive)
- *  - 폭에 따라 728x90 / 468x60 / 320x100 등 자동 조정
+ * 📢 수평형 전용 “반응형” 구현 (고정 가로형만 선택)
+ * - auto 사용 안 함 → 정사각/직사각(300x250 등) 절대 안 뜸
+ * - 컨테이너 폭에 맞춰 728x90 / 468x60 / 320x100 / 320x50 중 선택
+ * - push 후에는 크기 변경하지 않음(중복/정책 이슈 방지)
  */
 export default function AdBannerMobile({
-  slot = '5937026455', // ✅ 차트게임 수평형 광고 슬롯 ID
+  slot,
   client = 'ca-pub-4564123418761220',
   className,
 }: {
-  slot?: string
+  slot: string
   client?: string
   className?: string
 }) {
   const insRef = useRef<HTMLModElement | null>(null)
   const pushedRef = useRef(false)
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null)
 
+  // 1) 컨테이너 폭을 기반으로 가로형 사이즈 선택
   useEffect(() => {
-    if (!insRef.current || pushedRef.current) return
     const el = insRef.current
+    if (!el) return
 
+    const pick = () => {
+      const width = Math.floor(el.getBoundingClientRect().width)
+      if (width >= 728) return { w: 728, h: 90 }  // Leaderboard
+      if (width >= 468) return { w: 468, h: 60 }  // Full banner
+      if (width >= 320) return { w: 320, h: 100 } // Large mobile banner
+      return { w: 320, h: 50 }                    // Mobile banner
+    }
+
+    // push 전에만 사이즈 확정/갱신
+    const ensureSize = () => {
+      if (pushedRef.current) return
+      setSize(pick())
+    }
+
+    ensureSize()
+
+    const ro = new ResizeObserver(ensureSize)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // 2) 화면에 보일 때 한 번만 push
+  useEffect(() => {
+    if (!insRef.current || pushedRef.current || !size) return
+
+    const el = insRef.current
     const tryPush = () => {
-      const w = el.getBoundingClientRect().width
-      if (w > 0 && !pushedRef.current) {
+      if (el.offsetWidth > 0 && !pushedRef.current) {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({})
           pushedRef.current = true
         } catch {
-          // 초기 로딩 중엔 무시 — IntersectionObserver가 다시 호출
+          // 초기화 실패 시 다음 인터섹션에서 재시도
         }
       }
     }
 
-    // 화면에 등장하면 push 실행
     const io = new IntersectionObserver(entries => {
       if (entries.some(e => e.isIntersecting)) tryPush()
     })
     io.observe(el)
 
-    // 초기 지연 후 1차 시도
-    const t = setTimeout(tryPush, 100)
+    const t = setTimeout(tryPush, 80)
 
     return () => {
       io.disconnect()
       clearTimeout(t)
     }
-  }, [])
+  }, [size])
 
   return (
     <ins
       ref={insRef as any}
       className={`adsbygoogle ${className ?? ''}`}
       style={{
-        display: 'block',
-        width: '100%',
-        minHeight: '90px', // 기본 예약 높이 (728x90 기준)
-        textAlign: 'center',
-        margin: '12px 0',
+        display: 'inline-block',
+        width: `${size?.w ?? 320}px`,
+        height: `${size?.h ?? 50}px`,
+        margin: '12px auto',
       }}
       data-ad-client={client}
       data-ad-slot={slot}
-      data-ad-format="auto"                // ✅ 반응형 (자동 크기)
-      data-full-width-responsive="true"    // ✅ 폭 100% 사용
+      // ⛔ data-ad-format / data-full-width-responsive 사용 안 함
+      //  → 구글이 정사각형을 고르는 걸 원천 차단
     />
   )
 }
