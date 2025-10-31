@@ -9,19 +9,18 @@ declare global {
 }
 
 /**
- * 📱 공식 AdSense Large Mobile Banner (320×100)
- * 반응형으로 폭에 맞춰 자동 조정되며, 잘림 없이 노출됩니다.
+ * 📢 수평형 반응형(Responsive Leaderboard) 광고
+ *  - Google 공식 권장 설정 (data-ad-format="auto" + full-width-responsive)
+ *  - 폭에 따라 728x90 / 468x60 / 320x100 등 자동 조정
  */
 export default function AdBannerMobile({
-  slot,
-  className,
+  slot = '5937026455', // ✅ 차트게임 수평형 광고 슬롯 ID
   client = 'ca-pub-4564123418761220',
-  lang = 'ko',
+  className,
 }: {
-  slot: string
-  className?: string
+  slot?: string
   client?: string
-  lang?: string
+  className?: string
 }) {
   const insRef = useRef<HTMLModElement | null>(null)
   const pushedRef = useRef(false)
@@ -37,28 +36,23 @@ export default function AdBannerMobile({
           (window.adsbygoogle = window.adsbygoogle || []).push({})
           pushedRef.current = true
         } catch {
-          // 옵저버가 다시 호출하므로 무시
+          // 초기 로딩 중엔 무시 — IntersectionObserver가 다시 호출
         }
       }
     }
 
-    // 크기 변할 때마다 push 재시도
-    const ro = new ResizeObserver(tryPush)
-    ro.observe(el)
-
-    // 보일 때만 push 실행
+    // 화면에 등장하면 push 실행
     const io = new IntersectionObserver(entries => {
       if (entries.some(e => e.isIntersecting)) tryPush()
     })
     io.observe(el)
 
-    // 초기 지연 보정
-    const t = setTimeout(tryPush, 80)
+    // 초기 지연 후 1차 시도
+    const t = setTimeout(tryPush, 100)
 
     return () => {
-      clearTimeout(t)
-      ro.disconnect()
       io.disconnect()
+      clearTimeout(t)
     }
   }, [])
 
@@ -69,15 +63,14 @@ export default function AdBannerMobile({
       style={{
         display: 'block',
         width: '100%',
-        minHeight: '100px', // ✅ 공식 Large Mobile Banner 기준 높이
+        minHeight: '90px', // 기본 예약 높이 (728x90 기준)
         textAlign: 'center',
         margin: '12px 0',
       }}
       data-ad-client={client}
       data-ad-slot={slot}
-      data-ad-format="auto"                // ✅ 반응형 (자동 크기 조정)
-      data-full-width-responsive="true"    // ✅ 화면폭 100% 사용
-      data-language={lang}
+      data-ad-format="auto"                // ✅ 반응형 (자동 크기)
+      data-full-width-responsive="true"    // ✅ 폭 100% 사용
     />
   )
 }

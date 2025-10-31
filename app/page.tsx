@@ -26,7 +26,7 @@ export default async function Home() {
           {/* 모바일 전용: 새 가로 배너 */}
           <div className="block md:hidden">
             <div className="w-full">
-              <AdBannerMobile slot="2809714485" />
+              <AdBannerMobile slot="5937026455" />
             </div>
           </div>
         </div>
