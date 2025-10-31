@@ -23,12 +23,10 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* 모바일 전용: 새 가로 배너 */}
-          <div className="block md:hidden">
-            <div className="w-full">
-              <AdBannerMobile slot="5937026455" />
-            </div>
-          </div>
+          {/* 모바일 전용: Large Mobile Banner */}
+<div className="block md:hidden text-center">
+  <AdBannerMobile slot="5937026455" />
+</div>
         </div>
       </div>
 
