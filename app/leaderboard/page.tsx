@@ -76,6 +76,13 @@ function formatKoreanMoney(num: number): string {
   return n.toLocaleString();
 }
 
+/* ✅ 닉네임 최대 길이 제한 (기본 12자, 초과 시 .. 붙이기) */
+function truncateNickname(nickname: string, maxLen = 12): string {
+  if (!nickname) return "";
+  if (nickname.length <= maxLen) return nickname;
+  return nickname.slice(0, maxLen) + "..";
+}
+
 /* ===== 페이지 컴포넌트 ===== */
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<'7d' | 'all'>('all');
@@ -184,7 +191,12 @@ export default function LeaderboardPage() {
               <tbody>
                 <tr className="hover:bg-gray-50 transition">
                   <td className="px-3 py-2 whitespace-nowrap font-semibold">{data.myRank.rank}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{data.myRank.nickname}</td>
+                  <td
+  className="px-3 py-2 whitespace-nowrap"
+  title={data.myRank.nickname}
+>
+  {truncateNickname(data.myRank.nickname)}
+</td>
                   <td className={`px-3 py-2 text-right whitespace-nowrap ${rateColor(data.myRank.avgReturnPct)}`}>
                     {data.myRank.avgReturnPct.toFixed(2)}%
                   </td>
@@ -218,11 +230,11 @@ export default function LeaderboardPage() {
       {/* 전체 순위 */}
       <section className="mt-4 rounded-2xl bg-white shadow ring-1 ring-gray-200 p-3 sm:p-4">
         <h2 className="text-lg sm:text-xl font-bold mb-3 text-slate-900 text-center">전체 순위</h2>
-{data?.totalPlayers && (
-          <p className="mb-2 text-xs sm:text-sm text-slate-500 text-center">
-            총 {data.totalPlayers.toLocaleString()}명 참여
-          </p>
-        )}
+{data?.totalPlayers !== undefined && (
+  <p className="mb-2 text-xs sm:text-sm text-slate-500 text-center">
+    전체 회원수 {data.totalPlayers.toLocaleString()}명
+  </p>
+)}
         {loading ? (
           <div className="py-8 text-center text-gray-500">로딩 중...</div>
         ) : (
@@ -257,7 +269,12 @@ export default function LeaderboardPage() {
                             {medal && <span className="mr-1">{medal}</span>}
                             {row.rank}
                           </td>
-                          <td className="px-3 py-2 whitespace-nowrap">{row.nickname}</td>
+                          <td
+  className="px-3 py-2 whitespace-nowrap"
+  title={row.nickname}
+>
+  {truncateNickname(row.nickname)}
+</td>
                           <td className={`px-3 py-2 text-right whitespace-nowrap ${rateColor(row.avgReturnPct)}`}>
                             {row.avgReturnPct.toFixed(2)}%
                           </td>
@@ -280,7 +297,12 @@ export default function LeaderboardPage() {
                     {data?.myRank && !data.top20.some(r => r.rank === data.myRank!.rank) && (
                       <tr className="bg-blue-50 border-2 border-blue-300 font-bold">
                         <td className="px-3 py-2 whitespace-nowrap">{data.myRank.rank}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{data.myRank.nickname}</td>
+                        <td
+  className="px-3 py-2 whitespace-nowrap"
+  title={data.myRank.nickname}
+>
+  {truncateNickname(data.myRank.nickname)}
+</td>
                         <td className={`px-3 py-2 text-right whitespace-nowrap ${rateColor(data.myRank.avgReturnPct)}`}>
                           {data.myRank.avgReturnPct.toFixed(2)}%
                         </td>
