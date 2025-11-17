@@ -21,6 +21,7 @@ type LeaderboardResponse = {
   period: string;
   top20: RankRow[];
   myRank: RankRow | null;
+  totalPlayers?: number; // 전체 랭킹 대상 인원 (옵셔널로 둬서 기존 응답도 안전)
 };
 
 function getRankBadge(total: number) {
@@ -217,7 +218,11 @@ export default function LeaderboardPage() {
       {/* 전체 순위 */}
       <section className="mt-4 rounded-2xl bg-white shadow ring-1 ring-gray-200 p-3 sm:p-4">
         <h2 className="text-lg sm:text-xl font-bold mb-3 text-slate-900 text-center">전체 순위</h2>
-
+{data?.totalPlayers && (
+          <p className="mb-2 text-xs sm:text-sm text-slate-500 text-center">
+            총 {data.totalPlayers.toLocaleString()}명 참여
+          </p>
+        )}
         {loading ? (
           <div className="py-8 text-center text-gray-500">로딩 중...</div>
         ) : (

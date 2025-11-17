@@ -99,11 +99,19 @@ export async function GET(req: Request) {
         winRate: Number(st.winRate.toFixed(1)),
       };
     });
+    // ✅ 전체 랭킹 대상 인원 수 (현재 기간/조건 내 유저 수)
+    const totalPlayers = ranked.length;
 
     const top20 = ranked.slice(0, 20);
     const myRank = userId ? ranked.find(r => r.userId === userId) ?? null : null;
 
-    return NextResponse.json({ ok: true, period, top20, myRank });
+    return NextResponse.json({
+      ok: true,
+      period,
+      top20,
+      myRank,
+      totalPlayers, // ✅ 전체 인원 내려주기
+    });
   } catch (e) {
     console.error("/api/leaderboard error", e);
     return NextResponse.json({ ok: false, error: "INTERNAL" }, { status: 500 });
