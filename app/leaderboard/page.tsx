@@ -229,7 +229,7 @@ export default function LeaderboardPage() {
 
       {/* 전체 순위 */}
       <section className="mt-4 rounded-2xl bg-white shadow ring-1 ring-gray-200 p-3 sm:p-4">
-        <h2 className="text-lg sm:text-xl font-bold mb-3 text-slate-900 text-center">전체 순위</h2>
+        <h2 className="text-lg sm:text-xl font-bold mb-3 text-slate-900 text-center">🏆 TOP 20 랭킹</h2>
 {data?.totalPlayers !== undefined && (
   <p className="mb-2 text-xs sm:text-sm text-slate-500 text-center">
     전체 회원수 {data.totalPlayers.toLocaleString()}명
