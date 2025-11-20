@@ -6,8 +6,13 @@ declare global {
   interface Window { adsbygoogle: any[] }
 }
 
+/**
+ * 📢 모바일 수평형(320×100) 고정 광고
+ * - 항상 320x100 사이즈로 표시
+ * - 반응형(auto) 사용 안 함 → 정사각형/세로형 절대 안 뜸
+ */
 export default function AdBannerMobile({
-  slot = '5937026455',
+  slot = '5937026455', // ← 320×100 광고단위 슬롯 ID
   client = 'ca-pub-4564123418761220',
   className,
 }: {
@@ -20,23 +25,29 @@ export default function AdBannerMobile({
 
   useEffect(() => {
     if (!insRef.current || pushedRef.current) return
+    const el = insRef.current
 
-    // 스크립트 로드 대기
-    const loadAd = () => {
-      if (typeof window !== 'undefined' && window.adsbygoogle && insRef.current) {
+    const tryPush = () => {
+      if (el.offsetWidth > 0 && !pushedRef.current) {
         try {
           (window.adsbygoogle = window.adsbygoogle || []).push({})
           pushedRef.current = true
-        } catch (err) {
-          console.error('AdSense push error:', err)
+        } catch {
+          // 초기 로딩 중엔 무시
         }
       }
     }
 
-    // 약간의 지연 후 광고 로드
-    const timer = setTimeout(loadAd, 300)
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) tryPush()
+    })
+    io.observe(el)
+    const t = setTimeout(tryPush, 100)
 
-    return () => clearTimeout(timer)
+    return () => {
+      io.disconnect()
+      clearTimeout(t)
+    }
   }, [])
 
   return (
@@ -44,13 +55,14 @@ export default function AdBannerMobile({
       ref={insRef as any}
       className={`adsbygoogle ${className ?? ''}`}
       style={{
-        display: 'block', // inline-block → block 변경
+        display: 'inline-block',
         width: '320px',
         height: '100px',
+        margin: '12px auto',
       }}
       data-ad-client={client}
       data-ad-slot={slot}
-      data-ad-format="fixed" // 고정 크기 명시
+      // 반응형 속성 제거 → 항상 320×100 고정
     />
   )
 }
