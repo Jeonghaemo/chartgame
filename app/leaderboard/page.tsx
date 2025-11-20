@@ -232,7 +232,7 @@ export default function LeaderboardPage() {
         <h2 className="text-lg sm:text-xl font-bold mb-3 text-slate-900 text-center">🏆 TOP 20 랭킹</h2>
 {data?.totalPlayers !== undefined && (
   <p className="mb-2 text-xs sm:text-sm text-slate-500 text-center">
-    전체 회원수 {data.totalPlayers.toLocaleString()}명
+    전체 참여자수 {data.totalPlayers.toLocaleString()}명
   </p>
 )}
         {loading ? (
