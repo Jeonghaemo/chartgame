@@ -16,12 +16,8 @@ export default async function Home() {
         {/* ✅ AdSense 광고 영역 */}
       <div className="my-8">
         <div className="mx-auto w-full px-4">
-          {/* PC 전용: 기존 가로 배너 */}
-          <div className="hidden md:block">
-            <div className="mx-auto w-full max-w-[1000px]">
-              <AdBanner slot="2809714485" />
-            </div>
-          </div>
+          
+          
 
           {/* 모바일 전용: Large Mobile Banner (320×100 고정 컨테이너) */}
 <div className="md:hidden flex justify-center">
