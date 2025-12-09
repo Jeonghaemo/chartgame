@@ -951,7 +951,8 @@ useEffect(() => {
   const rateColor = (v:number) => (v >= 0 ? 'text-green-600' : 'text-red-600')
 
   return (
-    <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
+  <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-y-auto overflow-x-hidden">
+
       {/* ✅ AdSense 광고 영역 */}
       <div className="my-2">
         <div className="mx-auto w-full px-2 lg:px-4">
