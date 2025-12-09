@@ -704,8 +704,115 @@ setGameId(newGameId)
       }
 
       
-      // 3) 서버 게임 복원 생략 → 항상 새 게임 시작
+       // 3) 서버에 진행 중인 게임이 있으면 복원 (PC/모바일 공통)
+      try {
+        const curRes = await fetch('/api/game/current', { cache: 'no-store' })
+        if (curRes.ok) {
+          const cur = await curRes.json()
+          const game = cur?.game
 
+          // 진행 중 게임이 있을 때만 복원 (status 필드는 서버 구현에 맞게 확인)
+          if (game && (game.status === 'PLAYING' || game.status === 'IN_PROGRESS')) {
+            const symbol: string = game.symbol
+            const startIndex: number = typeof game.startIndex === 'number' ? game.startIndex : 0
+            const startCash: number =
+              typeof game.startCash === 'number' ? game.startCash : 10_000_000
+            const feeBps: number = typeof game.feeBps === 'number' ? game.feeBps : 5
+            const slippageBps: number = typeof game.slippageBps === 'number' ? game.slippageBps : 0
+            const maxTurns: number = typeof game.maxTurns === 'number' ? game.maxTurns : RESERVED_TURNS
+
+            const cursor: number =
+              typeof game.cursor === 'number' ? game.cursor : startIndex
+            const cash: number =
+              typeof game.cash === 'number' ? game.cash : startCash
+            const shares: number =
+              typeof game.shares === 'number' ? game.shares : 0
+            const turn: number =
+              typeof game.turn === 'number' ? game.turn : 0
+            const avgPrice: number | null =
+              typeof game.avgPrice === 'number' ? game.avgPrice : null
+            const history: Trade[] = Array.isArray(game.history) ? game.history : []
+
+            const chartChangesLeft: number =
+              typeof game.chartChangesLeft === 'number'
+                ? game.chartChangesLeft
+                : (useGame.getState().chartChangesLeft ?? 3)
+
+            // OHLC 로드는 캐시 우선, 없으면 /api/history 호출
+            let ohlcArr = readOhlcFromCache(symbol, startIndex)
+            if (!ohlcArr) {
+              const hist = await fetch(
+                `/api/history?symbol=${encodeURIComponent(symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+                  `&startIndex=${startIndex}`,
+                { cache: 'no-store' }
+              )
+              const hjson = await hist.json()
+              ohlcArr = (hjson.ohlc ?? []) as OHLC[]
+              if (Array.isArray(ohlcArr) && ohlcArr.length > 0) {
+                writeOhlcToCache(symbol, startIndex, ohlcArr)
+              }
+            }
+
+            if (Array.isArray(ohlcArr) && ohlcArr.length > 0) {
+              setOhlc(ohlcArr)
+              setSymbolLabel(await resolveLabel(symbol))
+              setGameId(game.id ?? null)
+              setStartCapital(startCash)
+
+              const closes = ohlcArr.map(d => d.close)
+              g.init({
+                symbol,
+                prices: closes,
+                startIndex,
+                maxTurns,
+                feeBps,
+                slippageBps,
+                startCash,
+              })
+
+              useGame.setState({
+                cursor,
+                cash,
+                shares,
+                turn,
+                avgPrice,
+                history,
+                chartChangesLeft,
+              })
+
+              // 이 기기에도 로컬 스냅 한 번 남겨둠
+              writeLocal(
+                {
+                  id: game.id ?? null,
+                  symbol,
+                  startIndex,
+                  maxTurns,
+                  feeBps,
+                  slippageBps,
+                  startCash,
+                  chartChangesLeft,
+                  // sliceStartTs는 필요하면 서버 응답에 맞춰 추가
+                },
+                {
+                  cursor,
+                  cash,
+                  shares,
+                  turn,
+                  avgPrice,
+                  history,
+                }
+              )
+
+              setChartKey(k => k + 1)
+              restoringRef.current = false
+              return // 서버 게임 복원 끝났으니 더 진행하지 않고 종료
+            }
+          }
+        }
+      } catch {
+        // 서버 진행 게임 조회 실패 시에는 조용히 무시하고 로컬/새 게임으로 진행
+      }
+      
       // 4) 로컬 저장 복원
       const local = readLocal()
       if (local?.meta?.symbol) {
