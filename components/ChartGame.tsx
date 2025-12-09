@@ -12,6 +12,8 @@ import GameResultModal from '@/components/GameResultModal'
 import { useUserStore } from '@/lib/store/user'
 import { useRouter } from 'next/navigation'
 import { Heart } from 'lucide-react'
+import AdBanner from '@/components/AdBanner'
+import AdBannerMobile from '@/components/AdBannerMobile'
 
 type OHLC = { time: number; open: number; high: number; low: number; close: number; volume?: number }
 type Trade = { side: 'BUY' | 'SELL'; price: number; qty: number; time: string }
@@ -950,6 +952,24 @@ useEffect(() => {
 
   return (
     <div className="fixed left-0 right-0 bottom-0 top-[80px] overflow-hidden">
+      {/* ✅ AdSense 광고 영역 */}
+      <div className="my-2">
+        <div className="mx-auto w-full px-2 lg:px-4">
+          {/* PC 전용: 기존 가로 배너 */}
+          <div className="hidden md:block">
+            <div className="mx-auto w-full max-w-[1000px]">
+              <AdBanner slot="2809714485" />
+            </div>
+          </div>
+
+          {/* 모바일 전용: Large Mobile Banner (320×100 고정 컨테이너) */}
+          <div className="md:hidden flex justify-center">
+            <div className="w-[320px]">
+              <AdBannerMobile slot="5937026455" />
+            </div>
+          </div>
+        </div>
+      </div>
       {/* 모바일 */}
       <div className="block lg:hidden h-full">
         <div className="h-full flex flex-col">
