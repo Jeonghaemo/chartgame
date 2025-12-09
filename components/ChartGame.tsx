@@ -704,41 +704,63 @@ setGameId(newGameId)
       }
 
       
-       // 3) 서버에 진행 중인 게임이 있으면 복원 (PC/모바일 공통)
+             // 3) 서버에 진행 중인 게임이 있으면 복원 (기기 간 이어하기)
       try {
         const curRes = await fetch('/api/game/current', { cache: 'no-store' })
         if (curRes.ok) {
           const cur = await curRes.json()
           const game = cur?.game
 
-          // 진행 중 게임이 있을 때만 복원 (status 필드는 서버 구현에 맞게 확인)
-          if (game && (game.status === 'PLAYING' || game.status === 'IN_PROGRESS')) {
+          // game 객체만 있으면 복원 시도 (status 체크 X)
+          if (game) {
             const symbol: string = game.symbol
-            const startIndex: number = typeof game.startIndex === 'number' ? game.startIndex : 0
+            const startIndex: number =
+              typeof game.startIndex === 'number' ? game.startIndex : 0
             const startCash: number =
               typeof game.startCash === 'number' ? game.startCash : 10_000_000
-            const feeBps: number = typeof game.feeBps === 'number' ? game.feeBps : 5
-            const slippageBps: number = typeof game.slippageBps === 'number' ? game.slippageBps : 0
-            const maxTurns: number = typeof game.maxTurns === 'number' ? game.maxTurns : RESERVED_TURNS
+            const feeBps: number =
+              typeof game.feeBps === 'number' ? game.feeBps : (g.feeBps ?? 5)
+            const slippageBps: number = g.slippageBps ?? 0
+            const maxTurns: number =
+              typeof game.maxTurns === 'number' ? game.maxTurns : RESERVED_TURNS
 
+            const snapshot = game.snapshot ?? null
+
+            // snapshot 기준으로 진행상황 복원
             const cursor: number =
-              typeof game.cursor === 'number' ? game.cursor : startIndex
+              snapshot && typeof snapshot.cursor === 'number'
+                ? snapshot.cursor
+                : startIndex
+
             const cash: number =
-              typeof game.cash === 'number' ? game.cash : startCash
+              snapshot && typeof snapshot.cash === 'number'
+                ? snapshot.cash
+                : startCash
+
             const shares: number =
-              typeof game.shares === 'number' ? game.shares : 0
+              snapshot && typeof snapshot.shares === 'number'
+                ? snapshot.shares
+                : 0
+
             const turn: number =
-              typeof game.turn === 'number' ? game.turn : 0
+              snapshot && typeof snapshot.turn === 'number'
+                ? snapshot.turn
+                : 0
+
             const avgPrice: number | null =
-              typeof game.avgPrice === 'number' ? game.avgPrice : null
-            const history: Trade[] = Array.isArray(game.history) ? game.history : []
+              snapshot && typeof snapshot.avgPrice === 'number'
+                ? snapshot.avgPrice
+                : null
+
+            const history: Trade[] =
+              snapshot && Array.isArray(snapshot.history)
+                ? snapshot.history
+                : []
 
             const chartChangesLeft: number =
-              typeof game.chartChangesLeft === 'number'
-                ? game.chartChangesLeft
-                : (useGame.getState().chartChangesLeft ?? 3)
+              useGame.getState().chartChangesLeft ?? 3
 
-            // OHLC 로드는 캐시 우선, 없으면 /api/history 호출
+            // OHLC 로딩 (캐시 우선)
             let ohlcArr = readOhlcFromCache(symbol, startIndex)
             if (!ohlcArr) {
               const hist = await fetch(
@@ -754,6 +776,10 @@ setGameId(newGameId)
             }
 
             if (Array.isArray(ohlcArr) && ohlcArr.length > 0) {
+              // cursor가 범위를 넘지 않도록 가드
+              const maxCursor = ohlcArr.length - 1
+              const safeCursor = Math.max(0, Math.min(cursor, maxCursor))
+
               setOhlc(ohlcArr)
               setSymbolLabel(await resolveLabel(symbol))
               setGameId(game.id ?? null)
@@ -771,7 +797,7 @@ setGameId(newGameId)
               })
 
               useGame.setState({
-                cursor,
+                cursor: safeCursor,
                 cash,
                 shares,
                 turn,
@@ -780,7 +806,7 @@ setGameId(newGameId)
                 chartChangesLeft,
               })
 
-              // 이 기기에도 로컬 스냅 한 번 남겨둠
+              // 이 기기에도 로컬 스냅 저장
               writeLocal(
                 {
                   id: game.id ?? null,
@@ -791,10 +817,13 @@ setGameId(newGameId)
                   slippageBps,
                   startCash,
                   chartChangesLeft,
-                  // sliceStartTs는 필요하면 서버 응답에 맞춰 추가
+                  sliceStartTs:
+                    typeof game.sliceStartTs === 'number'
+                      ? game.sliceStartTs
+                      : undefined,
                 },
                 {
-                  cursor,
+                  cursor: safeCursor,
                   cash,
                   shares,
                   turn,
@@ -805,16 +834,17 @@ setGameId(newGameId)
 
               setChartKey(k => k + 1)
               restoringRef.current = false
-              return // 서버 게임 복원 끝났으니 더 진행하지 않고 종료
+              return // 서버 게임 복원 완료 → 이후 로컬/새 게임 로직으로 안 내려감
             }
           }
         }
       } catch {
-        // 서버 진행 게임 조회 실패 시에는 조용히 무시하고 로컬/새 게임으로 진행
+        // 서버 복원 실패 시에는 조용히 무시하고 로컬/새 게임으로 진행
       }
-      
+
       // 4) 로컬 저장 복원
       const local = readLocal()
+
       if (local?.meta?.symbol) {
         try {
           let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
