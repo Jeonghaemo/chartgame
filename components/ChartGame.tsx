@@ -638,58 +638,44 @@ setGameId(newGameId)
     return () => window.removeEventListener('keydown', handleKey)
   }, [g, saveProgress, resetGame, canChangeChart])
 
-  // ---------- 부팅: 서버 → 로컬 → 새 게임 ----------
+    // ---------- 부팅: 서버 → 로컬 → 새 게임 ----------
   useEffect(() => {
     if (bootedRef.current) return
     bootedRef.current = true
     restoringRef.current = true
 
     ;(async () => {
-      // 1) 로컬 플래그가 게스트면 즉시 게스트 부팅
+      // 1) 항상 me 먼저 조회해서 로그인 여부 확인
       CURRENT_USER_ID = null
-      if (guestMode) {
-        try {
-          setCanStart(true)
-          setStartCapital(10_000_000)
-          let uni = universeRef.current
-          if (!uni || uni.length === 0) {
-            uni = await loadUniverseWithNames()
-            universeRef.current = uni
-          }
-          const chosen = pickRandom<SymbolItem>(uni)
-          await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
-        } finally {
-          restoringRef.current = false
-        }
-        return
-      }
+      let isLoggedIn = false
 
-      // 2) 서버 me 조회 실패 → 자동 게스트 전환 후 게스트 부팅
-      CURRENT_USER_ID = null // 실패 시 게스트 취급
       try {
         const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
-        if (!meRes.ok) {
-          setGuestMode(true)
-          setCanStart(true)
-          setStartCapital(10_000_000)
-          let uni = universeRef.current
-          if (!uni || uni.length === 0) {
-            uni = await loadUniverseWithNames()
-            universeRef.current = uni
+        if (meRes.ok) {
+          const me = await meRes.json()
+          CURRENT_USER_ID = me?.user?.id ?? null
+          isLoggedIn = !!CURRENT_USER_ID
+
+          if (isLoggedIn) {
+            // 로그인 성공 → guestMode 강제 해제
+            setGuestMode(false)
+            try { localStorage.setItem('guestMode', '0') } catch {}
+
+            const currentHearts = me?.user?.hearts ?? 0
+            setHearts(currentHearts)
+            setCanStart(currentHearts > 0)
+            setStartCapital(me?.user?.capital ?? 10_000_000)
           }
-          const chosen = pickRandom<SymbolItem>(uni)
-          await loadAndInitBySymbol(chosen.symbol, { consumeHeart: false })
-          restoringRef.current = false
-          return
         }
-        const me = await meRes.json()
-        CURRENT_USER_ID = me?.user?.id ?? null // 로그인 사용자 ID 설정
-        const currentHearts = me?.user?.hearts ?? 0
-        setHearts(currentHearts)
-        setCanStart(currentHearts > 0)
-        setStartCapital(me?.user?.capital ?? 10_000_000)
-      } catch {
+      } catch (e) {
+        console.log('me 조회 실패', e)
+      }
+
+      // 2) 로그인 안 돼 있으면 게스트 부팅
+      if (!isLoggedIn) {
         setGuestMode(true)
+        try { localStorage.setItem('guestMode', '1') } catch {}
+
         setCanStart(true)
         setStartCapital(10_000_000)
         let uni = universeRef.current
@@ -703,14 +689,14 @@ setGameId(newGameId)
         return
       }
 
-            // 3) 서버에 진행 중인 게임이 있으면 복원 (기기 간 이어하기)
+      // 3) 서버에 진행 중인 게임이 있으면 복원 (기기 간 이어하기)
       try {
         const curRes = await fetch('/api/game/current', { cache: 'no-store' })
         if (curRes.ok) {
           const cur = await curRes.json()
           const game = cur?.game
 
-          // 진행 중인 게임이 있으면 서버 스냅샷 기준으로 복원
+          // 진행 중인 + 스냅샷이 있는 게임이면 서버 스냅샷 기준으로 복원
           if (game && game.snapshot) {
             const symbol: string = game.symbol
             const startIndex: number =
@@ -908,21 +894,20 @@ setGameId(newGameId)
         uni = await loadUniverseWithNames()
         universeRef.current = uni
       }
-      // (뒤에 최근 3개 심볼 제외 로직은 그대로)
 
-      
       // 최근 3개 심볼 제외하고 선택
-const availableSymbols = uni.filter(s => !recentSymbolsRef.current.includes(s.symbol))
-const poolToUse = availableSymbols.length > 0 ? availableSymbols : uni
-const shuffled = fisherYatesShuffle(poolToUse)
-const chosen = shuffled[0]
+      const availableSymbols = uni.filter(s => !recentSymbolsRef.current.includes(s.symbol))
+      const poolToUse = availableSymbols.length > 0 ? availableSymbols : uni
+      const shuffled = fisherYatesShuffle(poolToUse)
+      const chosen = shuffled[0]
 
-// 선택된 심볼을 최근 목록에 추가
-recentSymbolsRef.current = [chosen.symbol, ...recentSymbolsRef.current].slice(0, 3)
+      // 선택된 심볼을 최근 목록에 추가
+      recentSymbolsRef.current = [chosen.symbol, ...recentSymbolsRef.current].slice(0, 3)
       await loadAndInitBySymbol(chosen.symbol, { consumeHeart: true })
       restoringRef.current = false
     })()
-  }, [guestMode, loadUniverseWithNames, loadAndInitBySymbol, g, setHearts, resolveLabel])
+  }, [loadUniverseWithNames, loadAndInitBySymbol, resolveLabel, setHearts, setGuestMode])
+
 
 // 내 순위 불러오기 (전체기간) — 게스트면 패스
 useEffect(() => {
