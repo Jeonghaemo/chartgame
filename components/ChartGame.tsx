@@ -704,7 +704,144 @@ setGameId(newGameId)
       }
 
       
-      // 3) 서버 게임 복원 생략 → 항상 새 게임 시작
+            // 3) 서버에 진행 중인 게임이 있으면 복원 (기기 간 이어하기)
+      try {
+        const curRes = await fetch('/api/game/current', { cache: 'no-store' })
+        if (curRes.ok) {
+          const cur = await curRes.json()
+          const game = cur?.game
+
+          // 진행 중인 게임이 있으면 서버 스냅샷 기준으로 복원
+          if (game) {
+            const symbol: string = game.symbol
+            const startIndex: number =
+              typeof game.startIndex === 'number' ? game.startIndex : 0
+            const startCash: number =
+              typeof game.startCash === 'number' ? game.startCash : 10_000_000
+            const feeBps: number =
+              typeof game.feeBps === 'number' ? game.feeBps : (g.feeBps ?? 5)
+            const slippageBps: number = g.slippageBps ?? 0
+            const maxTurns: number =
+              typeof game.maxTurns === 'number' ? game.maxTurns : RESERVED_TURNS
+
+            const snapshot = game.snapshot ?? null
+
+            // snapshot 기준으로 진행상황 복원
+            const cursor: number =
+              snapshot && typeof snapshot.cursor === 'number'
+                ? snapshot.cursor
+                : startIndex
+
+            const cash: number =
+              snapshot && typeof snapshot.cash === 'number'
+                ? snapshot.cash
+                : startCash
+
+            const shares: number =
+              snapshot && typeof snapshot.shares === 'number'
+                ? snapshot.shares
+                : 0
+
+            const turn: number =
+              snapshot && typeof snapshot.turn === 'number'
+                ? snapshot.turn
+                : 0
+
+            const avgPrice: number | null =
+              snapshot && typeof snapshot.avgPrice === 'number'
+                ? snapshot.avgPrice
+                : null
+
+            const history: Trade[] =
+              snapshot && Array.isArray(snapshot.history)
+                ? snapshot.history
+                : []
+
+            const chartChangesLeft: number =
+              useGame.getState().chartChangesLeft ?? 3
+
+            // OHLC 로딩 (캐시 우선)
+            let ohlcArr = readOhlcFromCache(symbol, startIndex)
+            if (!ohlcArr) {
+              const hist = await fetch(
+                `/api/history?symbol=${encodeURIComponent(symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+                  `&startIndex=${startIndex}`,
+                { cache: 'no-store' }
+              )
+              const hjson = await hist.json()
+              ohlcArr = (hjson.ohlc ?? []) as OHLC[]
+              if (Array.isArray(ohlcArr) && ohlcArr.length > 0) {
+                writeOhlcToCache(symbol, startIndex, ohlcArr)
+              }
+            }
+
+            if (Array.isArray(ohlcArr) && ohlcArr.length > 0) {
+              // cursor가 범위를 넘지 않도록 가드
+              const maxCursor = ohlcArr.length - 1
+              const safeCursor = Math.max(0, Math.min(cursor, maxCursor))
+
+              setOhlc(ohlcArr)
+              setSymbolLabel(await resolveLabel(symbol))
+              setGameId(game.id ?? null)
+              setStartCapital(startCash)
+
+              const closes = ohlcArr.map(d => d.close)
+              g.init({
+                symbol,
+                prices: closes,
+                startIndex,
+                maxTurns,
+                feeBps,
+                slippageBps,
+                startCash,
+              })
+
+              useGame.setState({
+                cursor: safeCursor,
+                cash,
+                shares,
+                turn,
+                avgPrice,
+                history,
+                chartChangesLeft,
+              })
+
+              // 이 기기에도 로컬 스냅 저장 (오프라인/새로고침 대비)
+              writeLocal(
+                {
+                  id: game.id ?? null,
+                  symbol,
+                  startIndex,
+                  maxTurns,
+                  feeBps,
+                  slippageBps,
+                  startCash,
+                  chartChangesLeft,
+                  sliceStartTs:
+                    typeof game.sliceStartTs === 'number'
+                      ? game.sliceStartTs
+                      : undefined,
+                },
+                {
+                  cursor: safeCursor,
+                  cash,
+                  shares,
+                  turn,
+                  avgPrice,
+                  history,
+                }
+              )
+
+              setChartKey(k => k + 1)
+              restoringRef.current = false
+              return // 서버 게임 복원 완료 → 이후 로컬/새 게임 로직으로 안 내려감
+            }
+          }
+        }
+      } catch (e) {
+        console.log('서버 진행 게임 복원 실패', e)
+        // 실패하면 조용히 로컬/새 게임으로 진행
+      }
 
       // 4) 로컬 저장 복원
       const local = readLocal()
@@ -713,10 +850,10 @@ setGameId(newGameId)
           let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
           if (!ohlcArr) {
             const hist = await fetch(
-  `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
-  `&startIndex=${local.meta.startIndex}`,
-  { cache: 'no-store' }
-)
+              `/api/history?symbol=${encodeURIComponent(local.meta.symbol)}&slice=${MIN_VISIBLE}&turns=${RESERVED_TURNS}` +
+                `&startIndex=${local.meta.startIndex}`,
+              { cache: 'no-store' }
+            )
 
             const hjson = await hist.json()
             ohlcArr = hjson.ohlc as OHLC[]
@@ -758,10 +895,12 @@ setGameId(newGameId)
           setChartKey(k => k + 1)
           restoringRef.current = false
           return
-        } catch {console.log('로컬 복원 실패, 같은 심볼로 재시작:', local.meta.symbol)
-  await loadAndInitBySymbol(local.meta.symbol, { consumeHeart: false })
-  restoringRef.current = false
-  return}
+        } catch {
+          console.log('로컬 복원 실패, 같은 심볼로 재시작:', local.meta.symbol)
+          await loadAndInitBySymbol(local.meta.symbol, { consumeHeart: false })
+          restoringRef.current = false
+          return
+        }
       }
 
       // 5) 새 게임 시작
@@ -770,6 +909,7 @@ setGameId(newGameId)
         uni = await loadUniverseWithNames()
         universeRef.current = uni
       }
+      
       // 최근 3개 심볼 제외하고 선택
 const availableSymbols = uni.filter(s => !recentSymbolsRef.current.includes(s.symbol))
 const poolToUse = availableSymbols.length > 0 ? availableSymbols : uni
