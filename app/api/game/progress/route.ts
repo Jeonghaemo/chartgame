@@ -12,16 +12,25 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return new NextResponse("Bad JSON", { status: 400 });
 
-  const {
+   const {
     gameId,
     ts,          // number (커서 위치)
     equity,      // number
     cash,        // number
-    position,    // number
+    position,    // number (구버전 호환용)
+    shares,      // number (프론트에서 보내는 현재 주식 수)
     turn,        // number (optional)
     avgPrice,    // number (optional)
     history,     // array/object (optional)
   } = body;
+
+  // shares가 우선, 없으면 position 사용 (구버전 호환)
+  const finalPosition =
+    typeof shares === "number"
+      ? shares
+      : typeof position === "number"
+        ? position
+        : undefined;
 
   if (!gameId || typeof ts !== "number") {
     return new NextResponse("`gameId` and numeric `ts` required", { status: 400 });
@@ -45,12 +54,12 @@ export async function POST(req: NextRequest) {
       : JSON.stringify(history);
 
   // (gameId, ts) 복합고유키로 upsert
-  const upserted = await prisma.balanceSnapshot.upsert({
+    const upserted = await prisma.balanceSnapshot.upsert({
     where: { gameId_ts: { gameId, ts } },
     update: {
       equity: typeof equity === "number" ? equity : undefined,
       cash: typeof cash === "number" ? cash : undefined,
-      position: typeof position === "number" ? position : undefined,
+      position: typeof finalPosition === "number" ? finalPosition : undefined,
       turn: typeof turn === "number" ? turn : undefined,
       avgPrice: typeof avgPrice === "number" ? avgPrice : undefined,
       history: historyStr,
@@ -60,12 +69,13 @@ export async function POST(req: NextRequest) {
       ts,
       equity: typeof equity === "number" ? equity : 0,
       cash: typeof cash === "number" ? cash : 0,
-      position: typeof position === "number" ? position : 0,
+      position: typeof finalPosition === "number" ? finalPosition : 0,
       turn: typeof turn === "number" ? turn : 0,
       avgPrice: typeof avgPrice === "number" ? avgPrice : 0,
       history: historyStr ?? "[]",
     },
   });
+
 
   // 사용자의 activeGameId 고정 (안전망)
   await prisma.user.update({
