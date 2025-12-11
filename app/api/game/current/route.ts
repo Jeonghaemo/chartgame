@@ -9,16 +9,16 @@ export async function GET() {
   }
   const userId = session.user.id
 
-  const game = await prisma.game.findFirst({
+    const game = await prisma.game.findFirst({
     where: { userId, finishedAt: null },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
       code: true,
-      symbol: true,         // ✅ 최신 Prisma Client에 존재해야 함
+      symbol: true,
       startCash: true,
       startIndex: true,
-      sliceStartTs: true,   // ✅ 추가
+      sliceStartTs: true,
       maxTurns: true,
       feeBps: true,
     },
@@ -27,6 +27,10 @@ export async function GET() {
   if (!game) {
     return NextResponse.json({ ok: true, game: null })
   }
+
+  // 🔥 여기 추가: symbol이 비어있으면 code를 심볼로 사용
+  const normalizedSymbol = game.symbol ?? game.code
+
 
   const snapshot = await prisma.balanceSnapshot.findFirst({
     where: { gameId: game.id },
@@ -41,15 +45,15 @@ export async function GET() {
     },
   })
 
-  return NextResponse.json({
+    return NextResponse.json({
     ok: true,
     game: {
       id: game.id,
-      symbol: game.symbol,          // ✅ 일관성 있게 symbol 사용
-      code: game.code,              // (원하면 함께 내려주기)
+      symbol: normalizedSymbol,   // 🔥 여기 변경
+      code: game.code,
       startCash: game.startCash,
       startIndex: game.startIndex,
-      sliceStartTs: game.sliceStartTs, // ✅ 서버 '진실' 앵커
+      sliceStartTs: game.sliceStartTs,
       maxTurns: game.maxTurns,
       feeBps: game.feeBps,
       snapshot: snapshot
@@ -64,4 +68,5 @@ export async function GET() {
         : null,
     },
   })
+
 }

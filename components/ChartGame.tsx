@@ -709,7 +709,15 @@ setGameId(newGameId)
 
           // 진행 중인 + 스냅샷이 있는 게임이면 서버 스냅샷 기준으로 복원
           if (game && game.snapshot) {
-            const symbol: string = game.symbol
+            const symbol: string = (game.symbol || game.code) as string
+                  console.log('[ChartGame boot] restore from server', {
+        id: game.id,
+        symbolFromServer: game.symbol,
+        codeFromServer: game.code,
+        usedSymbol: symbol,
+        snapshot: game.snapshot,
+      })
+
             const startIndex: number =
               typeof game.startIndex === 'number' ? game.startIndex : 0
             const startCash: number =
@@ -839,9 +847,21 @@ setGameId(newGameId)
         // 실패하면 조용히 로컬/새 게임으로 진행
       }
 
-      // 4) 로컬 저장 복원
+     // 4) 로컬 저장 복원
       const local = readLocal()
-      if (local?.meta?.symbol) {
+
+      if (!guestMode) {
+        // 🔥 로그인 상태인데 서버에서 "진행 중 게임 없음"이라고 했으면
+        // 이 로컬 스냅은 이미 끝난 게임의 잔재일 가능성이 큼 → 버린다
+        if (local) {
+          console.log('[ChartGame boot] logged-in user, no server game → clearLocal', {
+            localMeta: local.meta,
+          })
+          clearLocal()
+        }
+        // 로컬 복원은 건너뛰고 바로 5) 새 게임으로 진행
+      } else if (local?.meta?.symbol) {
+        // 🔹 게스트 모드에서만 로컬 복원 사용
         try {
           let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
           if (!ohlcArr) {
