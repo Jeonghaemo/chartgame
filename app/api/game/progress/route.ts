@@ -13,39 +13,44 @@ export async function POST(req: NextRequest) {
   if (!body) return new NextResponse("Bad JSON", { status: 400 });
 
    const {
-    gameId,
-    ts,          // number (커서 위치)
-    equity,      // number
-    cash,        // number
-    position,    // number (구버전 호환용)
-    shares,      // number (프론트에서 보내는 현재 주식 수)
-    turn,        // number (optional)
-    avgPrice,    // number (optional)
-    history,     // array/object (optional)
-  } = body;
+  gameId,
+  ts,          // number (커서 위치)
+  equity,      // number
+  cash,        // number
+  position,    // number (optional, 예전 버전 호환)
+  shares,      // number (optional, 프론트에서 새로 보내는 값)
+  turn,        // number (optional)
+  avgPrice,    // number (optional)
+  history,     // array/object (optional)
+} = body;
 
-  // shares가 우선, 없으면 position 사용 (구버전 호환)
-  const finalPosition =
-    typeof shares === "number"
-      ? shares
-      : typeof position === "number"
-        ? position
-        : undefined;
+// position / shares 둘 중 하나를 최종 포지션으로 사용
+const finalPosition =
+  typeof shares === "number"
+    ? shares
+    : typeof position === "number"
+      ? position
+      : undefined;
 
   if (!gameId || typeof ts !== "number") {
     return new NextResponse("`gameId` and numeric `ts` required", { status: 400 });
   }
 
   const game = await prisma.game.findUnique({
-    where: { id: gameId },
-    select: { id: true, userId: true, status: true },
-  });
-  if (!game || game.userId !== session.user.id) {
-    return new NextResponse("Not found", { status: 404 });
-  }
-  if (game.status !== "IN_PROGRESS") {
-    return new NextResponse("Game finished", { status: 400 });
-  }
+  where: { id: gameId },
+  select: { id: true, userId: true, status: true },
+});
+
+if (!game || game.userId !== session.user.id) {
+  return new NextResponse("Not found", { status: 404 });
+}
+
+// 진행 중 상태 이름이 뭔지 확실치 않으니,
+// 'FINISHED' 일 때만 막고 나머지는 전부 스냅샷 허용
+if (game.status === "FINISHED") {
+  return new NextResponse("Game finished", { status: 400 });
+}
+
 
   // history는 문자열로 저장
   const historyStr =
@@ -55,26 +60,27 @@ export async function POST(req: NextRequest) {
 
   // (gameId, ts) 복합고유키로 upsert
     const upserted = await prisma.balanceSnapshot.upsert({
-    where: { gameId_ts: { gameId, ts } },
-    update: {
-      equity: typeof equity === "number" ? equity : undefined,
-      cash: typeof cash === "number" ? cash : undefined,
-      position: typeof finalPosition === "number" ? finalPosition : undefined,
-      turn: typeof turn === "number" ? turn : undefined,
-      avgPrice: typeof avgPrice === "number" ? avgPrice : undefined,
-      history: historyStr,
-    },
-    create: {
-      gameId,
-      ts,
-      equity: typeof equity === "number" ? equity : 0,
-      cash: typeof cash === "number" ? cash : 0,
-      position: typeof finalPosition === "number" ? finalPosition : 0,
-      turn: typeof turn === "number" ? turn : 0,
-      avgPrice: typeof avgPrice === "number" ? avgPrice : 0,
-      history: historyStr ?? "[]",
-    },
-  });
+  where: { gameId_ts: { gameId, ts } },
+  update: {
+    equity: typeof equity === "number" ? equity : undefined,
+    cash: typeof cash === "number" ? cash : undefined,
+    position: typeof finalPosition === "number" ? finalPosition : undefined,
+    turn: typeof turn === "number" ? turn : undefined,
+    avgPrice: typeof avgPrice === "number" ? avgPrice : undefined,
+    history: historyStr,
+  },
+  create: {
+    gameId,
+    ts,
+    equity: typeof equity === "number" ? equity : 0,
+    cash: typeof cash === "number" ? cash : 0,
+    position: typeof finalPosition === "number" ? finalPosition : 0,
+    turn: typeof turn === "number" ? turn : 0,
+    avgPrice: typeof avgPrice === "number" ? avgPrice : 0,
+    history: historyStr ?? "[]",
+  },
+});
+
 
 
   // 사용자의 activeGameId 고정 (안전망)

@@ -261,20 +261,30 @@ const recentSymbolsRef = useRef<string[]>([])
 
     // 서버 저장 (게스트 제외, gameId 있을 때만)
     if (!guestMode && gameId) {
+      console.log('[saveProgress] sending snapshot', {
+  gameId,
+  cursor: g.cursor,
+  cash: g.cash,
+  shares: g.shares,
+  equity,
+  turn: g.turn,
+});
+
       await fetch('/api/game/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gameId,
-          ts: g.cursor,
-          cursor: g.cursor,
-          cash: g.cash,
-          shares: g.shares,
-          equity,
-          turn: g.turn,
-          avgPrice: g.avgPrice,
-          history: g.history,
-        }),
+  gameId,
+  ts: g.cursor,
+  cursor: g.cursor,
+  cash: g.cash,
+  shares: g.shares,     // 새 버전용
+  position: g.shares,   // 서버 예전 코드(position) 호환용
+  equity,
+  turn: g.turn,
+  avgPrice: g.avgPrice,
+  history: g.history,
+}),
       }).catch(() => {})
     }
 
@@ -694,6 +704,7 @@ setGameId(newGameId)
         const curRes = await fetch('/api/game/current', { cache: 'no-store' })
         if (curRes.ok) {
           const cur = await curRes.json()
+          console.log('/api/game/current result =', cur)
           const game = cur?.game
 
           // 진행 중인 + 스냅샷이 있는 게임이면 서버 스냅샷 기준으로 복원
