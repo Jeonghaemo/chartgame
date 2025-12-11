@@ -261,30 +261,20 @@ const recentSymbolsRef = useRef<string[]>([])
 
     // 서버 저장 (게스트 제외, gameId 있을 때만)
     if (!guestMode && gameId) {
-      console.log('[saveProgress] sending snapshot', {
-  gameId,
-  cursor: g.cursor,
-  cash: g.cash,
-  shares: g.shares,
-  equity,
-  turn: g.turn,
-});
-
       await fetch('/api/game/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-  gameId,
-  ts: g.cursor,
-  cursor: g.cursor,
-  cash: g.cash,
-  shares: g.shares,     // 새 버전용
-  position: g.shares,   // 서버 예전 코드(position) 호환용
-  equity,
-  turn: g.turn,
-  avgPrice: g.avgPrice,
-  history: g.history,
-}),
+          gameId,
+          ts: g.cursor,
+          cursor: g.cursor,
+          cash: g.cash,
+          shares: g.shares,
+          equity,
+          turn: g.turn,
+          avgPrice: g.avgPrice,
+          history: g.history,
+        }),
       }).catch(() => {})
     }
 
@@ -704,20 +694,11 @@ setGameId(newGameId)
         const curRes = await fetch('/api/game/current', { cache: 'no-store' })
         if (curRes.ok) {
           const cur = await curRes.json()
-          console.log('/api/game/current result =', cur)
           const game = cur?.game
 
           // 진행 중인 + 스냅샷이 있는 게임이면 서버 스냅샷 기준으로 복원
           if (game && game.snapshot) {
-            const symbol: string = (game.symbol || game.code) as string
-                  console.log('[ChartGame boot] restore from server', {
-        id: game.id,
-        symbolFromServer: game.symbol,
-        codeFromServer: game.code,
-        usedSymbol: symbol,
-        snapshot: game.snapshot,
-      })
-
+            const symbol: string = game.symbol
             const startIndex: number =
               typeof game.startIndex === 'number' ? game.startIndex : 0
             const startCash: number =
@@ -847,21 +828,9 @@ setGameId(newGameId)
         // 실패하면 조용히 로컬/새 게임으로 진행
       }
 
-     // 4) 로컬 저장 복원
+      // 4) 로컬 저장 복원
       const local = readLocal()
-
-      if (!guestMode) {
-        // 🔥 로그인 상태인데 서버에서 "진행 중 게임 없음"이라고 했으면
-        // 이 로컬 스냅은 이미 끝난 게임의 잔재일 가능성이 큼 → 버린다
-        if (local) {
-          console.log('[ChartGame boot] logged-in user, no server game → clearLocal', {
-            localMeta: local.meta,
-          })
-          clearLocal()
-        }
-        // 로컬 복원은 건너뛰고 바로 5) 새 게임으로 진행
-      } else if (local?.meta?.symbol) {
-        // 🔹 게스트 모드에서만 로컬 복원 사용
+      if (local?.meta?.symbol) {
         try {
           let ohlcArr = readOhlcFromCache(local.meta.symbol, local.meta.startIndex)
           if (!ohlcArr) {
