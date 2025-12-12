@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
+import AdBannerMobile from "@/components/AdBannerMobile";
 
 function cleanNumber(s: string): number {
   if (!s) return 0;
@@ -311,6 +312,25 @@ export default function CompoundCalculatorPage() {
           )}
         </section>
 
+{/* ✅ 결과 아래 AdSense 광고 영역 (PC/모바일 분리) */}
+        <div className="my-8">
+          <div className="mx-auto w-full px-0 sm:px-4">
+            {/* PC 전용 */}
+            <div className="hidden md:block">
+              <div className="mx-auto w-full max-w-[1000px]">
+                <AdBanner slot="2809714485" />
+              </div>
+            </div>
+
+            {/* 모바일 전용 (320×100 고정 컨테이너) */}
+            <div className="md:hidden flex justify-center">
+              <div className="w-[320px] overflow-hidden">
+                <AdBannerMobile slot="5937026455" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
         {/* 차트게임 CTA: 결과 아래 카드형 배너 */}
 <div className="mt-8 p-5 rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-blue-600 text-white text-center shadow-lg">
   <h3 className="text-lg font-bold mb-3">📈 이론은 계산으로, 실전은 게임으로!</h3>
