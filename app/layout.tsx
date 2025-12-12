@@ -6,6 +6,7 @@ import NavMenu from "@/components/NavMenu";
 import Providers from "@/components/Providers";
 import { Noto_Sans_KR } from "next/font/google";
 import type { Metadata } from "next";
+import Script from "next/script";
 
 // ✅ 메타데이터 (OG/트위터 절대경로 해석용)
 export const metadata: Metadata = {
@@ -60,9 +61,10 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <head>
-        {/* ✅ AdSense 스크립트 (head에 직접 삽입 / 중복 금지) */}
-        <script
+        {/* ✅ AdSense 스크립트 (루트 head에 1회만 / 중복 금지) */}
+        <Script
           async
+          strategy="afterInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4564123418761220"
           crossOrigin="anonymous"
         />
@@ -86,43 +88,38 @@ export default async function RootLayout({
             </div>
 
             {/* 오른쪽: 로그인/로그아웃 버튼 (데스크탑에서만 표시) */}
-<div className="hidden sm:flex justify-self-end items-center gap-3 text-base">
-
-  {session?.user ? (
-    <form
-      action={async () => {
-        "use server";
-        await signOut();
-      }}
-    >
-      <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
-        로그아웃
-      </button>
-    </form>
-  ) : (
-    <form
-      action={async () => {
-        "use server";
-        await signIn();
-      }}
-    >
-      <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
-        로그인
-      </button>
-    </form>
-  )}
-</div>
-
+            <div className="hidden sm:flex justify-self-end items-center gap-3 text-base">
+              {session?.user ? (
+                <form
+                  action={async () => {
+                    "use server";
+                    await signOut();
+                  }}
+                >
+                  <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
+                    로그아웃
+                  </button>
+                </form>
+              ) : (
+                <form
+                  action={async () => {
+                    "use server";
+                    await signIn();
+                  }}
+                >
+                  <button className="rounded-md border px-3 py-1.5 hover:bg-slate-50">
+                    로그인
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </header>
-      
-
 
         {/* 전역 컨텍스트 / 동기화 */}
         <Providers>
           <HeartStatusSync />
           {children}
-          
         </Providers>
       </body>
     </html>
