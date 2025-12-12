@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdBanner from "@/components/AdBanner";
+import AdBannerMobile from "@/components/AdBannerMobile";
 
 
 /* ===== 타입/유틸: 기존 그대로 ===== */
@@ -219,12 +220,24 @@ export default function LeaderboardPage() {
         </section>
       )}
 
-      {/* ✅ AdSense */}
-<div className="my-8">
-  <div className="mx-auto w-full max-w-[1000px] px-4">
-    <AdBanner slot="2809714485" />
-  </div>
-</div>
+     {/* ✅ AdSense 광고 영역 */}
+           <div className="my-8">
+             <div className="mx-auto w-full px-0 sm:px-4">
+               {/* PC 전용: 기존 가로 배너 */}
+               <div className="hidden md:block">
+                 <div className="mx-auto w-full max-w-[1000px]">
+                   <AdBanner slot="2809714485" />
+                 </div>
+               </div>
+     
+               {/* 모바일 전용: Large Mobile Banner (320×100 고정 컨테이너) */}
+     <div className="md:hidden flex justify-center">
+       <div className="w-[320px] max-w-[320px] overflow-hidden">
+         <AdBannerMobile slot="5937026455" />
+       </div>
+     </div>
+             </div>
+           </div>
       
 
       {/* 전체 순위 */}
