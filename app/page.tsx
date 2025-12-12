@@ -25,7 +25,7 @@ export default async function Home() {
 
           {/* 모바일 전용: Large Mobile Banner (320×100 고정 컨테이너) */}
 <div className="md:hidden flex justify-center">
-  <div className="w-[320px]">
+  <div className="w-[320px] max-w-[320px] overflow-hidden">
     <AdBannerMobile slot="5937026455" />
   </div>
 </div>
