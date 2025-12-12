@@ -5,18 +5,17 @@ import HomeTopGrid from "@/components/HomeTopGrid";
 import AdBanner from "@/components/AdBanner";
 import AdBannerMobile from "@/components/AdBannerMobile";
 
-
 export default async function Home() {
   const session = await auth();
 
   return (
-    <main className="max-w-[1300px] mx-auto px-2 sm:px-8 pt-2 pb-8">
+    <main className="max-w-[1300px] mx-auto px-8 pt-2 pb-8">
       {/* Hero (클라이언트 컴포넌트) */}
       <HomeHero />
 
         {/* ✅ AdSense 광고 영역 */}
       <div className="my-8">
-  <div className="mx-auto w-full px-2 sm:px-4">
+        <div className="mx-auto w-full px-4">
           {/* PC 전용: 기존 가로 배너 */}
           <div className="hidden md:block">
             <div className="mx-auto w-full max-w-[1000px]">
@@ -26,7 +25,7 @@ export default async function Home() {
 
           {/* 모바일 전용: Large Mobile Banner (320×100 고정 컨테이너) */}
 <div className="md:hidden flex justify-center">
-  <div className="w-full max-w-[320px]">
+  <div className="w-[320px]">
     <AdBannerMobile slot="5937026455" />
   </div>
 </div>
