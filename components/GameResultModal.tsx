@@ -115,20 +115,10 @@ export default function GameResultModal({ isOpen, onClose, result }: Props) {
           <span className="text-red-500 font-bold">{result.heartsLeft} ❤️</span>
         </div>
 
-        {/* ✅ 게임 종료 모달 내 AdSense 광고 (PC/모바일 분리) */}
-<div className="mt-5">
-  {/* PC 전용: 모달 폭에 맞게 박스형 권장 */}
-  <div className="hidden md:flex justify-center">
-    <div className="w-[300px] overflow-hidden">
-      <AdBanner slot="2809714485" />
-    </div>
-  </div>
-
-  {/* 모바일 전용: 320×100 고정 */}
-  <div className="md:hidden flex justify-center">
-    <div className="w-[320px] overflow-hidden">
-      <AdBannerMobile slot="5937026455" />
-    </div>
+        {/* ✅ 게임 종료 모달 내 AdSense 광고 (PC/모바일 동일 320px 테스트) */}
+<div className="mt-5 flex justify-center">
+  <div className="w-[320px] overflow-hidden">
+    <AdBannerMobile slot="5937026455" />
   </div>
 </div>
 
