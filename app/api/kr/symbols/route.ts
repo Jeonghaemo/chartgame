@@ -1,6 +1,7 @@
 // app/api/kr/symbols/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import iconv from 'iconv-lite'
+import { getStaticTop300Symbols } from './staticTop300'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -232,6 +233,9 @@ function filterSymbols(
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url)
+     // ✅ 기본은 정적 Top300로 즉시 응답(운영 안정성/속도 최우선)
+    // KRX 크롤링은 'source=krx'로 요청할 때만 시도(업데이트/디버그용)
+    const source = url.searchParams.get('source') || 'static'
     const includeNames = url.searchParams.get('names') === 'true'
     const excludeETF = url.searchParams.get('excludeETF') !== 'false' // 기본값: true
     const excludeREIT = url.searchParams.get('excludeREIT') === 'true'
@@ -239,6 +243,28 @@ export async function GET(req: NextRequest) {
     const gameOptimized = url.searchParams.get('gameOptimized') === 'true'
     const maxCount = parseInt(url.searchParams.get('maxCount') || '0') || 0
     const excludeListedWithinDays = parseInt(url.searchParams.get('excludeListedWithinDays') || '0') || 0 // ★
+    if (source !== 'krx') {
+      const symbols = getStaticTop300Symbols()
+      let result: any = symbols
+
+      // names=true를 요청해도 현재는 symbol만 반환(이름은 별도 개선 가능)
+      // UI에서 name이 필요하면 차후 "symbol->name 매핑"을 정적으로 추가하거나 DB에 저장하는 방식 추천
+      if (maxCount > 0 && result.length > maxCount) {
+        // 간단 셔플 후 제한
+        const shuffled = [...result].sort(() => Math.random() - 0.5)
+        result = shuffled.slice(0, maxCount)
+      }
+
+      return NextResponse.json({
+        symbols: result,
+        cached: false,
+        count: Array.isArray(result) ? result.length : 0,
+        source: 'static',
+        fallback: false,
+        note: 'static top symbols (fast)',
+        filters: { excludeETF, excludeREIT, excludePreferred, gameOptimized, excludeListedWithinDays }
+      })
+    }
 
     // 캐시 확인
     if (CACHE && Date.now() - CACHE.ts < TTL) {
