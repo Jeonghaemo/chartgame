@@ -79,86 +79,187 @@ function csvParse(text: string): string[][] {
   })
 }
 
-// 시장별(코스피/코스닥) CSV 다운로드 → 종목코드 배열
-async function fetchCodes(mktId: MarketId): Promise<RawItem[]> {
-  const trdDd = todayKST()
-  // KRX 표준통계: 상장회사목록 (MDCSTAT01901)
-  const form = new URLSearchParams({
-    locale: 'ko_KR',
-    mktId,                    // 'STK' or 'KSQ'
-    trdDd,                    // 기준일
-    share: '1',
-    searchType: '1',
-    csvxls_isNo: 'false',
-    name: 'fileDown',
-    url: 'dbms/MDC/STAT/standard/MDCSTAT01901',
-  })
+// --- KRX 요청 안정화 유틸 (쿠키/타임아웃/영업일 fallback) ---
+const REFERER_PAGE = 'https://data.krx.co.kr/contents/MDC/STAT/standard/MDCSTAT01901.jspx'
 
-  // 1) OTP 발급
-  const otpRes = await fetch(GEN_URL, {
-    method: 'POST',
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 12_000) {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(input, { ...init, signal: controller.signal })
+    return res
+  } finally {
+    clearTimeout(id)
+  }
+}
+
+// KRX는 종종 세션 쿠키가 있어야 OTP/CSV가 안정적으로 동작함
+async function getKrxCookie(): Promise<string> {
+  const res = await fetchWithTimeout(REFERER_PAGE, {
+    method: 'GET',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'Referer': 'https://data.krx.co.kr/contents/MDC/STAT/standard/MDCSTAT01901.jspx',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
     },
-    body: form.toString(),
-  })
-  if (!otpRes.ok) throw new Error(`OTP 발급 실패: ${otpRes.status} ${otpRes.statusText}`)
+    // next fetch는 cookie jar를 자동으로 관리하지 않으니 직접 set-cookie를 읽어야 함
+    cache: 'no-store',
+  }, 12_000)
 
-  const otp = await otpRes.text()
-  if (!otp || otp.length < 10) throw new Error('유효하지 않은 OTP')
+  // set-cookie가 여러 개일 수 있음
+  const setCookies = res.headers.get('set-cookie')
+  if (!setCookies) return ''
+  // 첫 쿠키만 써도 되는 경우가 많지만, 안전하게 앞부분만
+  // (Vercel 환경에서는 너무 길게 넣으면 헤더 제한에 걸릴 수 있어 최소화)
+  return setCookies.split(',').map(s => s.split(';')[0]).join('; ')
+}
 
-  // 2) CSV 다운로드 (EUC-KR)
-  const csvRes = await fetch(DL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'Referer': 'https://data.krx.co.kr/contents/MDC/STAT/standard/MDCSTAT01901.jspx',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    },
-    body: `code=${encodeURIComponent(otp)}`,
-  })
-  if (!csvRes.ok) throw new Error(`CSV 다운로드 실패: ${csvRes.status} ${csvRes.statusText}`)
+// 오늘이 휴장일일 수 있으니 최근 n일 중에서 성공하는 trdDd를 찾는다
+function kstYmdFromDate(dt: Date) {
+  const utc = dt.getTime() + dt.getTimezoneOffset() * 60000
+  const kst = new Date(utc + 9 * 3600000)
+  const y = kst.getFullYear()
+  const m = String(kst.getMonth() + 1).padStart(2, '0')
+  const d = String(kst.getDate()).padStart(2, '0')
+  return `${y}${m}${d}`
+}
 
-  const buf = await csvRes.arrayBuffer()
-  const csv = iconv.decode(Buffer.from(buf), 'euc-kr') // KRX는 EUC-KR
-
-  const rows = csvParse(csv)
-  if (rows.length < 2) throw new Error(`CSV 파싱 실패: ${rows.length}개 행`)
-
-  const header = rows[0]
-  const idxCode = header.findIndex(h => /(종목코드|단축코드)/.test(h))
-  const idxName = header.findIndex(h => /(종목명|한글종목명|회사명)/.test(h))
-  const idxDelisted = header.findIndex(h => /상장폐지일|상장폐지/.test(h))
-  const idxListDate = header.findIndex(h => /상장일/.test(h)) // ★ 상장일
-
-  if (idxCode === -1) throw new Error('종목코드 컬럼을 찾을 수 없음')
-
-  const out: RawItem[] = []
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i]
-    const raw = (r[idxCode] || '').replace(/[^0-9]/g, '')
-    if (!raw || raw.length !== 6) continue // 6자리 종목코드만
-
-    const code = raw.padStart(6, '0')
-    const name = (r[idxName] || '').trim()
-    const delisted = idxDelisted >= 0 ? Boolean((r[idxDelisted] || '').trim()) : false
-
-    // 상장일 파싱 (yyyymmdd 형식 가정 / 콤마/하이픈 제거)
-    let listDate: string | undefined
-    if (idxListDate >= 0) {
-      const ld = (r[idxListDate] || '').replace(/[^0-9]/g, '')
-      if (ld.length === 8) listDate = ld
-    }
-
-    if (!name) continue
-    if (delisted) continue
-
-    out.push({ code, name, mkt: mktId, delisted, listDate })
+function recentKstDays(maxBackDays = 10) {
+  const out: string[] = []
+  const now = new Date()
+  for (let i = 0; i <= maxBackDays; i++) {
+    const dt = new Date(now.getTime() - i * 86400_000)
+    out.push(kstYmdFromDate(dt))
   }
   return out
 }
+
+// 시장별(코스피/코스닥) CSV 다운로드 → 종목코드 배열
+async function fetchCodes(mktId: MarketId): Promise<RawItem[]> {
+  const cookie = await getKrxCookie()
+  const trdDdCandidates = recentKstDays(10) // 최근 10일 안에서 성공하는 기준일 찾기
+
+  // 공통 헤더 (KRX가 XHR/Origin/Referer를 더 엄격히 보는 경우가 있음)
+  const commonHeaders: Record<string, string> = {
+    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    'Referer': REFERER_PAGE,
+    'Origin': 'https://data.krx.co.kr',
+    'X-Requested-With': 'XMLHttpRequest',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
+  }
+  if (cookie) commonHeaders['Cookie'] = cookie
+
+  let lastErr: any = null
+
+  for (const trdDd of trdDdCandidates) {
+    try {
+      const form = new URLSearchParams({
+        locale: 'ko_KR',
+        mktId,                    // 'STK' or 'KSQ'
+        trdDd,                    // 기준일
+        share: '1',
+        searchType: '1',
+        csvxls_isNo: 'false',
+        name: 'fileDown',
+        url: 'dbms/MDC/STAT/standard/MDCSTAT01901',
+      })
+
+      // 1) OTP 발급 (간헐 실패 대비 1회 재시도)
+      let otp = ''
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const otpRes = await fetchWithTimeout(GEN_URL, {
+          method: 'POST',
+          headers: commonHeaders,
+          body: form.toString(),
+          cache: 'no-store',
+        }, 12_000)
+
+        const otpText = await otpRes.text()
+        if (otpRes.ok && otpText && otpText.length >= 10 && !otpText.includes('<html')) {
+          otp = otpText.trim()
+          break
+        }
+
+        lastErr = new Error(`OTP 발급 실패(${mktId}, ${trdDd}): ${otpRes.status} ${otpRes.statusText} / body=${otpText.slice(0, 80)}`)
+        await sleep(250)
+      }
+
+      if (!otp) throw lastErr ?? new Error(`유효하지 않은 OTP(${mktId}, ${trdDd})`)
+
+      // 2) CSV 다운로드 (EUC-KR)
+      const csvRes = await fetchWithTimeout(DL_URL, {
+        method: 'POST',
+        headers: commonHeaders,
+        body: `code=${encodeURIComponent(otp)}`,
+        cache: 'no-store',
+      }, 12_000)
+
+      if (!csvRes.ok) {
+        const t = await csvRes.text().catch(() => '')
+        throw new Error(`CSV 다운로드 실패(${mktId}, ${trdDd}): ${csvRes.status} ${csvRes.statusText} / body=${t.slice(0, 80)}`)
+      }
+
+      const buf = await csvRes.arrayBuffer()
+      const csv = iconv.decode(Buffer.from(buf), 'euc-kr')
+
+      const rows = csvParse(csv)
+      if (rows.length < 2) {
+        // 휴장일이면 header만 있거나 비어있는 경우가 있어 다음 날짜 후보로 넘어감
+        lastErr = new Error(`CSV 파싱 실패(${mktId}, ${trdDd}): ${rows.length}개 행`)
+        continue
+      }
+
+      const header = rows[0]
+      const idxCode = header.findIndex(h => /(종목코드|단축코드)/.test(h))
+      const idxName = header.findIndex(h => /(종목명|한글종목명|회사명)/.test(h))
+      const idxDelisted = header.findIndex(h => /상장폐지일|상장폐지/.test(h))
+      const idxListDate = header.findIndex(h => /상장일/.test(h))
+
+      if (idxCode === -1) throw new Error(`종목코드 컬럼을 찾을 수 없음(${mktId}, ${trdDd})`)
+
+      const out: RawItem[] = []
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i]
+        const raw = (r[idxCode] || '').replace(/[^0-9]/g, '')
+        if (!raw || raw.length !== 6) continue
+
+        const code = raw.padStart(6, '0')
+        const name = (r[idxName] || '').trim()
+        const delisted = idxDelisted >= 0 ? Boolean((r[idxDelisted] || '').trim()) : false
+
+        let listDate: string | undefined
+        if (idxListDate >= 0) {
+          const ld = (r[idxListDate] || '').replace(/[^0-9]/g, '')
+          if (ld.length === 8) listDate = ld
+        }
+
+        if (!name) continue
+        if (delisted) continue
+
+        out.push({ code, name, mkt: mktId, delisted, listDate })
+      }
+
+      // 성공하면 바로 반환
+      if (out.length > 0) return out
+
+      // 행은 있는데 필터로 다 빠졌다면(드물지만) 다음 후보로
+      lastErr = new Error(`유효 데이터 0개(${mktId}, ${trdDd})`)
+    } catch (e) {
+      lastErr = e
+      // 다음 trdDd 후보로 계속
+      continue
+    }
+  }
+
+  throw lastErr ?? new Error(`KRX 수집 실패(${mktId}): unknown`)
+}
+
 
 // 게임에 적합하지 않은 종목 필터링
 function filterSymbols(
