@@ -19,7 +19,7 @@ type OHLC = { time: number; open: number; high: number; low: number; close: numb
 type Trade = { side: 'BUY' | 'SELL'; price: number; qty: number; time: string }
 type SymbolItem = { symbol: string; name: string; market: string }
 
-const SYMBOL_CACHE_KEY_NAMES = 'kr_symbols_with_names_v1'
+const SYMBOL_CACHE_KEY_NAMES = 'kr_symbols_with_names_v2'
 const SYMBOL_CACHE_TTL_MS = 1000 * 60 * 60 * 12 // 12h
 const MIN_VISIBLE = 365
 const RESERVED_TURNS = 60
@@ -340,18 +340,49 @@ const recentSymbolsRef = useRef<string[]>([])
       maxCount: '1500',
     })
     const r = await fetch(`/api/kr/symbols?${params}`, { cache: 'no-store' })
-    const response = await r.json()
-    const list = (response.symbols || []) as SymbolItem[]
-    const valid = list.filter(s => /^\d{6}\.(KS|KQ)$/.test(s.symbol))
-    localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: valid, ts: Date.now() }))
-    return valid.length ? valid : [
-      { symbol: '005930.KS', name: '삼성전자', market: '코스피' },
-      { symbol: '000660.KS', name: 'SK하이닉스', market: '코스피' },
-      { symbol: '035420.KS', name: 'NAVER', market: '코스피' },
-      { symbol: '035720.KS', name: '카카오', market: '코스피' },
-      { symbol: '247540.KQ', name: '에코프로비엠', market: '코스닥' },
-      { symbol: '086520.KQ', name: '에코프로', market: '코스닥' },
-    ]
+    const response = await r.json().catch(() => ({} as any))
+
+// ✅ response.symbols는 상황에 따라
+// 1) [{symbol,name,market}, ...] (정상 names=true)
+// 2) ["005930.KS", ...] (KRX 실패 fallback)
+// 둘 다 수용해야 “6개 고정”으로 안 떨어짐
+const rawSymbols = response?.symbols ?? []
+
+let normalized: SymbolItem[] = []
+
+if (Array.isArray(rawSymbols)) {
+  if (rawSymbols.length > 0 && typeof rawSymbols[0] === 'string') {
+    // string[] → SymbolItem[]로 변환 (이름은 일단 코드로 채움)
+    normalized = (rawSymbols as string[])
+      .filter(s => /^\d{6}\.(KS|KQ)$/.test(s))
+      .map(s => ({
+        symbol: s,
+        name: s,               // ✅ 이름 없는 경우 임시로 코드 표시
+        market: s.endsWith('.KS') ? '코스피' : '코스닥',
+      }))
+  } else {
+    // object[] → SymbolItem[]로 필터
+    normalized = (rawSymbols as any[])
+      .filter(s => s && typeof s.symbol === 'string' && /^\d{6}\.(KS|KQ)$/.test(s.symbol))
+      .map(s => ({
+        symbol: String(s.symbol),
+        name: String(s.name ?? s.symbol),
+        market: String(s.market ?? (String(s.symbol).endsWith('.KS') ? '코스피' : '코스닥')),
+      }))
+  }
+}
+
+localStorage.setItem(SYMBOL_CACHE_KEY_NAMES, JSON.stringify({ symbols: normalized, ts: Date.now() }))
+
+return normalized.length ? normalized : [
+  { symbol: '005930.KS', name: '삼성전자', market: '코스피' },
+  { symbol: '000660.KS', name: 'SK하이닉스', market: '코스피' },
+  { symbol: '035420.KS', name: 'NAVER', market: '코스피' },
+  { symbol: '035720.KS', name: '카카오', market: '코스피' },
+  { symbol: '247540.KQ', name: '에코프로비엠', market: '코스닥' },
+  { symbol: '086520.KQ', name: '에코프로', market: '코스닥' },
+]
+
   }, [])
 
   // 코드 → "이름 (코드)" 라벨 해석
