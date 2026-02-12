@@ -1175,7 +1175,7 @@ useEffect(() => {
                     key={chartKey}
                     data={dataSlice}
                     fullForMA={ohlc}
-                    height={chartHeight}
+                    height={chartHeight || 400}
                     sma={[5, 10, 20, 60, 120, 240]}
                     showLegend
                     showVolume
