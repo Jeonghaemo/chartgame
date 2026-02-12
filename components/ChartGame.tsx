@@ -1157,10 +1157,21 @@ useEffect(() => {
           <div className="px-2">
             <Card className="p-2">
               {(() => {
-                const end = Math.min(ohlc.length, Math.max(0, safeCursor + 1));
-                const dataSlice = ohlc.slice(0, end);
-                return (
-                  <CandleChart
+  const end = Math.min(ohlc.length, Math.max(0, safeCursor + 1));
+  const dataSlice = ohlc.slice(0, end);
+
+  // ✅ 모바일에서 빈 데이터 렌더 방지
+  if (!dataSlice || dataSlice.length < 5) {
+    return (
+      <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">
+        차트 로딩중...
+      </div>
+    );
+  }
+
+  return (
+    <CandleChart
+
                     key={chartKey}
                     data={dataSlice}
                     fullForMA={ohlc}
