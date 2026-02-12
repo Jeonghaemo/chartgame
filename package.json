@@ -19,7 +19,7 @@
     "framer-motion": "^12.23.22",
     "iconv-lite": "^0.7.0",
     "lucide-react": "^0.539.0",
-    "next": "14.2.5",
+    "next": "14.2.35",
     "next-auth": "^5.0.0-beta.20",
     "react": "18.3.1",
     "react-dom": "18.3.1",
