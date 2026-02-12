@@ -4,7 +4,7 @@ import iconv from 'iconv-lite'
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const preferredRegion = ['sin1'];
+export const preferredRegion = ['icn1', 'sin1'];
 export const revalidate = 300;  // 5분 캐시
 type MarketId = 'STK' | 'KSQ' // KOSPI / KOSDAQ (KRX 표기)
 
@@ -95,30 +95,47 @@ async function fetchCodes(mktId: MarketId): Promise<RawItem[]> {
   })
 
   // 1) OTP 발급
-  const otpRes = await fetch(GEN_URL, {
+    const otpRes = await fetch(GEN_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       'Referer': 'https://data.krx.co.kr/contents/MDC/STAT/standard/MDCSTAT01901.jspx',
+      'Origin': 'https://data.krx.co.kr',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     },
     body: form.toString(),
   })
   if (!otpRes.ok) throw new Error(`OTP 발급 실패: ${otpRes.status} ${otpRes.statusText}`)
 
-  const otp = await otpRes.text()
+  const otp = (await otpRes.text()).trim()
   if (!otp || otp.length < 10) throw new Error('유효하지 않은 OTP')
 
+  // ✅ OTP 발급 응답의 쿠키(세션)를 다운로드 요청에 전달해야 하는 케이스가 있음
+  const setCookies: string[] =
+    // undici 기반 환경(Next/Vercel Node)에서 종종 제공
+    ((otpRes.headers as any).getSetCookie?.() as string[] | undefined) ??
+    // fallback
+    (otpRes.headers.get('set-cookie') ? [otpRes.headers.get('set-cookie') as string] : [])
+
+  const cookieHeader = setCookies
+    .map(c => c.split(';')[0])     // "key=value"만
+    .filter(Boolean)
+    .join('; ')
+
+
   // 2) CSV 다운로드 (EUC-KR)
-  const csvRes = await fetch(DL_URL, {
+    const csvRes = await fetch(DL_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       'Referer': 'https://data.krx.co.kr/contents/MDC/STAT/standard/MDCSTAT01901.jspx',
+      'Origin': 'https://data.krx.co.kr',
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     },
     body: `code=${encodeURIComponent(otp)}`,
   })
+
   if (!csvRes.ok) throw new Error(`CSV 다운로드 실패: ${csvRes.status} ${csvRes.statusText}`)
 
   const buf = await csvRes.arrayBuffer()
