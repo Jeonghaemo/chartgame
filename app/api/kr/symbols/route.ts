@@ -1,11 +1,11 @@
 // app/api/kr/symbols/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import iconv from 'iconv-lite'
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-export const preferredRegion = ['icn1', 'sin1'];
-export const revalidate = 300;  // 5분 캐시
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const preferredRegion = ['sin1']
+export const revalidate = 300 // 5분 캐시
+
 type MarketId = 'STK' | 'KSQ' // KOSPI / KOSDAQ (KRX 표기)
 
 type RawItem = {
@@ -20,13 +20,19 @@ type RawItem = {
 let CACHE: {
   ts: number
   symbols: string[]
-  symbolsWithNames: Array<{ symbol: string; name: string; market: string; listDate?: string; listAgeDays?: number }>
+  symbolsWithNames: Array<{
+    symbol: string
+    name: string
+    market: string
+    listDate?: string
+    listAgeDays?: number
+  }>
 } | null = null
 const TTL = 1000 * 60 * 60 * 12
 
-// KRX OTP 생성 엔드포인트 / CSV 다운로드 경로
-const GEN_URL = 'https://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
-const DL_URL = 'https://data.krx.co.kr/comm/fileDn/download_csv/download.cmd'
+// KRX JSON 조회 엔드포인트 (OTP 없이)
+const KRX_JSON_URL = 'https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd'
+const KRX_REFERER = 'https://data.krx.co.kr/contents/MDC/MAIN/main/index.cmd'
 
 // 오늘(한국시간) yyyymmdd
 function todayKST() {
@@ -46,9 +52,9 @@ function yyyymmddToDateKST(yyyymmdd: string): Date | null {
   const d = Number(yyyymmdd.slice(6, 8))
   // KST 자정 기준 (UTC+9)
   const dt = new Date(Date.UTC(y, m, d, 0, 0, 0))
-  // Date.UTC 는 UTC로 만들기 때문에 +9h 살짝 더해줘도 되고, 일수 차이만 볼거라 그대로 써도 충분
   return dt
 }
+
 function diffDaysKST(a: string, b: string): number | null {
   const da = yyyymmddToDateKST(a)
   const db = yyyymmddToDateKST(b)
@@ -57,123 +63,132 @@ function diffDaysKST(a: string, b: string): number | null {
   return Math.floor(ms / (1000 * 60 * 60 * 24))
 }
 
-// KRX CSV 한 줄 파싱(단순)
-function csvParse(text: string): string[][] {
-  const lines = text.trim().split(/\r?\n/)
-  return lines.map(l => {
-    const out: string[] = []
-    let cur = ''
-    let q = false
-    for (let i = 0; i < l.length; i++) {
-      const ch = l[i]
-      if (ch === '"') {
-        if (q && l[i + 1] === '"') { cur += '"'; i++ } else { q = !q }
-      } else if (ch === ',' && !q) {
-        out.push(cur); cur = ''
-      } else {
-        cur += ch
-      }
-    }
-    out.push(cur)
-    return out.map(s => s.trim())
-  })
+function pick(obj: any, keys: string[]) {
+  for (const k of keys) {
+    const v = obj?.[k]
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v
+  }
+  return undefined
 }
 
-// 시장별(코스피/코스닥) CSV 다운로드 → 종목코드 배열
+async function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+async function krxPostForm(form: Record<string, string>, retry = 2) {
+  const headers: Record<string, string> = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
+    Referer: KRX_REFERER,
+    Origin: 'https://data.krx.co.kr',
+    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    Accept: 'application/json, text/javascript, */*; q=0.01',
+  }
+
+  const body = new URLSearchParams(form)
+
+  let lastErr: any = null
+  for (let i = 0; i <= retry; i++) {
+    try {
+      const res = await fetch(KRX_JSON_URL, {
+        method: 'POST',
+        headers,
+        body,
+        signal: AbortSignal.timeout(15000),
+        cache: 'no-store',
+      })
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => '')
+        throw new Error(`KRX HTTP ${res.status} ${res.statusText} :: ${t.slice(0, 200)}`)
+      }
+
+      return await res.json()
+    } catch (e) {
+      lastErr = e
+      if (i < retry) {
+        await sleep(250 * (i + 1))
+        continue
+      }
+    }
+  }
+
+  throw lastErr ?? new Error('KRX request failed')
+}
+
+// 시장별(코스피/코스닥) JSON 조회 → 종목코드 배열
 async function fetchCodes(mktId: MarketId): Promise<RawItem[]> {
   const trdDd = todayKST()
-  // KRX 표준통계: 상장회사목록 (MDCSTAT01901)
-  const form = new URLSearchParams({
+
+  /**
+   * KRX 표준통계: 상장회사목록 (MDCSTAT01901)
+   * - OTP/CSV 없이 JSON을 직접 받는다
+   */
+  const js = await krxPostForm({
+    bld: 'dbms/MDC/STAT/standard/MDCSTAT01901',
     locale: 'ko_KR',
-    mktId,                    // 'STK' or 'KSQ'
-    trdDd,                    // 기준일
+    mktId, // STK / KSQ
+    trdDd, // 기준일
     share: '1',
     searchType: '1',
     csvxls_isNo: 'false',
-    name: 'fileDown',
-    url: 'dbms/MDC/STAT/standard/MDCSTAT01901',
   })
 
-  // 1) OTP 발급
-    const otpRes = await fetch(GEN_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'Referer': 'https://data.krx.co.kr/contents/MDC/STAT/standard/MDCSTAT01901.jspx',
-      'Origin': 'https://data.krx.co.kr',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    },
-    body: form.toString(),
-  })
-  if (!otpRes.ok) throw new Error(`OTP 발급 실패: ${otpRes.status} ${otpRes.statusText}`)
-
-  const otp = (await otpRes.text()).trim()
-  if (!otp || otp.length < 10) throw new Error('유효하지 않은 OTP')
-
-  // ✅ OTP 발급 응답의 쿠키(세션)를 다운로드 요청에 전달해야 하는 케이스가 있음
-  const setCookies: string[] =
-    // undici 기반 환경(Next/Vercel Node)에서 종종 제공
-    ((otpRes.headers as any).getSetCookie?.() as string[] | undefined) ??
-    // fallback
-    (otpRes.headers.get('set-cookie') ? [otpRes.headers.get('set-cookie') as string] : [])
-
-  const cookieHeader = setCookies
-    .map(c => c.split(';')[0])     // "key=value"만
-    .filter(Boolean)
-    .join('; ')
-
-
-  // 2) CSV 다운로드 (EUC-KR)
-    const csvRes = await fetch(DL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'Referer': 'https://data.krx.co.kr/contents/MDC/STAT/standard/MDCSTAT01901.jspx',
-      'Origin': 'https://data.krx.co.kr',
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    },
-    body: `code=${encodeURIComponent(otp)}`,
-  })
-
-  if (!csvRes.ok) throw new Error(`CSV 다운로드 실패: ${csvRes.status} ${csvRes.statusText}`)
-
-  const buf = await csvRes.arrayBuffer()
-  const csv = iconv.decode(Buffer.from(buf), 'euc-kr') // KRX는 EUC-KR
-
-  const rows = csvParse(csv)
-  if (rows.length < 2) throw new Error(`CSV 파싱 실패: ${rows.length}개 행`)
-
-  const header = rows[0]
-  const idxCode = header.findIndex(h => /(종목코드|단축코드)/.test(h))
-  const idxName = header.findIndex(h => /(종목명|한글종목명|회사명)/.test(h))
-  const idxDelisted = header.findIndex(h => /상장폐지일|상장폐지/.test(h))
-  const idxListDate = header.findIndex(h => /상장일/.test(h)) // ★ 상장일
-
-  if (idxCode === -1) throw new Error('종목코드 컬럼을 찾을 수 없음')
+  // 화면/시점에 따라 block 키가 다를 수 있어 후보를 넓게 잡음
+  const block =
+    (Array.isArray(js?.block1) ? js.block1 : null) ||
+    (Array.isArray(js?.output) ? js.output : null) ||
+    (Array.isArray(js?.OutBlock_1) ? js.OutBlock_1 : null) ||
+    []
 
   const out: RawItem[] = []
-  for (let i = 1; i < rows.length; i++) {
-    const r = rows[i]
-    const raw = (r[idxCode] || '').replace(/[^0-9]/g, '')
-    if (!raw || raw.length !== 6) continue // 6자리 종목코드만
 
-    const code = raw.padStart(6, '0')
-    const name = (r[idxName] || '').trim()
-    const delisted = idxDelisted >= 0 ? Boolean((r[idxDelisted] || '').trim()) : false
+  for (const row of block) {
+    // 종목코드(6자리) 후보 키들
+    const rawCode = String(
+      pick(row, [
+        'ISU_SRT_CD',
+        'isu_srt_cd',
+        'isu_cd',
+        'ISU_CD',
+        'SRT_CD',
+        'code',
+        '종목코드',
+        '단축코드',
+      ]) ?? ''
+    ).replace(/[^0-9]/g, '')
 
-    // 상장일 파싱 (yyyymmdd 형식 가정 / 콤마/하이픈 제거)
-    let listDate: string | undefined
-    if (idxListDate >= 0) {
-      const ld = (r[idxListDate] || '').replace(/[^0-9]/g, '')
-      if (ld.length === 8) listDate = ld
-    }
+    if (!rawCode || rawCode.length !== 6) continue
+    const code = rawCode.padStart(6, '0')
 
+    // 종목명 후보 키들
+    const name = String(
+      pick(row, [
+        'ISU_ABBRV',
+        'isu_abbrv',
+        'ISU_NM',
+        'isu_nm',
+        'name',
+        '종목명',
+        '한글종목명',
+        '회사명',
+      ]) ?? ''
+    ).trim()
     if (!name) continue
-    if (delisted) continue
+
+    // 상장일 후보 키들 (yyyymmdd)
+    let listDate: string | undefined
+    const ld = String(
+      pick(row, ['LIST_DD', 'list_dd', 'LIST_DT', 'list_dt', '상장일', '상장일자']) ?? ''
+    ).replace(/[^0-9]/g, '')
+    if (ld.length === 8) listDate = ld
+
+    // JSON에서는 상장폐지 정보가 없거나 불안정 → 일단 false
+    const delisted = false
 
     out.push({ code, name, mkt: mktId, delisted, listDate })
   }
+
   return out
 }
 
@@ -185,44 +200,37 @@ function filterSymbols(
     excludeREIT?: boolean
     excludePreferred?: boolean
     gameOptimized?: boolean
-    excludeListedWithinDays?: number // ★ N일 이내 신규상장 제외
+    excludeListedWithinDays?: number // N일 이내 신규상장 제외
   }
 ) {
   const today = todayKST()
-  return symbols.filter(item => {
+  return symbols.filter((item) => {
     const { symbol, name, listDate } = item
     const code = symbol.replace(/\.(KS|KQ)$/, '')
 
     // ETF 제외
     if (filters.excludeETF) {
       if (
-        code.match(/^1\d{5}$/) || // ETF는 보통 1로 시작
+        code.match(/^1\d{5}$/) ||
         name.includes('ETF') ||
         name.includes('ETN') ||
         name.includes('인덱스') ||
         name.includes('레버리지') ||
         name.includes('인버스')
-      ) return false
+      )
+        return false
     }
 
     // REIT 제외
     if (filters.excludeREIT) {
-      if (
-        name.includes('리츠') ||
-        name.includes('REIT') ||
-        name.includes('부동산투자') ||
-        code.match(/^35\d{4}$/)
-      ) return false
+      if (name.includes('리츠') || name.includes('REIT') || name.includes('부동산투자') || code.match(/^35\d{4}$/))
+        return false
     }
 
     // 우선주 제외
     if (filters.excludePreferred) {
-      if (
-        name.includes('우') ||
-        name.includes('우선주') ||
-        symbol.includes('5.KS') || // 우선주는 보통 끝자리가 5/7
-        symbol.includes('7.KS')
-      ) return false
+      if (name.includes('우') || name.includes('우선주') || symbol.includes('5.KS') || symbol.includes('7.KS'))
+        return false
     }
 
     // 게임 최적화 필터
@@ -233,7 +241,8 @@ function filterSymbols(
         name.includes('SPAC') ||
         name.includes('기업인수목적') ||
         /^제\d+호/.test(name)
-      ) return false
+      )
+        return false
     }
 
     // 신규상장 N일 이내 제외
@@ -255,7 +264,7 @@ export async function GET(req: NextRequest) {
     const excludePreferred = url.searchParams.get('excludePreferred') === 'true'
     const gameOptimized = url.searchParams.get('gameOptimized') === 'true'
     const maxCount = parseInt(url.searchParams.get('maxCount') || '0') || 0
-    const excludeListedWithinDays = parseInt(url.searchParams.get('excludeListedWithinDays') || '0') || 0 // ★
+    const excludeListedWithinDays = parseInt(url.searchParams.get('excludeListedWithinDays') || '0') || 0
 
     // 캐시 확인
     if (CACHE && Date.now() - CACHE.ts < TTL) {
@@ -281,16 +290,22 @@ export async function GET(req: NextRequest) {
         symbols: includeNames ? result : (result as string[]),
         cached: true,
         count: Array.isArray(result) ? result.length : 0,
-        filters: { excludeETF, excludeREIT, excludePreferred, gameOptimized, excludeListedWithinDays }
+        filters: { excludeETF, excludeREIT, excludePreferred, gameOptimized, excludeListedWithinDays },
       })
     }
 
     console.log('KRX 데이터 새로 수집 중...')
 
-    // 코스피 + 코스닥 동시 수집
+    // 코스피 + 코스닥 동시 수집 (JSON)
     const [stk, ksq] = await Promise.all([
-      fetchCodes('STK').catch(err => { console.error('코스피 데이터 수집 실패:', err); return [] }),
-      fetchCodes('KSQ').catch(err => { console.error('코스닥 데이터 수집 실패:', err); return [] }),
+      fetchCodes('STK').catch((err) => {
+        console.error('코스피 데이터 수집 실패:', err)
+        return []
+      }),
+      fetchCodes('KSQ').catch((err) => {
+        console.error('코스닥 데이터 수집 실패:', err)
+        return []
+      }),
     ])
     if (stk.length === 0 && ksq.length === 0) throw new Error('코스피, 코스닥 데이터 모두 수집 실패')
 
@@ -298,7 +313,7 @@ export async function GET(req: NextRequest) {
 
     // 심볼 및 상세정보 생성 (+ listDate / listAgeDays)
     const today = todayKST()
-    const symbolsWithNames = allData.map(s => {
+    const symbolsWithNames = allData.map((s) => {
       const symbol = `${s.code}.${s.mkt === 'STK' ? 'KS' : 'KQ'}`
       const market = s.mkt === 'STK' ? '코스피' : '코스닥'
       const listAgeDays = s.listDate ? diffDaysKST(s.listDate, today) ?? undefined : undefined
@@ -313,11 +328,11 @@ export async function GET(req: NextRequest) {
 
     // 중복 제거
     const uniqueMap = new Map<string, (typeof symbolsWithNames)[number]>()
-    symbolsWithNames.forEach(item => {
+    symbolsWithNames.forEach((item) => {
       if (!uniqueMap.has(item.symbol)) uniqueMap.set(item.symbol, item)
     })
     const uniqueSymbolsWithNames = Array.from(uniqueMap.values())
-    const symbols = uniqueSymbolsWithNames.map(item => item.symbol)
+    const symbols = uniqueSymbolsWithNames.map((item) => item.symbol)
 
     // 캐시 저장
     CACHE = {
@@ -362,10 +377,36 @@ export async function GET(req: NextRequest) {
     console.error('[KRX symbols] error:', err)
 
     const fallbackSymbols = [
-      '005930.KS','000660.KS','035420.KS','035720.KS','051910.KS','006400.KS','207940.KS','005380.KS','000270.KS',
-      '068270.KS','096770.KS','017670.KS','030200.KS','003550.KS','055550.KS','105560.KS','086790.KS','323410.KS',
-      '009540.KS','010130.KS','247540.KQ','086520.KQ','196170.KQ','091990.KQ','352820.KQ','036570.KQ','251270.KQ',
-      '095340.KQ','039030.KQ','095700.KQ'
+      '005930.KS',
+      '000660.KS',
+      '035420.KS',
+      '035720.KS',
+      '051910.KS',
+      '006400.KS',
+      '207940.KS',
+      '005380.KS',
+      '000270.KS',
+      '068270.KS',
+      '096770.KS',
+      '017670.KS',
+      '030200.KS',
+      '003550.KS',
+      '055550.KS',
+      '105560.KS',
+      '086790.KS',
+      '323410.KS',
+      '009540.KS',
+      '010130.KS',
+      '247540.KQ',
+      '086520.KQ',
+      '196170.KQ',
+      '091990.KQ',
+      '352820.KQ',
+      '036570.KQ',
+      '251270.KQ',
+      '095340.KQ',
+      '039030.KQ',
+      '095700.KQ',
     ]
 
     return NextResponse.json(
@@ -374,7 +415,7 @@ export async function GET(req: NextRequest) {
         cached: false,
         count: fallbackSymbols.length,
         error: err instanceof Error ? err.message : 'Unknown error',
-        fallback: true
+        fallback: true,
       },
       { status: 200 }
     )
