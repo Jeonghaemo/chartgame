@@ -166,3 +166,4 @@ model Score {
 
   @@index([userId, createdAt])
 }
+
