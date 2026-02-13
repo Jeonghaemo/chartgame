@@ -1413,21 +1413,48 @@ useEffect(() => {
     } catch {}
 
     // finish 호출(점수 반영)
-    try {
-      if (!guestMode && gameId) {
-        await fetch('/api/game/finish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            gameId,
-            finalCapital: endCapital,
-            returnPct: finalReturnPct,
-            symbol: (g as any).symbol,
-            endIndex: finalIndex,
-          }),
-        })
-      }
-    } catch {}
+try {
+  const gid =
+    gameId ??
+    readLocal()?.meta?.id ??
+    null
+
+  if (!guestMode && gid) {
+    const finishRes = await fetch('/api/game/finish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gameId: gid,
+        finalCapital: endCapital,
+        returnPct: finalReturnPct,
+        symbol: (g as any).symbol,
+        endIndex: finalIndex,
+      }),
+    })
+
+    if (!finishRes.ok) {
+      const err = await finishRes.json().catch(() => ({}))
+      console.log('finish 실패', finishRes.status, err)
+    } else {
+      // ✅ finish 성공 후: 자본금 강제 재동기화 (새게임/메인에서 바로 반영되게)
+      try {
+        const meRes = await fetch(`/api/me?t=${Date.now()}`, { cache: 'no-store' })
+        if (meRes.ok) {
+          const me = await meRes.json()
+          const newCapital = me?.user?.capital
+          if (typeof newCapital === 'number') {
+            setStartCapital(newCapital)
+            // 여기서 userStore에 capital도 있으면 같이 갱신하는게 베스트
+            // 예) useUserStore.getState().setCapital?.(newCapital)
+          }
+        }
+      } catch {}
+    }
+  }
+} catch (e) {
+  console.log('finish 호출 자체 실패', e)
+}
+
 
     // [변경] finish 이후 현재 순위 재조회 (period=all)
     try {
