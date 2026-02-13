@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
 import AdBannerMobile from "@/components/AdBannerMobile";
+import CalculatorNav from "@/components/CalculatorNav";
 
 function cleanNumber(s: string): number {
   if (!s) return 0;
@@ -157,6 +158,8 @@ export default function CompoundCalculatorPage() {
     </ul>
   </div>
 </header>
+
+<CalculatorNav />
 
 {/* ✅ AdSense 광고 영역 */}
       <div className="my-8">
