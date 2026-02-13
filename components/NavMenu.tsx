@@ -23,9 +23,10 @@ export default function NavMenu() {
   return (
     <nav
       className="
-        flex flex-nowrap items-center justify-center gap-1.5
+        flex flex-nowrap items-center justify-center gap-2
         rounded-2xl bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-100
         p-2 sm:p-1.5 shadow-inner
+        overflow-visible
         font-gowun
       "
     >
@@ -39,28 +40,30 @@ export default function NavMenu() {
             href={m.href}
             aria-current={active ? "page" : undefined}
             className={[
-              // ✅ 4개가 화면폭에 맞춰 동일비율로 줄고, 줄바꿈은 절대 안 함
               "flex-1 min-w-0",
               "flex items-center justify-center gap-1.5",
-              "rounded-lg transition font-medium",
-              // ✅ 모바일 패딩 살짝 축소
-              "px-2 py-2 sm:px-4 sm:py-2",
+              // ⭐ 버튼 높이 고정해서 모바일 존재감 ↑
+              "h-10 sm:h-auto",
+              "rounded-xl transition-all duration-200",
+              // ⭐ 모바일 padding ↑
+              "px-3 py-2 sm:px-4 sm:py-2",
+              // ⭐ 글씨도 살짝 키움
+              "font-semibold",
               active
-                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
+                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md scale-[1.03]"
                 : "text-slate-800 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 hover:shadow",
             ].join(" ")}
           >
             <Icon
               className={[
-                "shrink-0 text-[14px] sm:text-lg",
+                // ⭐ 아이콘 키움
+                "shrink-0 text-[16px] sm:text-lg",
                 active ? "text-white" : m.idleClass,
               ].join(" ")}
             />
 
-            {/* ✅ … 없이: 화면이 좁으면 글자가 자동으로 작아짐 (clamp)
-               - 최소 10px까지 줄고, 넓어지면 최대 16px까지 커짐
-               - whitespace-nowrap으로 2줄 방지 */}
-            <span className="leading-none whitespace-nowrap text-[clamp(10px,2.6vw,16px)] sm:text-base">
+            {/* ⭐ 글자 clamp 범위 상향 */}
+            <span className="leading-none whitespace-nowrap text-[clamp(11px,3vw,15px)] sm:text-base">
               {m.label}
             </span>
           </Link>

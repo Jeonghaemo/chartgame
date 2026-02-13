@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Layers3,
   Calculator,
   Percent,
@@ -23,6 +24,13 @@ type Item = {
 };
 
 const items: Item[] = [
+  // ✅ 차트게임도 다른 메뉴와 동일하게 (active일 때만 파란색)
+  {
+    href: "/game",
+    title: "차트게임",
+    Icon: BarChart3, // ✅ 차트 관련 아이콘으로 교체
+    color: "text-indigo-500",
+  },
   { href: "/calculators/average", title: "평단가", Icon: Layers3, color: "text-sky-500" },
   { href: "/calculators/compound", title: "복리", Icon: Calculator, color: "text-emerald-500" },
   { href: "/calculators/fee", title: "수수료", Icon: Percent, color: "text-fuchsia-500" },
@@ -42,12 +50,14 @@ export default function CalculatorNav() {
   };
 
   return (
-    <div className="w-full overflow-hidden">
+    // ✅ PC 전용
+    <div className="hidden sm:block w-full mb-4">
       <nav
         className="
-          flex flex-nowrap items-center justify-between gap-1
-          rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-100
-          p-2 shadow-inner font-gowun
+          flex flex-nowrap items-center justify-between gap-2
+          rounded-2xl bg-gradient-to-r from-slate-100 via-blue-100 to-slate-200
+          p-3 shadow-lg ring-1 ring-slate-300
+          font-gowun
         "
       >
         {items.map((m) => {
@@ -58,28 +68,27 @@ export default function CalculatorNav() {
             <Link
               key={m.href}
               href={m.href}
+              aria-current={active ? "page" : undefined}
               className={[
                 "flex-1 min-w-0",
-                "flex flex-col items-center justify-center",
-                "gap-[2px] rounded-lg py-2 transition",
+                "flex items-center justify-center gap-2",
+                "rounded-xl px-4 py-2.5",
+                "transition-all duration-200",
+                "font-bold text-[15px]",
+                "hover:scale-[1.05] hover:shadow-md",
                 active
                   ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
-                  : "text-slate-700 hover:bg-blue-100",
+                  : "bg-white text-slate-800 hover:bg-blue-50",
               ].join(" ")}
             >
               <Icon
                 className={[
-                  "shrink-0",
-                  // 아이콘도 자동 크기 반응형
-                  "w-[clamp(14px,3vw,20px)] h-[clamp(14px,3vw,20px)]",
+                  "shrink-0 w-5 h-5",
                   active ? "text-white" : m.color,
                 ].join(" ")}
               />
 
-              {/* ✅ … 없이 자동 글자 축소 */}
-              <span className="whitespace-nowrap text-[clamp(9px,2.4vw,13px)] leading-none">
-                {m.title}
-              </span>
+              <span className="whitespace-nowrap">{m.title}</span>
             </Link>
           );
         })}
