@@ -5,6 +5,7 @@ import { ChevronDown, ArrowLeftRight } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
 import AdBannerMobile from "@/components/AdBannerMobile";
 import CalculatorNav from "@/components/CalculatorNav";
+import CalculatorBottomNav from "@/components/CalculatorBottomNav";
 
 /* ---------- 유틸 ---------- */
 function cleanNumber(s: string): number {
@@ -191,7 +192,9 @@ export default function ExchangeCalculatorPage() {
   };
 
   return (
-    <main className="min-h-[70vh] bg-gray-50">
+  <>
+    <main className="min-h-[70vh] bg-gray-50 pb-24 sm:pb-0">
+
       <div className="mx-auto max-w-5xl px-4 py-8">
         {/* 헤더 */}
 <header className="mb-6 text-center">
@@ -457,6 +460,10 @@ export default function ExchangeCalculatorPage() {
 
 
       </div>
-    </main>
-  );
+      </main>
+
+    {/* ✅ 계산기 페이지에서만: 모바일 하단 고정 네비 */}
+    <CalculatorBottomNav />
+  </>
+);
 }
