@@ -868,92 +868,95 @@ const recentSymbolsRef = useRef<string[]>([])
         writeOhlcToCache(sym, startIndexResp, ohlcResp)
         const closes = ohlcResp.map((d: any) => d.close)
 
-        if (consumeHeart) {
-          const resp = await fetch('/api/game/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal,
-            body: JSON.stringify({
-              code: sym,
-              startIndex: startIndexResp,
-              startCash: capital,
-              feeBps: g.feeBps ?? 5,
-              maxTurns: RESERVED_TURNS,
-              forceNew: true,
-              
-            }),
-          })
+       // ✅ 로그인(게스트 아님)이면 consumeHeart 여부와 상관없이 start를 호출해서 gameId를 확보
+if (!guestMode) {
+  const resp = await fetch('/api/game/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal,
+    body: JSON.stringify({
+      code: sym,
+      startIndex: startIndexResp,
+      startCash: capital,
+      feeBps: g.feeBps ?? 5,
+      maxTurns: RESERVED_TURNS,
+      forceNew: true,     // ✅ 차트변경도 새 게임으로 (재사용 방지)
+      consumeHeart,       // ✅ 새게임=true / 차트변경=false
+    }),
+  })
 
-          if (!resp.ok) {
-            const j = await resp.json().catch(() => ({}))
-            if (!guestMode && j?.error === 'NO_HEART') {
-              setCanStart(false)
-              setHearts(0)
-              alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
-              router.push('/')
-              return
-            }
-            alert('게임 시작 중 오류가 발생했습니다.')
-            return
-          }
+  if (!resp.ok) {
+    const j = await resp.json().catch(() => ({}))
+    if (j?.error === 'NO_HEART') {
+      setCanStart(false)
+      setHearts(0)
+      alert('하트가 부족합니다. 1시간마다 1개씩 충전됩니다. 무료 충전 서비스를 이용하세요!')
+      router.push('/')
+      return
+    }
+    alert('게임 시작 중 오류가 발생했습니다.')
+    return
+  }
 
-          const data = await resp.json()
-          const newGameId = data?.gameId ?? null
-          const confirmedSymbol = data?.symbol ?? sym
-          const confirmedStartIndex = data?.startIndex ?? startIndexResp
-          const confirmedSliceStartTs =
-            typeof data?.sliceStartTs === 'number'
-              ? data.sliceStartTs
-              : (typeof fixedStartTs === 'number' ? fixedStartTs : null)
+  const data = await resp.json()
+  const newGameId = data?.gameId ?? null
+  const confirmedSymbol = data?.symbol ?? sym
+  const confirmedStartIndex = data?.startIndex ?? startIndexResp
 
-          clearLocal()
-setGameId(newGameId)
+  clearLocal()
+  setGameId(newGameId)
 
-          writeLocal(
-            {
-              id: newGameId,
-              symbol: confirmedSymbol,
-              startIndex: confirmedStartIndex,
-              maxTurns: RESERVED_TURNS,
-              feeBps: g.feeBps ?? 5,
-              slippageBps: g.slippageBps ?? 0,
-              startCash: capital,
-              chartChangesLeft: 3,
-              
-            },
-            {
-              cursor: confirmedStartIndex,
-              cash: Math.floor(capital),
-              shares: 0,
-              turn: 0,
-              avgPrice: null,
-              history: [],
-            }
-          )
+  // ✅ 새게임 시작(consumeHeart=true)일 때만 차트변경횟수 3으로 리셋
+  const nextChartChangesLeft =
+    consumeHeart ? 3 : (useGame.getState().chartChangesLeft ?? 0)
 
-          if (typeof data?.hearts === 'number') {
-            setHearts(data.hearts)
-            setCanStart(data.hearts > 0)
-          }
+  writeLocal(
+    {
+      id: newGameId,
+      symbol: confirmedSymbol,
+      startIndex: confirmedStartIndex,
+      maxTurns: RESERVED_TURNS,
+      feeBps: g.feeBps ?? 5,
+      slippageBps: g.slippageBps ?? 0,
+      startCash: capital,
+      chartChangesLeft: nextChartChangesLeft,
+    },
+    {
+      cursor: confirmedStartIndex,
+      cash: Math.floor(capital),
+      shares: 0,
+      turn: 0,
+      avgPrice: null,
+      history: [],
+    }
+  )
 
-          useGame.setState({ chartChangesLeft: 3 })
+  if (typeof data?.hearts === 'number') {
+    setHearts(data.hearts)
+    setCanStart(data.hearts > 0)
+  }
 
-          g.init({
-            symbol: confirmedSymbol,
-            prices: closes,
-            startIndex: confirmedStartIndex,
-            maxTurns: RESERVED_TURNS,
-            feeBps: g.feeBps ?? 5,
-            slippageBps: g.slippageBps ?? 0,
-            startCash: capital,
-          })
+  if (consumeHeart) {
+    useGame.setState({ chartChangesLeft: 3 })
+  }
 
-          ;(g as any).setCursor?.(confirmedStartIndex)
-          setSymbolLabel(await resolveLabel(confirmedSymbol))
-          setChartKey(k => k + 1)
-          restoringRef.current = false
-          return
-        }
+  g.init({
+    symbol: confirmedSymbol,
+    prices: closes,
+    startIndex: confirmedStartIndex,
+    maxTurns: RESERVED_TURNS,
+    feeBps: g.feeBps ?? 5,
+    slippageBps: g.slippageBps ?? 0,
+    startCash: capital,
+  })
+
+  ;(g as any).setCursor?.(confirmedStartIndex)
+  setSymbolLabel(await resolveLabel(confirmedSymbol))
+  setChartKey(k => k + 1)
+  restoringRef.current = false
+  return
+}
+
 
         // 비소모 경로(게스트 포함)
         g.init({
@@ -1017,7 +1020,7 @@ setGameId(newGameId)
       alert('차트 변경은 시작 직후(턴 0, 매수 전)에만 가능합니다.')
       return
     }
-    setGameId(null)
+    
     let uni = universeRef.current
     if (!uni || uni.length === 0) {
       uni = await loadUniverseWithNames()

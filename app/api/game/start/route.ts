@@ -13,7 +13,8 @@ export async function POST(req: Request) {
     const userId = session.user.id
 
     const body = await req.json().catch(() => ({} as any))
-    const { symbol, code, startIndex, startCash, feeBps, maxTurns, forceNew } = body ?? {}
+    const { symbol, code, startIndex, startCash, feeBps, maxTurns, forceNew, consumeHeart } = body ?? {}
+    const shouldConsumeHeart = consumeHeart !== false // 기본 true
     const gameCode: string = String(code ?? symbol ?? '').trim()
     if (!gameCode) {
       return NextResponse.json({ error: 'BAD_CODE' }, { status: 400 })
@@ -31,9 +32,12 @@ export async function POST(req: Request) {
           select: { hearts: true }
         })
         const hearts = currentUser?.hearts ?? 0
-        if (!currentUser || hearts <= 0) {
-          return { type: 'NO_HEART' as const }
-        }
+if (!currentUser) {
+  return { type: 'NO_USER' as const }
+}
+if (shouldConsumeHeart && hearts <= 0) {
+  return { type: 'NO_HEART' as const }
+}
 
         // 2) 기존 게임 재사용 (forceNew가 아닌 경우에만)
         if (!forceNew) {
@@ -59,16 +63,22 @@ export async function POST(req: Request) {
         }
 
         // 3) 하트 차감 (조건부 업데이트로 동시성 안전)
-        const updated = await tx.user.update({
-          where: { id: userId, AND: [{ hearts: { gt: 0 } }] },
-          data: { hearts: { decrement: 1 } },
-          select: { hearts: true },
-        }).catch(() => null)
+        let updatedHearts = hearts
 
-        if (!updated) {
-          // 직전 동시요청이 먼저 소모했을 가능성
-          return { type: 'NO_HEART' as const }
-        }
+if (shouldConsumeHeart) {
+  const updated = await tx.user.update({
+    where: { id: userId, AND: [{ hearts: { gt: 0 } }] },
+    data: { hearts: { decrement: 1 } },
+    select: { hearts: true },
+  }).catch(() => null)
+
+  if (!updated) {
+    return { type: 'NO_HEART' as const }
+  }
+
+  updatedHearts = updated.hearts
+}
+
 
         // 4) 새 게임 생성
         // sliceStartTs는 클라이언트에서 명시적으로 준 경우에만 사용 (그 외에는 null)
@@ -89,10 +99,11 @@ const sliceStartTs = null;
         })
 
         return {
-          type: 'NEW' as const,
-          game,
-          hearts: updated.hearts,
-        }
+  type: 'NEW' as const,
+  game,
+  hearts: updatedHearts,
+}
+
       }, { isolationLevel: 'Serializable' })
     }
 
@@ -111,9 +122,13 @@ const sliceStartTs = null;
       return NextResponse.json({ error: 'INTERNAL' }, { status: 500 })
     }
 
-    if (result.type === 'NO_HEART') {
-      return NextResponse.json({ error: 'NO_HEART' }, { status: 400 })
-    }
+    if (result.type === 'NO_USER') {
+  return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+}
+if (result.type === 'NO_HEART') {
+  return NextResponse.json({ error: 'NO_HEART' }, { status: 400 })
+}
+
 
     if (result.type === 'REUSE') {
       return NextResponse.json({
